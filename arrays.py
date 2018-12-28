@@ -24,6 +24,11 @@ def group_consecutives(vals, maxDiff=1, min_streak=None):
         return keep
 
 
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
 # def group_consecutives(vals, stepsize=1, min_streak=None):
 #     """Return list of consecutive lists of numbers from vals (number list).
 

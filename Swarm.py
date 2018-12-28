@@ -57,10 +57,11 @@ def getMagFTP(sat='A', date=None):
                 print("Done!")
             except:
                 print("Couldn't get mag file!")
+
+        ftp.close()
+
     else:
         print("Already have " + magHRFile + '!')
-
-    ftp.close()
 
 
 def getLPFTP(sat='A', date=None):
@@ -71,6 +72,8 @@ def getLPFTP(sat='A', date=None):
     EFILPdir = '/Level1b/Entire_mission_data/EFIx_LP/Sat_'+sat+'/'
     EFILPPref = 'SW_OPER_EFI'+sat+'_LP_1B_'
     # EFILPFile = EFILPPref + date + 'T101113_'+date+'T140109_0501.CDF.ZIP'
+
+    EFILPFile = None
 
     ftp = ftplib.FTP(swarmFTPAddr)
     ftp.login()                 # Anonymous
@@ -83,6 +86,10 @@ def getLPFTP(sat='A', date=None):
             EFILPFile = f
             break
 
+    if EFILPFile is None:
+        print("Found no file! Exiting ...")
+        return
+
     if not os.path.isfile(outLPDir + EFILPFile):
 
         with open(outLPDir+EFILPFile, "wb") as getFile:
@@ -92,7 +99,8 @@ def getLPFTP(sat='A', date=None):
                 print("Done!")
             except:
                 print("Couldn't get EFI file!")
+
+        ftp.close()
+
     else:
         print("Already have " + EFILPFile + '!')
-
-    ftp.close()
