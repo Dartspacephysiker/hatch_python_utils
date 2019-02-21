@@ -29,6 +29,39 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx
 
+
+def get_streaks(array, minNStreak=None, maxGap=1):
+
+    start_i = -1
+    stop_i = -1
+    streakLens = -1
+
+    if not np.array_equal(array, np.sort(array)):
+        print("Bogus array! You need to sort")
+        return start_i, stop_i, streakLens
+
+    aSize = array.size
+    if not isinstance(aSize, int):
+        if len(aSize) > 1:
+            print("Multi-d array! Don't know what to do ...")
+            return start_i, stop_i, streakLens
+
+    diff = np.diff(array)
+    splitPoints = np.where(diff >= maxGap)[0]
+    start_i = np.append(np.array([0]), splitPoints+1)
+    stop_i = np.append(splitPoints, np.array([array.size-1]))
+
+    streakLens = stop_i - start_i
+
+    if minNStreak is not None:
+        keep_ii = np.where(streakLens >= minNStreak)[0]
+
+        start_i = start_i[keep_ii]
+        stop_i = stop_i[keep_ii]
+        streakLens = streakLens[keep_ii]
+
+    return start_i, stop_i, streakLens
+
 # def group_consecutives(vals, stepsize=1, min_streak=None):
 #     """Return list of consecutive lists of numbers from vals (number list).
 
