@@ -1,3 +1,47 @@
+import numpy as np
+
+
+def earthSunDist(doy):
+    """
+    https://physics.stackexchange.com/questions/177949/earth-sun-distance-on-a-given-day-of-the-year
+
+    This is an approximate expression. Term by term,
+
+    1       : The mean distance between the Earth and the Sun is about one
+    astronomical unit.
+
+    0.01672 : This is the eccentricity of the Earth's about about the Sun.
+
+    cos     : This is of course the cosine function, but with argument in 
+              degrees rather than radians.
+
+    0.9856  : This is 360/365.256363, where 360 is the number of degrees in a
+              full rotation and 365.256363 is the length of a sidereal year, in
+              mean solar days.
+
+    doy     : This is the day number of the year. Since this is an approximate
+              expression, whether one starts with the first of January being
+              zero or one is irrelevant.
+
+    4       : The Earth currently reaches perihelion between the fourth and sixth of
+              January, depending on the year.
+
+    RETURNS : Earth-Sun distance as a fraction of 1 AU (= 149,597,871 km)
+
+    *********************
+    Example
+    *********************
+    import numpy as np
+    from hatch_python_utils import earth as he
+    figD = plt.figure()
+    axD = plt.subplot(1,1,1)
+
+    doys = np.arange(1,365)
+    junk = axD.plot(doys,he.earthSunDist(doys))
+    """
+    return 1-0.01672*np.cos(np.deg2rad(0.9856*(doy-4)))
+
+
 def sphDist(lat1, mlt1, lat2, mlt2):
     """
     Great-circle distance
