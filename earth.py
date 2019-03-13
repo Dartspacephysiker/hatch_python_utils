@@ -1,4 +1,5 @@
 import numpy as np
+import igrf12
 
 
 def earthSunDist(doy):
@@ -56,3 +57,30 @@ def sphDist(lat1, mlt1, lat2, mlt2):
     mlt2R = np.deg2rad(mlt2*15.)
 
     return np.rad2deg(np.arccos(np.sin(lat1R)*np.sin(lat2R)+np.cos(lat1R)*np.cos(lat2R)*np.cos(np.abs(mlt1R-mlt2R))))
+
+# def get_igrf_field(datetimes,geolat,geolon,gdalt_km):
+
+#     quiet = False
+#     isv = 0
+#     itype = 1
+#     if not quiet:
+#         print("Getting IGRF ...")
+
+#     # glat, glon: geographic Latitude, Longitude
+#     # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
+#     igrf = igrf12.gridigrf12(datetimes,
+#                              # glat=dfMInterp.gdlat,
+#                              glat=geolat,
+#                              glon=geolon,
+#                              alt_km=gdalt_km, isv=isv, itype=itype)
+
+# # geodeticheight2geocentricR(lat, height)
+
+
+#     gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geolat,
+#                                                    dfMInterp["Radius"].values/1000.,
+#                                                    -igrf.north.values, -igrf.down.values)
+#     igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
+#                       2. + igrf.down.values**2.)
+
+#     return
