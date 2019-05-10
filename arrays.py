@@ -105,6 +105,75 @@ def get_streaks(array, minNStreak=None, maxGap=1):
 # #         expect = v + step
 # #     return result
 
+# getIndices = lambda seq, vals: np.array([(np.abs(seq-val)).argmin() for val in vals])
+
+def getIndices(seq, vals):
+    return np.array([(np.abs(seq-val)).argmin() for val in vals])
+
+
+def value_locate(seq, vals):
+    """
+    Tilsvarer IDL'S VALUE_LOCATE
+    """
+    return getIndices(seq, vals)
+
+
+def windowmaker(winsize, winslide, totSec,
+                sample_rate_Hz=1,
+                verbose=False):
+
+    nslides = np.ceil((totSec) / (winslide/sample_rate_Hz))+1
+
+    startSecs = []
+    stopSecs = []
+    frontDupes = []
+    backDupes = []
+
+    winslideSec = winslide/sample_rate_Hz
+    halfwinSec = winsize/2/sample_rate_Hz
+
+    for i in range(int(nslides)):
+        # startSec = i*winslide - halfwin
+        startSec = i*winslideSec - halfwinSec
+
+        toStartSec = 0
+        toFrontOfStopSec = 0
+
+        if startSec < 0:
+            toFrontOfStopSec = -startSec
+            startSec = 0
+        # stopSec = i*winslide + halfwin + toFrontOfStopSec
+        stopSec = i*winslideSec + halfwinSec + toFrontOfStopSec
+
+        if stopSec > totSec:
+            assert toFrontOfStopSec == 0, "Bad!"
+            # print("Bad!")
+            # break
+            # else:
+            toStartSec = totSec-stopSec
+            stopSec = totSec
+            startSec += toStartSec
+
+        startSecs.append(startSec)
+        stopSecs.append(stopSec)
+
+        if verbose:
+            print("{:3d} {:7.2f} {:7.2f} {:7.2f}".format(
+                i, startSec, stopSec, startSec+stopSec))
+
+    startSecs, stopSecs = np.array(startSecs), np.array(stopSecs)
+
+    dupeFront = startSecs == startSecs[0]
+    dupeBack = stopSecs == stopSecs[-1]
+    dupeFront[0] = False
+    dupeBack[-1] = False
+
+    startSecs = startSecs[(~dupeFront) & (~dupeBack)]
+    stopSecs = stopSecs[(~dupeFront) & (~dupeBack)]
+
+    return startSecs, stopSecs
+
+
 def bruteNMin(this, nMinsWant,
               quiet=True):
     """
