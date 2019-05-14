@@ -35,11 +35,17 @@ def load_2015_corr_db(date=None):
     return dats
 
 
-def getMagFTP(sat='A', date=None):
+def getMagFTP(sat='A',
+              date=None,
+              # outMagDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/MAG_HR/'):
+              outMagDir='/media/spencerh/data/Swarm/'):
+    # Swarm_A/SW_OPER_MAGA_
+
+    outMagDir += 'Swarm_'+sat+'/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
     # outDir = '/SPENCEdata/Research/Satellites/Swarm/rawFTP/'
-    outMagDir = '/SPENCEdata/Research/Satellites/Swarm/rawFTP/MAG_HR/'
+    # outMagDir =
 
     magHRDir = '/Level1b/Entire_mission_data/MAGx_HR/Sat_'+sat+'/'
     magHRPref = 'SW_OPER_MAG'+sat+'_HR_1B_'
@@ -64,10 +70,14 @@ def getMagFTP(sat='A', date=None):
         print("Already have " + magHRFile + '!')
 
 
-def getLPFTP(sat='A', date=None):
+def getLPFTP(sat='A',
+             date=None,
+             # outLPDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'):
+             outLPDir='/media/spencerh/data/Swarm/'):
+
+    outLPDir += 'Swarm_'+sat+'_EFI_LP/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
-    outLPDir = '/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'
 
     EFILPdir = '/Level1b/Entire_mission_data/EFIx_LP/Sat_'+sat+'/'
     EFILPPref = 'SW_OPER_EFI'+sat+'_LP_1B_'
