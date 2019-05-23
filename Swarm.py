@@ -36,81 +36,210 @@ def load_2015_corr_db(date=None):
 
 
 def getMagFTP(sat='A',
-              date=None,
-              # outMagDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/MAG_HR/'):
-              outMagDir='/media/spencerh/data/Swarm/'):
+              dates=None,
+              # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/MAG_HR/'):
+              localSaveDir='/media/spencerh/data/Swarm/'):
     # Swarm_A/SW_OPER_MAGA_
 
-    outMagDir += 'Swarm_'+sat+'/'
+    localSaveDir += 'Swarm_'+sat+'/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
     # outDir = '/SPENCEdata/Research/Satellites/Swarm/rawFTP/'
-    # outMagDir =
+    # localSaveDir =
 
-    magHRDir = '/Level1b/Entire_mission_data/MAGx_HR/Sat_'+sat+'/'
-    magHRPref = 'SW_OPER_MAG'+sat+'_HR_1B_'
-    magHRFile = magHRPref+date+'T000000_'+date+'T235959_0505.CDF.ZIP'
+    subDir = '/Level1b/Entire_mission_data/MAGx_HR/Sat_'+sat+'/'
 
-    if not os.path.isfile(outMagDir + magHRFile):
-        ftp = ftplib.FTP(swarmFTPAddr)
-        ftp.login()                 # Anonymous
-        ftp.cwd(magHRDir)
+    _getFTP_dateGlob(dates, localSaveDir, subDir)
 
-        with open(outMagDir+magHRFile, "wb") as getFile:
-            print("Trying to get " + magHRFile + ' ...')
-            try:
-                ftp.retrbinary("RETR " + magHRFile, getFile.write)
-                print("Done!")
-            except:
-                print("Couldn't get mag file!")
+    # ftpFilePref = 'SW_OPER_MAG'+sat+'_HR_1B_'
+    # ftpFile = ftpFilePref+date+'T000000_'+date+'T235959_0505.CDF.ZIP'
 
-        ftp.close()
+    # if not os.path.isfile(localSaveDir + ftpFile):
+    #     ftp = ftplib.FTP(swarmFTPAddr)
+    #     ftp.login()                 # Anonymous
+    #     ftp.cwd(subDir)
 
-    else:
-        print("Already have " + magHRFile + '!')
+    #     with open(localSaveDir+ftpFile, "wb") as getFile:
+    #         print("Trying to get " + ftpFile + ' ...')
+    #         try:
+    #             ftp.retrbinary("RETR " + ftpFile, getFile.write)
+    #             print("Done!")
+    #         except:
+    #             print("Couldn't get mag file!")
+
+    #     ftp.close()
+
+    # else:
+    #     print("Already have " + ftpFile + '!')
 
 
 def getLPFTP(sat='A',
-             date=None,
-             # outLPDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'):
-             outLPDir='/media/spencerh/data/Swarm/'):
+             dates=None,
+             # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'):
+             localSaveDir='/media/spencerh/data/Swarm/'):
 
-    outLPDir += 'Swarm_'+sat+'_EFI_LP/'
+    localSaveDir += 'Swarm_'+sat+'_EFI_LP/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
 
-    EFILPdir = '/Level1b/Entire_mission_data/EFIx_LP/Sat_'+sat+'/'
-    EFILPPref = 'SW_OPER_EFI'+sat+'_LP_1B_'
-    # EFILPFile = EFILPPref + date + 'T101113_'+date+'T140109_0501.CDF.ZIP'
+    subDir = '/Level1b/Entire_mission_data/EFIx_LP/Sat_'+sat+'/'
 
-    EFILPFile = None
+    _getFTP_dateGlob(dates, localSaveDir, subDir)
+
+    # ftpFilePref = 'SW_OPER_EFI'+sat+'_LP_1B_'
+    # ftpFile = ftpFilePref + date + 'T101113_'+date+'T140109_0501.CDF.ZIP'
+
+    # ftpFile = None
+
+    # ftp = ftplib.FTP(swarmFTPAddr)
+    # ftp.login()                 # Anonymous
+    # ftp.cwd(subDir)
+
+    # filz = ftp.nlst(subDir)
+    # for f in filz:
+    #     if fnmatch.fnmatch(f, '*'+date+'*'):
+    #         print(f)
+    #         ftpFile = f
+    #         break
+
+    # if ftpFile is None:
+    #     print("Found no file! Exiting ...")
+    #     return
+
+    # if not os.path.isfile(localSaveDir + ftpFile):
+
+    #     with open(localSaveDir+ftpFile, "wb") as getFile:
+    #         print("Trying to get " + ftpFile + ' ...')
+    #         try:
+    #             ftp.retrbinary("RETR " + ftpFile, getFile.write)
+    #             print("Done!")
+    #         except:
+    #             print("Couldn't get EFI file!")
+
+    #     ftp.close()
+
+    # else:
+    #     print("Already have " + ftpFile + '!')
+
+
+def getFPFTP(sat='A',
+             dates=None,
+             localSaveDir='/media/spencerh/data/Swarm/'):
+    """
+    Get a faceplate file
+    """
+
+    localSaveDir += 'Swarm_'+sat+'_EFI_Faceplate_dens/'
+
+    swarmFTPAddr = "swarm-diss.eo.esa.int"
+
+    subDir = '/Advanced/Plasma_Data/16_Hz_Faceplate_plasma_density/Sat_'+sat+'/'
+
+    # EXAMPLE: SW_EXTD_EFIA_LP_FP_20141002T092332_20141002T235958_0102.CDF
+    # weirdSuff = '0102'
+    # ftpFilePref = 'SW_EXTD_EFI'+sat+'_LP_FP_'
+
+    _getFTP_dateGlob(dates, localSaveDir, subDir)
+
+    # ftpFile = None
+
+    # ftp = ftplib.FTP(swarmFTPAddr)
+    # ftp.login()                 # Anonymous
+    # ftp.cwd(subDir)
+
+    # filz = ftp.nlst(subDir)
+    # for f in filz:
+    #     if fnmatch.fnmatch(f, '*'+date+'*'):
+    #         print(f)
+    #         ftpFile = f
+    #         break
+
+    # if ftpFile is None:
+    #     print("Found no file! Exiting ...")
+    #     return
+
+    # if not os.path.isfile(localSaveDir + ftpFile):
+
+    #     with open(localSaveDir+ftpFile, "wb") as getFile:
+    #         print("Trying to get " + ftpFile + ' ...')
+    #         try:
+    #             ftp.retrbinary("RETR " + ftpFile, getFile.write)
+    #             print("Done!")
+    #         except:
+    #             print("Couldn't get FP file!")
+
+    #     ftp.close()
+
+    # else:
+    #     print("Already have " + ftpFile + '!')
+
+
+def _getFTP_dateGlob(dates, localSaveDir, subDir):
+    """
+    Get a Swarm FTP file, genericizliaed
+    """
+
+    swarmFTPAddr = "swarm-diss.eo.esa.int"
 
     ftp = ftplib.FTP(swarmFTPAddr)
     ftp.login()                 # Anonymous
-    ftp.cwd(EFILPdir)
+    ftp.cwd(subDir)
 
-    filz = ftp.nlst(EFILPdir)
-    for f in filz:
-        if fnmatch.fnmatch(f, '*'+date+'*'):
-            print(f)
-            EFILPFile = f
-            break
+    filz = ftp.nlst(subDir)
+    ftpFiles = []
 
-    if EFILPFile is None:
+    if isinstance(dates, str):
+        dates = [dates]
+    else:
+        assert isinstance(
+            dates, list), "Must provide list of date strings or a single date string (YYYYMMDD format)!"
+
+    # Pick up all the files that match provided dates
+    for date in dates:
+
+        for f in filz:
+            if fnmatch.fnmatch(f, '*'+date+'*'):
+                # print(f)
+                ftpFiles.append(f)
+                break
+
+    # If no files found, exit
+    if len(ftpFiles) == 0:
         print("Found no file! Exiting ...")
+        ftp.close()
         return
 
-    if not os.path.isfile(outLPDir + EFILPFile):
+    # Junk the already-havers
+    # ftpNotHavers = [ftpFile in ftpFiles if not os.path.isfile(localSaveDir + ftpFile)]
+    ftpNotHavers = []
+    for ftpFile in ftpFiles:
+        if not os.path.isfile(localSaveDir + ftpFile):
+            ftpNotHavers.append(ftpFile)
 
-        with open(outLPDir+EFILPFile, "wb") as getFile:
-            print("Trying to get " + EFILPFile + ' ...')
-            try:
-                ftp.retrbinary("RETR " + EFILPFile, getFile.write)
-                print("Done!")
-            except:
-                print("Couldn't get EFI file!")
-
+    if len(ftpNotHavers) == 0:
+        print("Already have all {:d} files for {:d} date(s) provided! Exiting ...".format(
+            len(ftpFiles), len(dates)))
         ftp.close()
+        return
 
-    else:
-        print("Already have " + EFILPFile + '!')
+    print("Found {:d} files for the {:d} date(s) provided ({:d} are already downloaded)".format(
+        len(ftpFiles), len(dates), len(ftpFiles)-len(ftpNotHavers)))
+
+    # Get all matching files
+    for ftpFile in ftpNotHavers:
+
+        # Make sure we don't already have file
+        if not os.path.isfile(localSaveDir + ftpFile):
+
+            with open(localSaveDir+ftpFile, "wb") as getFile:
+                print("Trying to get " + ftpFile + ' ...')
+                try:
+                    ftp.retrbinary("RETR " + ftpFile, getFile.write)
+                    print("Done!")
+                except:
+                    print("Couldn't get "+ftpFile+"!")
+
+        else:
+            print("Already have " + ftpFile + '!')
+
+    ftp.close()
