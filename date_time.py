@@ -2,6 +2,7 @@
 # Velg denne dag
 import random
 import time
+from datetime import datetime
 
 
 def strTimeProp(start, end, format, prop):
@@ -31,3 +32,11 @@ def strTimeProp(start, end, format, prop):
     ptime = stime + prop * (etime - stime)
 
     return time.strftime(format, time.localtime(ptime))
+
+
+def cdf_epoch_to_utc(cdf_epochs):
+    return (cdf_epochs-62167219200000.0000)/1000.0
+
+
+def cdf_epoch_to_datetime(cdf_epochs):
+    return [datetime.utcfromtimestamp(utc) for utc in cdf_epoch_to_utc(cdf_epochs)]

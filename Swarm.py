@@ -1,6 +1,7 @@
 import ftplib
 import os.path
 import fnmatch
+from datetime import datetime
 
 
 def load_2015_corr_db(date=None):
@@ -49,7 +50,9 @@ def getMagFTP(sat='A',
 
     subDir = '/Level1b/Entire_mission_data/MAGx_HR/Sat_'+sat+'/'
 
-    _getFTP_dateGlob(dates, localSaveDir, subDir)
+    gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir)
+
+    return gotFiles
 
     # ftpFilePref = 'SW_OPER_MAG'+sat+'_HR_1B_'
     # ftpFile = ftpFilePref+date+'T000000_'+date+'T235959_0505.CDF.ZIP'
@@ -84,7 +87,9 @@ def getLPFTP(sat='A',
 
     subDir = '/Level1b/Entire_mission_data/EFIx_LP/Sat_'+sat+'/'
 
-    _getFTP_dateGlob(dates, localSaveDir, subDir)
+    gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir)
+
+    return gotFiles
 
     # ftpFilePref = 'SW_OPER_EFI'+sat+'_LP_1B_'
     # ftpFile = ftpFilePref + date + 'T101113_'+date+'T140109_0501.CDF.ZIP'
@@ -139,7 +144,9 @@ def getFPFTP(sat='A',
     # weirdSuff = '0102'
     # ftpFilePref = 'SW_EXTD_EFI'+sat+'_LP_FP_'
 
-    _getFTP_dateGlob(dates, localSaveDir, subDir)
+    gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir)
+
+    return gotFiles
 
     # ftpFile = None
 
@@ -207,7 +214,7 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir):
     if len(ftpFiles) == 0:
         print("Found no file! Exiting ...")
         ftp.close()
-        return
+        return None
 
     # Junk the already-havers
     # ftpNotHavers = [ftpFile in ftpFiles if not os.path.isfile(localSaveDir + ftpFile)]
@@ -220,7 +227,7 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir):
         print("Already have all {:d} files for {:d} date(s) provided! Exiting ...".format(
             len(ftpFiles), len(dates)))
         ftp.close()
-        return
+        return ftpFiles
 
     print("Found {:d} files for the {:d} date(s) provided ({:d} are already downloaded)".format(
         len(ftpFiles), len(dates), len(ftpFiles)-len(ftpNotHavers)))
@@ -230,6 +237,9 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir):
 
         # Make sure we don't already have file
         if not os.path.isfile(localSaveDir + ftpFile):
+
+            if not os.path.isdir(localSaveDir):
+                os.mkdir(localSaveDir)
 
             with open(localSaveDir+ftpFile, "wb") as getFile:
                 print("Trying to get " + ftpFile + ' ...')
@@ -243,3 +253,17 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir):
             print("Already have " + ftpFile + '!')
 
     ftp.close()
+
+    return ftpFiles
+
+
+def getFPFileDateRange(fName):
+    """
+    Skal begynne med 'SW_EXTD_EFIA_LP_FP_'
+    """
+    yr0, mo0, day0 = int(fName[19:23]), int(fName[23:25]), int(fName[25:27])
+    hr0, min0, sec0 = int(fName[28:30]), int(fName[30:32]), int(fName[32:34])
+    yr1, mo1, day1 = int(fName[35:39]), int(fName[39:41]), int(fName[41:43])
+    hr1, min1, sec1 = int(fName[44:46]), int(fName[46:48]), int(fName[48:50])
+    return [datetime(yr0, mo0, day0, hr0, min0, sec0),
+            datetime(yr1, mo1, day1, hr1, min1, sec1)]
