@@ -15,6 +15,19 @@ def babyFunc2(a, mlon, datime):
     return mlt
 
 
+def ECEFtoENUMatrix(lon,gdlat):
+
+    lamb = np.deg2rad(lon)
+    phi  = np.deg2rad(gdlat)
+
+    return np.stack([np.vstack([-np.sin(lamb)            , np.cos(lamb)            ,np.zeros(lamb.size)]),
+		     np.vstack([-np.sin(phi)*np.cos(lamb),-np.sin(phi)*np.sin(lamb),np.cos(phi)        ]),
+		     np.vstack([ np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb),np.sin(phi)        ])])
+
+    # return np.vstack([[-np.sin(lamb)            , np.cos(lamb)            ,0          ],
+    #                   [-np.sin(phi)*np.cos(lamb),-np.sin(phi)*np.sin(lamb),np.cos(phi)],
+    #                   [ np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb),np.sin(phi)]])
+
 def geodetic2apex(*args,
                   apexRefTime=datetime(2012, 1, 1),
                   apexRefHeight_km=110,

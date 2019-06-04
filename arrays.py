@@ -3,11 +3,12 @@ import numpy as np
 
 r2d = 180/np.pi
 
+
 def isSorted(array):
-    return np.array_equal(array,np.sort(array))
+    return np.array_equal(array, np.sort(array))
 
 
-def group_consecutives(vals, maxDiff=1, min_streak=None):
+def group_consecutives(vals, maxDiff=1, min_streak=None, do_absDiff=False):
     """Return list of consecutive lists of numbers from vals (number list).
 
     av https://stackoverflow.com/questions/7352684/
@@ -16,7 +17,10 @@ def group_consecutives(vals, maxDiff=1, min_streak=None):
     En dag du skulle legge til en parameter som tar hensyn til streak-størrelse
     """
 
-    this = np.split(vals, np.where(np.diff(vals) > maxDiff)[0]+1)
+    if do_absDiff:
+        this = np.split(vals, np.where(np.abs(np.diff(vals)) > maxDiff)[0]+1)
+    else:
+        this = np.split(vals, np.where(np.diff(vals) > maxDiff)[0]+1)
 
     if min_streak is None:
         return this
