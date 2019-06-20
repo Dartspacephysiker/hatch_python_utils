@@ -15,25 +15,31 @@ def babyFunc2(a, mlon, datime):
     return mlt
 
 
-def ECEFtoENUMatrix(lon,gdlat):
+def ECEFtoENUMatrix(lon, gdlat):
 
     lamb = np.deg2rad(lon)
-    phi  = np.deg2rad(gdlat)
+    phi = np.deg2rad(gdlat)
 
-    return np.stack([np.vstack([-np.sin(lamb)            , np.cos(lamb)            ,np.zeros(lamb.size)]),
-		     np.vstack([-np.sin(phi)*np.cos(lamb),-np.sin(phi)*np.sin(lamb),np.cos(phi)        ]),
-		     np.vstack([ np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb),np.sin(phi)        ])])
+    return np.stack([np.vstack([-np.sin(lamb), np.cos(lamb), np.zeros(lamb.size)]),
+                     np.vstack([-np.sin(phi)*np.cos(lamb), -
+                                np.sin(phi)*np.sin(lamb), np.cos(phi)]),
+                     np.vstack([np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb), np.sin(phi)])])
 
     # return np.vstack([[-np.sin(lamb)            , np.cos(lamb)            ,0          ],
     #                   [-np.sin(phi)*np.cos(lamb),-np.sin(phi)*np.sin(lamb),np.cos(phi)],
     #                   [ np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb),np.sin(phi)]])
+
 
 def geodetic2apex(*args,
                   apexRefTime=datetime(2012, 1, 1),
                   apexRefHeight_km=110,
                   quiet=False,
                   nancheck=False,
-                  returnPandas=True):
+                  returnPandas=True,
+                  return_apex_d_basevecs=False,
+                  return_apex_e_basevecs=False,
+                  return_apex_f_basevecs=False,
+                  return_apex_g_basevecs=False):
     """
     geodetic2apex(gdlat, gdlon, gdalt_km[, times])
     gdlat, gdlon in degrees
@@ -114,6 +120,41 @@ def geodetic2apex(*args,
             gdlat[nanners] = np.nan
             gdalt_km[nanners] = np.nan
 
+    returnList = [mlat, mlon, mapratio]
+    rListNames = ['mlat', 'mlon', 'mapratio']
+
+    # if return_apex_basevecs:
+
+    if return_apex_d_basevecs:
+        returnList = returnList + [d1[0, ], d1[1, ], d1[2, ],
+                                   d2[0, ], d2[1, ], d2[2, ],
+                                   d3[0, ], d3[1, ], d3[2, ]]
+        rListNames = rListNames + ['d10', 'd11', 'd12',
+                                   'd20', 'd21', 'd22',
+                                   'd30', 'd31', 'd32']
+
+    if return_apex_e_basevecs:
+        returnList = returnList + [e1[0, ], e1[1, ], e1[2, ],
+                                   e2[0, ], e2[1, ], e2[2, ],
+                                   e3[0, ], e3[1, ], e3[2, ]]
+        rListNames = rListNames + ['e10', 'e11', 'e12',
+                                   'e20', 'e21', 'e22',
+                                   'e30', 'e31', 'e32']
+    if return_apex_f_basevecs:
+        returnList = returnList + [f1[0, ], f1[1, ], f1[2, ],
+                                   f2[0, ], f2[1, ], f2[2, ],
+                                   f3[0, ], f3[1, ], f3[2, ]]
+        rListNames = rListNames + ['f10', 'f11', 'f12',
+                                   'f20', 'f21', 'f22',
+                                   'f30', 'f31', 'f32']
+    if return_apex_g_basevecs:
+        returnList = returnList + [g1[0, ], g1[1, ], g1[2, ],
+                                   g2[0, ], g2[1, ], g2[2, ],
+                                   g3[0, ], g3[1, ], g3[2, ]]
+        rListNames = rListNames + ['g10', 'g11', 'g12',
+                                   'g20', 'g21', 'g22',
+                                   'g30', 'g31', 'g32']
+
     # dfMInterp.loc[:, 'e10'] = e1[0, ]
     # dfMInterp.loc[:, 'e11'] = e1[1, ]
     # dfMInterp.loc[:, 'e12'] = e1[2, ]
@@ -123,8 +164,6 @@ def geodetic2apex(*args,
 
     # output?
     # mlat,mlon,mapratio[,mlt],igrf.east,XIGRF(northGeodetic),-ZIGRF(upGeodetic),igrfMag
-    returnList = [mlat, mlon, mapratio]
-    rListNames = ['mlat', 'mlon', 'mapratio']
 
     if canDoMLT:
         returnList.append(mlt)
