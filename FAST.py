@@ -188,6 +188,249 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir):
     return ftpLocals
 
 
+# This one is for TEAMS cdfs
+class TEAMSdata:
+
+    class TEAMSstruct:
+        def __init__(self, bigdata, index):
+
+            if index > bigdata.nStruct:
+                print("Can't use index={:d} (only {:d} structs possible)! Returning ...".format(
+                    index, bigdata.nStruct))
+                return None
+
+            self.valid = bigdata.valid[index]
+            self.data_name = bigdata.data_name[index]
+
+            # Time stuff
+            self.time = bigdata.time[index]
+            self.end_time = bigdata.end_time[index]
+            self.integ_t = bigdata.integ_t[index]
+            self.delta_time = bigdata.delta_time[index]
+
+            # Units and mass stuff
+            self.units_name = bigdata.units_name[index].decode("utf-8")
+            self.units_procedure = bigdata.units_procedure[index].decode(
+                "utf-8")
+            self.project_name = bigdata.project_name[index].decode("utf-8")
+            self.mass = bigdata.mass[index]
+
+            # Data stuff
+            self.nenergy = bigdata.nenergy[index]
+            self.nbins = bigdata.nbins[index]
+            self.orbit = bigdata.orbit[index]
+            self.geomfactor = bigdata.geomfactor[index]
+
+            self.data = bigdata.data[:, :, index]
+            self.energy = bigdata.energy[:, :, index]
+            self.theta = bigdata.theta[:, :, index]
+            self.phi = bigdata.phi[:, :, index]
+            self.denergy = bigdata.denergy[:, :, index]
+            self.dtheta = bigdata.dtheta[:, index]
+            self.dphi = bigdata.dphi[:, index]
+            self.domega = bigdata.domega[:, index]
+
+            self.geom = bigdata.geom[:, :, index]
+            self.eff = bigdata.eff[:, :, index]
+            self.spin_fract = bigdata.spin_fract[:, :, index]
+
+            self.pt_limits = bigdata.pt_limits[:, index]
+
+            self.alt = bigdata.alt[index]
+            self.mlt = bigdata.mlt[index]
+            self.ilat = bigdata.ilat[index]
+            self.foot_lat = bigdata.foot_lat[index]
+            self.foot_lng = bigdata.foot_lng[index]
+            self.fa_spin_ra = bigdata.fa_spin_ra[index]
+            self.fa_spin_dec = bigdata.fa_spin_dec[index]
+
+            # Housekeeping
+            self.header_bytes = bigdata.header_bytes[index]
+            self.eff_version = bigdata.eff_version[index]
+
+        def __repr__(self):
+            attrs = [a for a in dir(self) if not a.startswith('__')]
+
+            def stringOutput(a):
+                if hasattr(getattr(self, a), 'shape'):
+                    if getattr(self, a).shape:
+                        return "{:15s}: {:10s} {:10s}".format(a,
+                                                              str(getattr(
+                                                                  self, a).shape),
+                                                              str(getattr(self, a).dtype))
+                    else:
+                        return "{:15s}: {:10s} {:10s}".format(a,
+                                                              "{:.2f}".format(
+                                                                  getattr(self, a)),
+                                                              str(getattr(self, a).dtype))
+
+                elif isinstance(getattr(self, a), str):
+                    return "{:15s}: {:10s} {:10s}".format(a,
+                                                          getattr(self, a),
+                                                          str(type(getattr(self, a))))
+                elif isinstance(getattr(self, a), datetime.datetime):
+                    return "{:15s}: {:10s} {:10s}".format(a,
+                                                          str(getattr(self, a)),
+                                                          str(type(getattr(self, a))))
+                else:
+                    return "{:15s}: {:10s} {:10s}".format(a,
+                                                          'scalar',
+                                                          str(type(getattr(self, a))))
+
+            # fullStrs = ["{:15s}: {:10s} {:10s}".format(a,
+            #                                            str(getattr(self,a).shape),
+            #                                            str(getattr(self,a).dtype)) for a in attrs]
+            fullStrs = [stringOutput(a) for a in attrs]
+
+            # fullStrs = ["{:s}: {:s}".format(getattr(self,a),str(getattr(self,a).shape)) for a in attrs]
+            return "\n".join(fullStrs)
+
+    def __init__(self, filename):
+
+        filename = '/SPENCEdata/software/sdt/batch_jobs/TEAMS/orb1421_teams.sav'
+        this = sio.readsav(filename)
+
+        self.nStruct = len(this['struct'])
+
+        bigger = np.zeros(
+            (*this['struct'][0]['data'].T.shape, self.nStruct), dtype=np.float32)
+        bigger2 = np.zeros(
+            (*this['struct'][0]['dtheta'].shape, self.nStruct), dtype=np.float32)
+
+        self.valid = this['struct']['valid'].byteswap().newbyteorder()
+        self.data_name = this['struct']['data_name'].byteswap().newbyteorder()
+
+        # Time stuff
+        self.time = [datetime.datetime.utcfromtimestamp(
+            x) for x in this['struct'].time.byteswap().newbyteorder()]
+        self.end_time = [datetime.datetime.utcfromtimestamp(
+            x) for x in this['struct'].end_time.byteswap().newbyteorder()]
+        # self.end_time = this['struct']['end_time'].byteswap().newbyteorder()
+        self.integ_t = this['struct']['integ_t'].byteswap().newbyteorder()
+        self.delta_time = this['struct']['delta_time'].byteswap(
+        ).newbyteorder()
+
+        # Units and mass stuff
+        self.units_name = this['struct']['units_name'].byteswap(
+        ).newbyteorder()
+        self.units_procedure = this['struct']['units_procedure'].byteswap(
+        ).newbyteorder()
+        # self.project_name = this['struct']['project_name'].byteswap().newbyteorder()
+        self.project_name = this['struct']['project_name']
+        # eV/c^2 with c in (km/s)^2 I think
+        self.mass = this['struct']['mass'].byteswap().newbyteorder()
+
+        # Data stuff
+        self.nenergy = this['struct']['nenergy'].byteswap().newbyteorder()
+        self.nbins = this['struct']['nbins'].byteswap().newbyteorder()
+        self.orbit = this['struct']['orbit'].byteswap().newbyteorder()
+        self.geomfactor = this['struct']['geomfactor'].byteswap(
+        ).newbyteorder()
+
+        # Ephemeris stuff
+        self.alt = this['struct']['alt'].byteswap().newbyteorder()
+        self.mlt = this['struct']['mlt'].byteswap().newbyteorder()
+        self.ilat = this['struct']['ilat'].byteswap().newbyteorder()
+        self.foot_lat = this['struct']['foot_lat'].byteswap().newbyteorder()
+        self.foot_lng = this['struct']['foot_lng'].byteswap().newbyteorder()
+        self.fa_spin_ra = this['struct']['fa_spin_ra'].byteswap(
+        ).newbyteorder()
+        self.fa_spin_dec = this['struct']['fa_spin_dec'].byteswap(
+        ).newbyteorder()
+
+        self.fa_pos = this['struct']['fa_pos'].byteswap().newbyteorder()
+        self.fa_vel = this['struct']['fa_vel'].byteswap().newbyteorder()
+        self.b_model = this['struct']['b_model'].byteswap().newbyteorder()
+        self.b_foot = this['struct']['b_foot'].byteswap().newbyteorder()
+
+        # Housekeeping
+        self.header_bytes = this['struct']['header_bytes'].byteswap(
+        ).newbyteorder()
+        self.eff_version = this['struct']['eff_version'].byteswap(
+        ).newbyteorder()
+
+        # Have to just initialize these
+        self.data = bigger.copy()
+        self.energy = bigger.copy()
+        self.denergy = bigger.copy()
+        self.theta = bigger.copy()
+        self.phi = bigger.copy()
+
+        # biggers
+        self.geom = bigger.copy()
+        self.eff = bigger.copy()
+        self.spin_fract = bigger.copy()
+
+        # biggers2
+        self.domega = bigger2.copy()
+        self.dtheta = bigger2.copy()
+        self.dphi = bigger2.copy()
+
+        self.pt_limits = np.zeros(
+            (*this['struct'][0]['pt_limits'].shape, self.nStruct))
+
+        for i in range(self.nStruct):
+
+            self.data[:, :, i] = this['struct'][i]['data'].byteswap(
+            ).newbyteorder().T
+            self.energy[:, :, i] = this['struct'][i]['energy'].byteswap(
+            ).newbyteorder().T
+            self.denergy[:, :, i] = this['struct'][i]['denergy'].byteswap(
+            ).newbyteorder().T
+            self.theta[:, :, i] = this['struct'][i]['theta'].byteswap(
+            ).newbyteorder().T
+            self.phi[:, :, i] = this['struct'][i]['phi'].byteswap().newbyteorder().T
+            self.geom[:, :, i] = this['struct'][i]['geom'].byteswap(
+            ).newbyteorder().T
+            self.eff[:, :, i] = this['struct'][i]['eff'].byteswap().newbyteorder().T
+            self.spin_fract[:, :, i] = this['struct'][i]['spin_fract'].byteswap(
+            ).newbyteorder().T
+
+            self.dtheta[:, i] = this['struct'][i]['dtheta'].byteswap(
+            ).newbyteorder()
+            self.dphi[:, i] = this['struct'][i]['dphi'].byteswap().newbyteorder()
+            self.domega[:, i] = this['struct'][i]['domega'].byteswap(
+            ).newbyteorder()
+
+            self.pt_limits[:, i] = this['struct'][0]['pt_limits'].byteswap(
+            ).newbyteorder()
+
+            # print(this['struct'][i]['energy'].byteswap().newbyteorder()[0,:])
+            # print(self.energy[:,:,i])
+
+    def __call__(self, index):
+
+        return self.TEAMSstruct(self, index)
+
+        # return np.recarray([self.data[:,:,index],
+        #                  self.energy[:,:,index],
+        #                  self.theta[:,:,index],
+        #                  self.phi[:,:,index],
+        #                  self.denergy[:,:,index],
+        #                  self.dtheta[:,index],
+        #                  self.dphi[:,index]],
+        #                 dtype={'names':('data','energy',
+        #                                 'theta','phi',
+        #                                 'denergy',
+        #                                 'dtheta','dphi'),
+        #                        'formats':('f8','f8',
+        #                                   'f8','f8',
+        #                                   'f8',
+        #                                   'f8','f8'),
+        #                        'shapes':(self.data[:,:,0].shape,
+        #                                  self.energy[:,:,0].shape,
+        #                                  self.theta[:,:,0].shape,
+        #                                  self.phi[:,:,0].shape,
+        #                                  self.denergy[:,:,0].shape,
+        #                                  self.dtheta[:,0].shape,
+        #                                  self.dphi[:,0].shape)})
+
+        # 'formats':(('f8','f8'),('f8','f8'),
+        #            ('f8','f8'),('f8','f8'),
+        #            ('f8','f8'),
+        #            'f8','f8')})
+
+
 class TEAMS:
 
     # Epoch: CDF_EPOCH [2381]
