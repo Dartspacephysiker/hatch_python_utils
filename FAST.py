@@ -287,66 +287,79 @@ class TEAMSdata:
 
     def __init__(self, filename):
 
-        filename = '/SPENCEdata/software/sdt/batch_jobs/TEAMS/orb1421_teams.sav'
+        self.fileLoaded = False
+
+        # filename = '/SPENCEdata/software/sdt/batch_jobs/TEAMS/orb1421_teams.sav'
+        if not os.path.isfile(filename):
+            print("Doesn't exist: "+filename)
+            return
+
         this = sio.readsav(filename)
 
-        self.nStruct = len(this['struct'])
+        self.fileLoaded = True
+
+        navn = list(this.keys())[0]
+        self.nStruct = len(this[navn])
 
         bigger = np.zeros(
-            (*this['struct'][0]['data'].T.shape, self.nStruct), dtype=np.float32)
+            (*this[navn][0]['data'].T.shape, self.nStruct), dtype=np.float32)
         bigger2 = np.zeros(
-            (*this['struct'][0]['dtheta'].shape, self.nStruct), dtype=np.float32)
+            (*this[navn][0]['dtheta'].shape, self.nStruct), dtype=np.float32)
 
-        self.valid = this['struct']['valid'].byteswap().newbyteorder()
-        self.data_name = this['struct']['data_name'].byteswap().newbyteorder()
+        self.valid = this[navn]['valid'].byteswap().newbyteorder()
+        self.data_name = this[navn]['data_name'].byteswap().newbyteorder()
 
         # Time stuff
-        self.time = [datetime.datetime.utcfromtimestamp(
-            x) for x in this['struct'].time.byteswap().newbyteorder()]
+        self.time = np.array([datetime.datetime.utcfromtimestamp(
+            x) for x in this[navn].time.byteswap().newbyteorder()])
         self.end_time = [datetime.datetime.utcfromtimestamp(
-            x) for x in this['struct'].end_time.byteswap().newbyteorder()]
-        # self.end_time = this['struct']['end_time'].byteswap().newbyteorder()
-        self.integ_t = this['struct']['integ_t'].byteswap().newbyteorder()
-        self.delta_time = this['struct']['delta_time'].byteswap(
+            x) for x in this[navn].end_time.byteswap().newbyteorder()]
+        # self.end_time = this[navn]['end_time'].byteswap().newbyteorder()
+        self.integ_t = this[navn]['integ_t'].byteswap().newbyteorder()
+        self.delta_time = this[navn]['delta_time'].byteswap(
         ).newbyteorder()
 
         # Units and mass stuff
-        self.units_name = this['struct']['units_name'].byteswap(
+        self.units_name = this[navn]['units_name'].byteswap(
         ).newbyteorder()
-        self.units_procedure = this['struct']['units_procedure'].byteswap(
+        self.units_procedure = this[navn]['units_procedure'].byteswap(
         ).newbyteorder()
-        # self.project_name = this['struct']['project_name'].byteswap().newbyteorder()
-        self.project_name = this['struct']['project_name']
+        # self.project_name = this[navn]['project_name'].byteswap().newbyteorder()
+        self.project_name = this[navn]['project_name']
         # eV/c^2 with c in (km/s)^2 I think
-        self.mass = this['struct']['mass'].byteswap().newbyteorder()
+        self.mass = this[navn]['mass'].byteswap().newbyteorder()
 
         # Data stuff
-        self.nenergy = this['struct']['nenergy'].byteswap().newbyteorder()
-        self.nbins = this['struct']['nbins'].byteswap().newbyteorder()
-        self.orbit = this['struct']['orbit'].byteswap().newbyteorder()
-        self.geomfactor = this['struct']['geomfactor'].byteswap(
+        self.nenergy = this[navn]['nenergy'].byteswap().newbyteorder()
+        self.nbins = this[navn]['nbins'].byteswap().newbyteorder()
+        self.orbit = this[navn]['orbit'].byteswap().newbyteorder()
+        self.geomfactor = this[navn]['geomfactor'].byteswap(
         ).newbyteorder()
 
         # Ephemeris stuff
-        self.alt = this['struct']['alt'].byteswap().newbyteorder()
-        self.mlt = this['struct']['mlt'].byteswap().newbyteorder()
-        self.ilat = this['struct']['ilat'].byteswap().newbyteorder()
-        self.foot_lat = this['struct']['foot_lat'].byteswap().newbyteorder()
-        self.foot_lng = this['struct']['foot_lng'].byteswap().newbyteorder()
-        self.fa_spin_ra = this['struct']['fa_spin_ra'].byteswap(
+        self.alt = this[navn]['alt'].byteswap().newbyteorder()
+        self.mlt = this[navn]['mlt'].byteswap().newbyteorder()
+        self.ilat = this[navn]['ilat'].byteswap().newbyteorder()
+        self.foot_lat = this[navn]['foot_lat'].byteswap().newbyteorder()
+        self.foot_lng = this[navn]['foot_lng'].byteswap().newbyteorder()
+        self.fa_spin_ra = this[navn]['fa_spin_ra'].byteswap(
         ).newbyteorder()
-        self.fa_spin_dec = this['struct']['fa_spin_dec'].byteswap(
+        self.fa_spin_dec = this[navn]['fa_spin_dec'].byteswap(
         ).newbyteorder()
 
-        self.fa_pos = this['struct']['fa_pos'].byteswap().newbyteorder()
-        self.fa_vel = this['struct']['fa_vel'].byteswap().newbyteorder()
-        self.b_model = this['struct']['b_model'].byteswap().newbyteorder()
-        self.b_foot = this['struct']['b_foot'].byteswap().newbyteorder()
+        self.fa_pos = np.vstack(
+            this[navn]['fa_pos'].byteswap().newbyteorder()).T
+        self.fa_vel = np.vstack(
+            this[navn]['fa_vel'].byteswap().newbyteorder()).T
+        self.b_model = np.vstack(
+            this[navn]['b_model'].byteswap().newbyteorder()).T
+        self.b_foot = np.vstack(
+            this[navn]['b_foot'].byteswap().newbyteorder()).T
 
         # Housekeeping
-        self.header_bytes = this['struct']['header_bytes'].byteswap(
+        self.header_bytes = this[navn]['header_bytes'].byteswap(
         ).newbyteorder()
-        self.eff_version = this['struct']['eff_version'].byteswap(
+        self.eff_version = this[navn]['eff_version'].byteswap(
         ).newbyteorder()
 
         # Have to just initialize these
@@ -367,68 +380,70 @@ class TEAMSdata:
         self.dphi = bigger2.copy()
 
         self.pt_limits = np.zeros(
-            (*this['struct'][0]['pt_limits'].shape, self.nStruct))
+            (*this[navn][0]['pt_limits'].shape, self.nStruct))
 
         for i in range(self.nStruct):
 
-            self.data[:, :, i] = this['struct'][i]['data'].byteswap(
+            self.data[:, :, i] = this[navn][i]['data'].byteswap(
             ).newbyteorder().T
-            self.energy[:, :, i] = this['struct'][i]['energy'].byteswap(
+            self.energy[:, :, i] = this[navn][i]['energy'].byteswap(
             ).newbyteorder().T
-            self.denergy[:, :, i] = this['struct'][i]['denergy'].byteswap(
+            self.denergy[:, :, i] = this[navn][i]['denergy'].byteswap(
             ).newbyteorder().T
-            self.theta[:, :, i] = this['struct'][i]['theta'].byteswap(
+            self.theta[:, :, i] = this[navn][i]['theta'].byteswap(
             ).newbyteorder().T
-            self.phi[:, :, i] = this['struct'][i]['phi'].byteswap().newbyteorder().T
-            self.geom[:, :, i] = this['struct'][i]['geom'].byteswap(
+            self.phi[:, :, i] = this[navn][i]['phi'].byteswap().newbyteorder().T
+            self.geom[:, :, i] = this[navn][i]['geom'].byteswap(
             ).newbyteorder().T
-            self.eff[:, :, i] = this['struct'][i]['eff'].byteswap().newbyteorder().T
-            self.spin_fract[:, :, i] = this['struct'][i]['spin_fract'].byteswap(
+            self.eff[:, :, i] = this[navn][i]['eff'].byteswap().newbyteorder().T
+            self.spin_fract[:, :, i] = this[navn][i]['spin_fract'].byteswap(
             ).newbyteorder().T
 
-            self.dtheta[:, i] = this['struct'][i]['dtheta'].byteswap(
+            self.dtheta[:, i] = this[navn][i]['dtheta'].byteswap(
             ).newbyteorder()
-            self.dphi[:, i] = this['struct'][i]['dphi'].byteswap().newbyteorder()
-            self.domega[:, i] = this['struct'][i]['domega'].byteswap(
-            ).newbyteorder()
-
-            self.pt_limits[:, i] = this['struct'][0]['pt_limits'].byteswap(
+            self.dphi[:, i] = this[navn][i]['dphi'].byteswap().newbyteorder()
+            self.domega[:, i] = this[navn][i]['domega'].byteswap(
             ).newbyteorder()
 
-            # print(this['struct'][i]['energy'].byteswap().newbyteorder()[0,:])
+            self.pt_limits[:, i] = this[navn][0]['pt_limits'].byteswap(
+            ).newbyteorder()
+
+            # print(this[navn][i]['energy'].byteswap().newbyteorder()[0,:])
             # print(self.energy[:,:,i])
 
     def __call__(self, index):
 
         return self.TEAMSstruct(self, index)
 
-        # return np.recarray([self.data[:,:,index],
-        #                  self.energy[:,:,index],
-        #                  self.theta[:,:,index],
-        #                  self.phi[:,:,index],
-        #                  self.denergy[:,:,index],
-        #                  self.dtheta[:,index],
-        #                  self.dphi[:,index]],
-        #                 dtype={'names':('data','energy',
-        #                                 'theta','phi',
-        #                                 'denergy',
-        #                                 'dtheta','dphi'),
-        #                        'formats':('f8','f8',
-        #                                   'f8','f8',
-        #                                   'f8',
-        #                                   'f8','f8'),
-        #                        'shapes':(self.data[:,:,0].shape,
-        #                                  self.energy[:,:,0].shape,
-        #                                  self.theta[:,:,0].shape,
-        #                                  self.phi[:,:,0].shape,
-        #                                  self.denergy[:,:,0].shape,
-        #                                  self.dtheta[:,0].shape,
-        #                                  self.dphi[:,0].shape)})
+    def apply_inds(self, keepInds, verbose=False):
 
-        # 'formats':(('f8','f8'),('f8','f8'),
-        #            ('f8','f8'),('f8','f8'),
-        #            ('f8','f8'),
-        #            'f8','f8')})
+        attrs = [a for a in dir(self) if not a.startswith('__')]
+
+        for a in attrs:
+            tmpAttr = getattr(self, a)
+            if verbose:
+                print(a, type(tmpAttr), isinstance(tmpAttr, np.ndarray))
+
+            if isinstance(tmpAttr, np.ndarray):
+                shape = np.array(tmpAttr.shape)
+                # print(shape.size)
+                if shape.size == 1:
+                    if tmpAttr.size == self.nStruct:
+                        if verbose:
+                            print("Resizing " + a + "...")
+                        setattr(self, a, tmpAttr[keepInds])
+                elif shape.size == 2:
+                    if verbose:
+                        print("Resizing " + a + ": ",
+                              tmpAttr[:, keepInds].shape)
+                        setattr(self, a, tmpAttr[:, keepInds])
+                elif shape.size == 3:
+                    if verbose:
+                        print("Resizing " + a + ": ",
+                              tmpAttr[:, :, keepInds].shape)
+                    setattr(self, a, tmpAttr[:, :, keepInds])
+
+        self.nStruct = np.sum(keepInds)
 
 
 class TEAMS:
