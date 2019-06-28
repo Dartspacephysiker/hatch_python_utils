@@ -14,11 +14,23 @@ UiOASCBaseAddr = 'http://tid.uio.no/plasma/aurora'
 class UiO_ASC_cal(object):
 
     def __init__(self,
+                 *args,
                  site='lyr5',
                  date='20190104',
                  boelgelengde='5577',
                  calDir='/SPENCEdata/Research/database/Rockets/CAPER2/nordlyskamera/',
                  fetch_from_net=True):
+
+        if len(args) == 1:
+            assert (isinstance(args[0], str) or
+                    isinstance(args[0], datetime.date) or
+                    isinstance(
+                        args[0], datetime.datetime)), "Argument should be of type 'YYYYMMDD' or of type date/datetime!"
+
+            if isinstance(args[0], str):
+                date = args[0]
+            elif (isinstance(args[0], datetime.date) or isinstance(args[0], datetime.datetime)):
+                date = args[0].strftime("%Y%m%d")
 
         calFile = site+'_'+date+'_'+boelgelengde+'_cal.dat'
 
@@ -68,6 +80,9 @@ class UiO_ASC_cal(object):
         self.comment = calStruc['comment'].decode("utf-8")
         self.version = calStruc['version']
         self.time_modified = calStruc['time_modified'].decode("utf-8")
+        self.date = date
+        self.utc = datetime.date(
+            int(date[0:4]), int(date[4:6]), int(date[6:8]))
 
     def __repr__(self):
         attrs = [a for a in dir(self) if not a.startswith('__')]
@@ -107,6 +122,181 @@ class UiO_ASC_cal(object):
         return "\n".join(fullStrs)
 
 
+class UiO_ASC_image(object):
+
+    def __init__(self, *args,
+                 site='lyr5',
+                 date='20190104',
+                 UTCHHMMSS='093600',
+                 boelgelengde='5577',
+                 verbose=False,
+                 saveToLocal=True,
+                 saveDir='/SPENCEdata/Research/database/Rockets/CAPER2/nordlyskamera/',
+                 lookForNearestTime=True):
+
+        getHHMMSSFromArg0OrKeyword = True
+        getDateFromArg0OrKeyword = True
+        if len(args) == 2:
+            # args[0] = date
+
+            assert (isinstance(
+                args[1], str)), "Second argument should be UTC string 'HHMMSS' (or provide datetime as first arg)!"
+            # isinstance(args[1], datetime.date) or
+            # isinstance(
+            #     args[1], datetime.datetime)), "Second argument should be of type 'YYYYMMDD' or of type date/datetime!"
+
+            self.UTCHHMMSS = args[1]
+            getHHMMSSFromArg0OrKeyword = False
+
+        if len(args) >= 1:
+
+            assert (isinstance(args[0], str) or
+                    isinstance(args[0], datetime.date) or
+                    isinstance(
+                        args[0], datetime.datetime)), "First argument should be of type 'YYYYMMDD' or of type date/datetime!"
+
+            if isinstance(args[0], str):
+                self.date = args[0]
+            elif (isinstance(args[0], datetime.date) or isinstance(args[0], datetime.datetime)):
+                self.date = args[0].strftime("%Y%m%d")
+
+            getDateFromArg0OrKeyword = False
+
+            if getHHMMSSFromArg0OrKeyword:
+                if isinstance(args[0], datetime.datetime):
+                    self.UTCHHMMSS = args[0].strftime("%H%M%S")
+                else:
+                    self.UTCHHMMSS = '060000'
+
+                getHHMMSSFromArg0OrKeyword = False
+
+                # self.data = get_UiO_ASC_image_from_net(site=site,
+                #                                        date=date,
+                #                                        UTCHHMMSS=UTCHHMMSS,
+                #                                        boelgelengde=boelgelengde,
+                #                                        verbose=verbose,
+                #                                        saveToLocal=saveToLocal,
+                #                                        saveDir=saveDir,
+                #                                        lookForNearestTime=lookForNearestTime)
+
+        self.saveDir = saveDir
+        self.site = site
+
+        if getDateFromArg0OrKeyword:
+            self.date = date
+        if getHHMMSSFromArg0OrKeyword:
+            self.UTCHHMMSS = UTCHHMMSS
+
+        self.boelgelengde = boelgelengde
+
+        self.availFiles = "No websearch performed"
+        self.nfiles = 0
+
+        self.remoteDir = '/'.join((UiOASCBaseAddr, self.site,
+                                   boelgelengde,
+                                   self.date[0:4], self.date, 'ut'+self.UTCHHMMSS[0:2]))+'/'
+
+        fName = '_'.join((self.site, self.date, self.UTCHHMMSS,
+                          self.boelgelengde, 'cal.png'))
+        self.request_fName = fName
+
+        self.remoteFile = self.remoteDir + fName
+
+        # Check local dir
+        if os.path.isfile(saveDir+fName):
+            if verbose:
+                print("Found file locally ... Loading!")
+
+            self.data = imageio.imread(saveDir+fName)
+            self.utc = datetime.datetime(int(date[0:4]), int(date[4:6]), int(date[6:8]),
+                                         int(self.UTCHHMMSS[0:2]), int(self.UTCHHMMSS[2:4]), int(self.UTCHHMMSS[4:6]))
+
+            return
+
+        self.get_UiO_image_times()
+
+        dtWant = datetime.datetime(int(self.date[0:4]), int(self.date[4:6]), int(self.date[6:8]),
+                                   int(self.UTCHHMMSS[0:2]), int(self.UTCHHMMSS[2:4]), int(self.UTCHHMMSS[4:6]))
+
+        if len(self.availFiles) == 0:
+            self.data = None
+            return
+
+        if self.remoteFile in self.availFiles:
+            if verbose:
+                print("Found "+self.remoteFile)
+
+            closest = np.argmin(np.abs(np.array(self.dtlist)-dtWant))
+            self.utc = dtWant
+
+        elif lookForNearestTime:
+
+            if verbose:
+                print(self.remoteFile+' not found!')
+                print('Finding nearest ... ', end='')
+
+            closest = np.argmin(np.abs(np.array(self.dtlist)-dtWant))
+
+            if verbose:
+                print("Closest is {:s}".format(
+                    self.dtlist[closest].strftime("%Y%m%d/%H:%M:%S")))
+
+            self.remoteFile = self.availFiles[closest]
+            self.utc = self.dtlist[closest]
+
+        else:
+            if verbose:
+                print("Didn't find "+self.remoteFile+'! Returning ...')
+            return None
+
+        if verbose:
+            print("remoteDir : " + self.remoteDir)
+            print("remoteFile: " + self.remoteFile)
+
+        if saveToLocal:
+            # Download the file from `url` and save it locally under `file_name`:
+            self.localFile = saveDir + \
+                self.remoteFile.replace(self.remoteDir, '')
+            if not os.path.isfile(self.localFile):
+
+                if verbose:
+                    print("Saving to " + self.localFile)
+
+                urllib.request.urlretrieve(self.remoteFile, self.localFile)
+
+            else:
+                if verbose:
+                    print("Already have locally!")
+
+        self.data = imageio.imread(self.remoteFile)
+
+    def get_UiO_image_times(self):
+        self.availFiles = [filer for filer in get_url_paths(
+            self.remoteDir) if filer.endswith('.png')]
+
+        killStrL = self.remoteDir+self.site+'_'+self.date+'_'
+        killStrR = '_'+self.boelgelengde+'_cal.png'
+        pngTimes = np.array([filer.replace(killStrL, '').replace(
+            killStrR, '') for filer in self.availFiles])
+
+        keepFiles = [(len(time) == 6) for time in pngTimes]
+        if np.where(keepFiles)[0].size == 0:
+            print("Couldn't find any valid files on the 'net! Returning ...")
+            self.availFiles = []
+            self.nfiles = 0
+            return
+        else:
+            pngTimes = pngTimes[keepFiles]
+            self.availFiles = [self.availFiles[i]
+                               for i in range(len(keepFiles)) if keepFiles[i]]
+            self.nfiles = len(self.availFiles)
+
+        this = [(int(time[0:2]), int(time[2:4]), int(time[4:6]))
+                for time in pngTimes]
+        self.dtlist = np.array([datetime.datetime(int(self.date[0:4]), int(self.date[4:6]), int(self.date[6:8]),
+                                                  these[0], these[1], these[2]) for these in this])
+
+
 def get_UiO_ASC_image_from_net(site='lyr5',
                                date='20190104',
                                UTCHHMMSS='093600',
@@ -116,10 +306,12 @@ def get_UiO_ASC_image_from_net(site='lyr5',
                                saveDir='/SPENCEdata/Research/database/Rockets/CAPER2/nordlyskamera/',
                                lookForNearestTime=True):
     """
-    site        : 'lyr5' or 'nya6'
-    date        : Format YYYYMMDD
-    UTCHHMMSS   : Format HHMMSS
-    boelgelengde: '5577' or '6300'
+    site               : 'lyr5' or 'nya6'
+    date               : Format YYYYMMDD
+    UTCHHMMSS          : Format HHMMSS
+    boelgelengde       : '5577' or '6300'
+    savetoLocal        : Save image from UiO website to "saveDir"
+    lookForNearestTime : If time specified by UTCHHMMSS not found, search UiO 'date' directory for nearest time
     """
     fName = '_'.join((site, date, UTCHHMMSS, boelgelengde, 'cal.png'))
 
@@ -128,32 +320,41 @@ def get_UiO_ASC_image_from_net(site='lyr5',
         print("Found file locally ... Loading!")
         return imageio.imread(saveDir+fName)
 
-    imDir = '/'.join((UiOASCBaseAddr, site,
-                      boelgelengde,
-                      date[0:4], date, 'ut'+UTCHHMMSS[0:2]))+'/'
+    remoteDir = '/'.join((UiOASCBaseAddr, site,
+                          boelgelengde,
+                          date[0:4], date, 'ut'+UTCHHMMSS[0:2]))+'/'
 
-    imAddr = imDir + fName
-    # imAddr = '/'.join((UiOASCBaseAddr,site,
+    remoteFile = remoteDir + fName
+    # remoteFile = '/'.join((UiOASCBaseAddr,site,
     #                    boelgelengde,
     #                    date[0:4],date,'ut'+UTCHHMMSS[0:2],
     #                    fName))
 
     availFiles = [filer for filer in get_url_paths(
-        imDir) if filer.endswith('.png')]
+        remoteDir) if filer.endswith('.png')]
 
-    if imAddr in availFiles:
-        print("Found "+imAddr)
+    if remoteFile in availFiles:
+        print("Found "+remoteFile)
     elif lookForNearestTime:
-        print(imAddr+' not found!')
+        print(remoteFile+' not found!')
         print('Finding nearest ... ', end='')
 
-        killStrL = imDir+site+'_'+date+'_'
+        killStrL = remoteDir+site+'_'+date+'_'
         killStrR = '_'+boelgelengde+'_cal.png'
-        pngTimes = [filer.replace(killStrL, '').replace(
-            killStrR, '') for filer in availFiles]
+        pngTimes = np.array([filer.replace(killStrL, '').replace(
+            killStrR, '') for filer in availFiles])
+
+        keepFiles = [(len(time) == 6) for time in pngTimes]
+        if np.where(keepFiles)[0].size == 0:
+            print("Couldn't find any valid files on the 'net! Returning ...")
+            return None
+        else:
+            pngTimes = pngTimes[keepFiles]
+            availFiles = [availFiles[i]
+                          for i in range(len(keepFiles)) if keepFiles[i]]
 
         this = [(int(time[0:2]), int(time[2:4]), int(time[4:6]))
-                for time in pngTimes if (len(time) == 6)]
+                for time in pngTimes]
         dtlist = np.array([datetime.datetime(int(date[0:4]), int(date[4:6]), int(date[6:8]),
                                              these[0], these[1], these[2]) for these in this])
 
@@ -165,28 +366,28 @@ def get_UiO_ASC_image_from_net(site='lyr5',
         print("Closest is {:s}".format(
             dtlist[closest].strftime("%Y%m%d/%H:%M:%S")))
 
-        imAddr = availFiles[closest]
+        remoteFile = availFiles[closest]
 
     else:
-        print("Didn't find "+imAddr+'! Returning ...')
+        print("Didn't find "+remoteFile+'! Returning ...')
         return None
 
     if verbose:
-        print("imDir : " + imDir)
-        print("imAddr: " + imAddr)
+        print("remoteDir : " + remoteDir)
+        print("remoteFile: " + remoteFile)
 
     if saveToLocal:
         # Download the file from `url` and save it locally under `file_name`:
-        localFile = saveDir+imAddr.replace(imDir, '')
+        localFile = saveDir+remoteFile.replace(remoteDir, '')
         if not os.path.isfile(localFile):
 
             print("Saving to " + localFile)
-            urllib.request.urlretrieve(imAddr, localFile)
+            urllib.request.urlretrieve(remoteFile, localFile)
 
         else:
             print("Already have locally!")
 
-    return imageio.imread(imAddr)
+    return imageio.imread(remoteFile)
 
 
 def get_url_paths(url, ext='', params={}):
