@@ -1,6 +1,7 @@
 ########################################
 # AXISNESS
-# AXI1  (20160611): Forandre fargene til sekundær axis
+# AXI1  (20190611): Forandre fargene til sekundær axis
+# AXI2  (20190711): Gridspec!
 ########################################
 # LEGENDS
 # LEG1  (20190604): Multiple axes, single legend
@@ -21,7 +22,7 @@ def fabdata():
 # AXISNESS
 ########################################
 
-# AXI1  (20160611): Forandre fargene til sekundær axis
+# AXI1  (20190611): Forandre fargene til sekundær axis
 
 
 sekundFarge = 'orange'
@@ -41,6 +42,23 @@ l1 = ax1.plot(x, y1, label="gamma")
 ax1.axes.spines['right'].set_color(sekundFarge)
 ax1.yaxis.label.set_color(sekundFarge)
 ax1.tick_params(axis='y', colors=sekundFarge)
+
+
+# AXI2  (20190711): Gridspec!
+
+fig3 = plt.figure(constrained_layout=True)
+gs = fig3.add_gridspec(2, 3)
+f3_ax00 = fig3.add_subplot(gs[0, :-1])
+yunk = f3_ax00.set_title(uplegTitle)
+f3_ax01 = fig3.add_subplot(gs[0, -1:], sharey=f3_ax00)
+f3_ax10 = fig3.add_subplot(gs[1, :-1], sharex=f3_ax00, sharey=f3_ax00)
+yunk = f3_ax10.set_title(downlegTitle)
+f3_ax11 = fig3.add_subplot(gs[1, -1:], sharex=f3_ax01, sharey=f3_ax10)
+
+f3_ax00.grid()
+f3_ax01.grid()
+f3_ax10.grid()
+f3_ax11.grid()
 
 ########################################
 # LEGENDS

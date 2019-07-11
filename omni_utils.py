@@ -2,7 +2,8 @@
 import os
 from scipy.io import readsav
 from pathlib import Path
-# import time_hist2
+
+from hatch_python_utils import time_hist2
 from geospacepy import omnireader
 import pandas as pd
 import numpy as np
@@ -40,7 +41,64 @@ def nearest(items, pivot):
     return np.argmin(abs(items - pivot))
 
 
-def omni_getter(t_start, t_end):
+def omni_getter(*args,
+                use_1minres=False,
+                merge_highres_and_hourly_dfs=True,
+                get_time_history=False,
+                interp_to_input_times=False,
+                interpolateArgs={'method': 'time'},
+                verbose=False):
+    """
+    omni_getter(t_start OR time_array[,t_end])
+    """
+
+    input_is_arr = False
+    if len(args) == 0:
+        print("Must supply either time array as first arg, or t_start and t_end as first and second args!")
+    elif len(args) == 2:
+        t_start = args[0]
+        t_end = args[1]
+    elif len(args) == 1:
+        assert (isinstance(args[0], tuple) or
+                isinstance(args[0], list) or
+                isinstance(args[0], np.ndarray) or
+                isinstance(args[0], pd.core.series.Series) or
+                isinstance(args[0], pd.core.indexes.datetimes.DatetimeIndex)), "Need array-like input!"
+
+        input_is_arr = True
+
+        if isinstance(args[0], pd.core.series.Series):
+            if verbose:
+                print("Got pd.Series")
+            times = pd.DatetimeIndex(args[0])
+        elif (isinstance(args[0], np.ndarray) or
+              isinstance(args[0], list)):
+            if verbose:
+                print("Got list/array of times")
+            times = pd.DatetimeIndex(args[0])
+        elif isinstance(args[0], pd.core.indexes.datetimes.DatetimeIndex):
+            times = args[0]
+
+        t_start = times[0].round('1s')
+        t_end = times[-1].round('1s')
+
+    timeFmt = "%Y-%m-%d %H:%M:%S"
+    print("tStart, tEnd: {:s}, {:s}".format(t_start.strftime(timeFmt),
+                                            t_end.strftime(timeFmt)))
+
+    # if interp_to_input_times:
+    # totdt = t_start-t_end
+    # extraTid = pd.Timedelta(int(res[0])*10,unit='min')
+    nHourShift = 24
+    if verbose:
+        print(
+            "Shift start/stop time back/fwd by {:d} hours ...".format(nHourShift))
+
+    extraTid = pd.Timedelta(nHourShift, unit='hour')
+    t_start = t_start - extraTid
+    t_end = t_end + extraTid
+
+    # t_startOR, t_end,
 
     # t_start = data.index.min() - datetime.timedelta(1)
     # t_end = data.index.max() + datetime.timedelta(1)
@@ -48,18 +106,22 @@ def omni_getter(t_start, t_end):
     # cdf_or_txt = 'txt'
     cdf_or_txt = 'cdf'
 
+    if use_1minres:
+        res = '1min'
+    else:
+        res = '5min'
+
     # List of poss variables in omnireader.py
     omniInt = omnireader.omni_interval(t_start,
                                        t_end,
-                                       '5min',
+                                       res,
                                        cdf_or_txt=cdf_or_txt)
     omniInt_1hr = omnireader.omni_interval(t_start,
                                            t_end,
                                            'hourly',
                                            cdf_or_txt=cdf_or_txt)
 
-    epochs = omniInt['Epoch']  # time array for omni 5min data
-    epochs = omniInt['Epoch']  # time array for omni 5min data
+    epochs = omniInt['Epoch']  # time array for omni highres data
     Bx, By, Bz = omniInt['BX_GSE'], omniInt['BY_GSM'], omniInt['BZ_GSM']
 
     AE, SymH = omniInt['AE_INDEX'], omniInt['SYM_H']
@@ -78,9 +140,30 @@ def omni_getter(t_start, t_end):
                          columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell'])
     SW_df_1hr = pd.DataFrame(data=np.column_stack((F107, Kp, DST)),
                              index=epochs_1hr,
-                             columns=['F107', 'Kp', 'DST'])
+                             columns=['F107', 'Kp', 'Dst'])
 
-    return SW_df, SW_df_1hr
+    if merge_highres_and_hourly_dfs:
+        print("Merging high-res and hourly OMNI data ...")
+
+        combo = SW_df.merge(SW_df_1hr, how='outer',
+                            left_index=True, right_index=True)
+        combo.loc[:, 'F107'] = combo.F107.interpolate(**{'method': 'time'})
+        combo.loc[:, 'Kp'] = combo.Kp.interpolate(**{'method': 'time'})
+        combo.loc[:, 'Dst'] = combo.Dst.interpolate(**{'method': 'time'})
+
+        if get_time_history:
+            print("Getting time history ...")
+            combo = time_hist2.time_history(combo)
+
+        if interp_to_input_times and input_is_arr:
+            print("Interping to input times ...")
+
+            combo = combo.reindex(combo.index.union(times)).interpolate(
+                **interpolateArgs).reindex(times)
+
+        return combo
+    else:
+        return SW_df, SW_df_1hr
 
 
 def NewellCF_calc(v, bz, by):
