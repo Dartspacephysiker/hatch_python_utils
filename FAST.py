@@ -436,7 +436,7 @@ class TEAMSdata:
                     if verbose:
                         print("Resizing " + a + ": ",
                               tmpAttr[:, keepInds].shape)
-                        setattr(self, a, tmpAttr[:, keepInds])
+                    setattr(self, a, tmpAttr[:, keepInds])
                 elif shape.size == 3:
                     if verbose:
                         print("Resizing " + a + ": ",

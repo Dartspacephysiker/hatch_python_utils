@@ -94,3 +94,52 @@ def resample_and_interp_df__timedate(*args,
             df.loc[commons, haver] = tmpdfnew.loc[commons, haver]
 
     return df
+
+
+def nan_context_getter(df, column,
+                       nPlusminus=5,
+                       print_group_summary=True):
+    """
+    See what things look like around NaN groups in a DataFrame
+    """
+
+    duds = pd.Series(False, index=df.index)  # Assume no duds
+
+    try:
+        # _ = (e for e in column)
+        # multiColumn = True
+
+        for col in column:
+            duds = duds | df[col].duplicated()
+
+        duds = np.where(duds)[0]
+
+    except TypeError:
+        # print my_object, 'is not iterable'
+        # multiColumn = False
+
+        duds = np.where(df[columns].duplicated())[0]
+
+    # if not mult
+
+    dudGroups = hArr.group_consecutives(duds,
+                                        maxDiff=1,
+                                        min_streak=None,
+                                        do_absDiff=False,
+                                        print_summary=print_group_summary)
+
+    upBound = len(df.index)
+
+    for dudG in dudGroups:
+        minner, maxer = np.min(dudG), np.max(dudG)
+        lowInd = minner-nPlusminus
+        highInd = maxer+nPlusminus
+
+        if minner == maxer:
+            lines = np.arange(lowInd if lowInd >= 0 else 0,
+                              highInd if highInd <= upBound else upBound)
+        elif (maxer - minner) < 1000:
+            lines = np.arange(lowInd if lowInd >= 0 else 0,
+                              highInd if highInd <= upBound else upBound)
+        # print(lines, minner, maxer)
+        print(df.iloc[lines])

@@ -8,7 +8,10 @@ def isSorted(array):
     return np.array_equal(array, np.sort(array))
 
 
-def group_consecutives(vals, maxDiff=1, min_streak=None, do_absDiff=False):
+def group_consecutives(vals, maxDiff=1,
+                       min_streak=None,
+                       do_absDiff=False,
+                       print_summary=False):
     """Return list of consecutive lists of numbers from vals (number list).
 
     av https://stackoverflow.com/questions/7352684/
@@ -17,20 +20,44 @@ def group_consecutives(vals, maxDiff=1, min_streak=None, do_absDiff=False):
     En dag du skulle legge til en parameter som tar hensyn til streak-størrelse
     """
 
+    # assert np.issubdtype(maxDiff,np.integer),"maxDiff must be of type integer!"
+    if maxDiff <= 0:
+        print("maxDiff must be >= 0!")
+        return np.array([], dtype=np.int64)
+
     if do_absDiff:
         this = np.split(vals, np.where(np.abs(np.diff(vals)) > maxDiff)[0]+1)
     else:
         this = np.split(vals, np.where(np.diff(vals) > maxDiff)[0]+1)
 
-    if min_streak is None:
-        return this
-    else:
+    # if min_streak is None:
+        # return this
+    # else:
+    if min_streak is not None:
         keep = []
         for liszt in this:
             # print(liszt.size)
             if liszt.size >= min_streak:
                 keep.append(liszt)
-        return keep
+
+        # return keep
+        this = keep
+
+    if print_summary:
+        nDigs = str(np.int64(np.log10(np.max(vals))))
+        print("{:2s} {:{width}s}   {:{width}s} - {:{width}s}".format("i",
+                                                                     "N",
+                                                                     "strt",
+                                                                     "stop",
+                                                                     width=nDigs))
+        for i, dudG in enumerate(this):
+            print("{:2d} {:{width}d}   {:{width}d} - {:{width}d}".format(i,
+                                                                         len(dudG),
+                                                                         dudG[0],
+                                                                         dudG[-1],
+                                                                         width=nDigs))
+
+    return this
 
 
 def find_nearest(array, value):
