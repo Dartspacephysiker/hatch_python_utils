@@ -11,7 +11,8 @@ def isSorted(array):
 def group_consecutives(vals, maxDiff=1,
                        min_streak=None,
                        do_absDiff=False,
-                       print_summary=False):
+                       print_summary=False,
+                       print__maxVal=None):
     """Return list of consecutive lists of numbers from vals (number list).
 
     av https://stackoverflow.com/questions/7352684/
@@ -44,18 +45,28 @@ def group_consecutives(vals, maxDiff=1,
         this = keep
 
     if print_summary:
+        titleStr = "{:2s} {:{width}s}   {:{width}s} - {:{width}s} (/{:{width}s})"
+        rowStr = titleStr.replace("s", "d")
+
+        # rowStr = "{:2d} {:{width}d}   {:{width}d} - {:{width}d} (/{:{width}d})"
+
         nDigs = str(np.int64(np.log10(np.max(vals))))
-        print("{:2s} {:{width}s}   {:{width}s} - {:{width}s}".format("i",
-                                                                     "N",
-                                                                     "strt",
-                                                                     "stop",
-                                                                     width=nDigs))
+
+        if print__maxVal is None:
+            print__maxVal = np.max(vals)
+        print(titleStr.format("i",
+                              "N",
+                              "strt",
+                              "stop",
+                              "tot",
+                              width=nDigs))
         for i, dudG in enumerate(this):
-            print("{:2d} {:{width}d}   {:{width}d} - {:{width}d}".format(i,
-                                                                         len(dudG),
-                                                                         dudG[0],
-                                                                         dudG[-1],
-                                                                         width=nDigs))
+            print(rowStr.format(i,
+                                len(dudG),
+                                dudG[0],
+                                dudG[-1],
+                                print__maxVal,
+                                width=nDigs))
 
     return this
 

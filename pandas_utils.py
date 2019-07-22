@@ -3,9 +3,11 @@
 
 import numpy as np
 import pandas as pd
-
+from .arrays import group_consecutives
 
 # def resample_and_interp_df__timedate(df, interpCols,
+
+
 def resample_and_interp_df__timedate(*args,
                                      resampleString='500ms',
                                      resampleFunc='mean',
@@ -98,7 +100,8 @@ def resample_and_interp_df__timedate(*args,
 
 def nan_context_getter(df, column,
                        nPlusminus=5,
-                       print_group_summary=True):
+                       print_group_summary=True,
+                       print_context=True):
     """
     See what things look like around NaN groups in a DataFrame
     """
@@ -120,20 +123,33 @@ def nan_context_getter(df, column,
 
         duds = np.where(df[columns].duplicated())[0]
 
-    # if not mult
+    nHere = len(df.index)
 
-    dudGroups = hArr.group_consecutives(duds,
-                                        maxDiff=1,
-                                        min_streak=None,
-                                        do_absDiff=False,
-                                        print_summary=print_group_summary)
+    dudGroups = group_consecutives(duds,
+                                   maxDiff=1,
+                                   min_streak=None,
+                                   do_absDiff=False,
+                                   print_summary=print_group_summary,
+                                   print__maxVal=nHere)
 
     upBound = len(df.index)
 
-    for dudG in dudGroups:
+    dudInfo = np.zeros(len(dudGroups),
+                       dtype={'names': ('i', 'N',
+                                        'start', 'stop',
+                                        'startFrac', 'stopFrac'),
+                              'formats': ('i8', 'i8',
+                                          'i8', 'i8',
+                                          'f8', 'f8')})
+
+    for dudI, dudG in enumerate(dudGroups):
         minner, maxer = np.min(dudG), np.max(dudG)
         lowInd = minner-nPlusminus
         highInd = maxer+nPlusminus
+
+        dudInfo[dudI] = (dudI, len(dudG),
+                         dudG[0], dudG[-1],
+                         dudG[0]/np.float64(nHere), dudG[-1]/np.float64(nHere))
 
         if minner == maxer:
             lines = np.arange(lowInd if lowInd >= 0 else 0,
@@ -142,4 +158,7 @@ def nan_context_getter(df, column,
             lines = np.arange(lowInd if lowInd >= 0 else 0,
                               highInd if highInd <= upBound else upBound)
         # print(lines, minner, maxer)
-        print(df.iloc[lines])
+        if print_context:
+            print(df.iloc[lines])
+
+    return np.rec.array(dudInfo)
