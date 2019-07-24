@@ -27,8 +27,8 @@ import hatch_python_utils
 from hatch_python_utils import arrays as hArr
 from hatch_python_utils import coordinates as hCoord
 junk = importlib.reload(hatch_python_utils)
-junk = importlib.reload(hatch_python_utils.arrays)
-junk = importlib.reload(hatch_python_utils.coordinates)
+junk = importlib.reload(hArr)
+junk = importlib.reload(hCoord)
 
 dataDir = '/SPENCEdata/Research/database/Rockets/CAPER2/caper-2-ny-alesund-data/spencers-work/'
 plotDir = '/SPENCEdata/Research/sandbox_and_journals/plots/Rockets/CAPER2/'

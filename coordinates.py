@@ -5,6 +5,7 @@ import igrf12
 from pytt.earth import geodesy
 import numpy as np
 import pandas as pd
+import scipy.io as sio
 
 
 def babyFunc2(a, mlon, datime):
@@ -180,3 +181,29 @@ def geodetic2apex(*args,
 
     else:
         return returnList, rListNames
+
+
+class EqualAreaBins(object):
+
+    def __init__(self, hemi='north'):
+
+        indir = '/SPENCEdata/Research/database/equal-area_binning/'
+        infile = 'equalArea--20161014--struct_and_ASCII_tmplt.idl'
+
+        self.ea = sio.readsav(indir+infile, python_dict=True)['ea']
+
+        self.hemi = hemi
+
+        # if self.hemi.lower() == 'south':
+
+        #       tmpMinI    = (-1.)*np.flip(self.ea.maxI)
+        #       tmpMaxI    = (-1.)*np.flip(self.ea.minI)
+
+        #       tmpMinM    = np.flip(self.ea.minM)
+        #       tmpMaxM    = np.flip(self.ea.maxM)
+
+        #       self.ea.minI = TEMPORARY(tmpMinI)
+        #       self.ea.maxI = TEMPORARY(tmpMaxI)
+
+        #       self.ea.minM = tmpMinM
+        #       self.ea.maxM = tmpMaxM
