@@ -57,13 +57,13 @@ def resample_and_interp_df__timedate(*args,
         for haver in havers:
             if haver.lower() in ['longitude', 'lng']:
                 if verbose:
-                    print("Unwrapping {:s} ...".format(haver))
+                    print("Unwrapping {:s} ...".format(haver), end=' ')
                 tmpdf.loc[:, haver] = np.unwrap(
                     np.deg2rad(tmpdf.loc[:, haver]))
 
             if haver.lower == 'mlt':
                 if verbose:
-                    print("Unwrapping {:s} ...".format(haver))
+                    print("Unwrapping {:s} ...".format(haver), end=' ')
                 tmpdf.loc[:, haver] = np.unwrap(
                     np.deg2rad(tmpdf.loc[:, haver]*15.))
 
@@ -72,13 +72,13 @@ def resample_and_interp_df__timedate(*args,
 
             if haver.lower() in ['longitude', 'lng']:
                 if verbose:
-                    print("Rewrapping {:s} ...".format(haver))
+                    print("Rewrapping {:s} ...".format(haver), end=' ')
                 tmpdfnew.loc[:, haver] = np.rad2deg(
                     (tmpdfnew.loc[:, haver] + np.pi) % (2 * np.pi) - np.pi)
 
             if haver.lower() == 'mlt':
                 if verbose:
-                    print("Rewrapping {:s} ...".format(haver))
+                    print("Rewrapping {:s} ...".format(haver), end=' ')
                 tmpdfnew.loc[:, haver] = np.rad2deg(
                     (tmpdfnew.loc[:, haver] + np.pi) % (2 * np.pi))/15.
 

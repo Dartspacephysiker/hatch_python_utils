@@ -6,6 +6,8 @@
 # LEGENDS
 # LEG1  (20190604): Multiple axes, single legend
 ########################################
+# SPACING
+# SPA1  (20190723): fig.suptitle with plt.tight_layout()
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -87,3 +89,11 @@ l2 = ax2.plot(x, y2, label="neg_binom(5,0.5)")
 ls = l0+l1+l2
 llabs = [l.get_label() for l in ls]
 leg = ax.legend(ls, llabs, loc=0)
+
+########################################
+# SPACING
+########################################
+
+# SPA1  (20190723): fig.suptitle with plt.tight_layout()
+# Just do dis!
+fig.tight_layout(rect=[0, 0.03, 1, 0.95])
