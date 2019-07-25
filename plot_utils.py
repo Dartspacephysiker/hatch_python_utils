@@ -8,11 +8,21 @@ import pandas as pd
 # mlatLabeler = lambda x, pos: hpu.tickFormat_quant(x, myDataFrame, 'mlat')
 
 
-def tickFormat_quant(x, df, quant, pos=None):
+def tickFormat_quant_time(x, df, quant, pos=None):
     dsdf = pd.Timestamp(mdates.num2date(x))
     return "{:.1f}".format(df.iloc[
         df.index.get_loc(dsdf.tz_localize(None),
                          method='nearest')][quant])
+
+
+def tickFormat_quant(x, df, quant, pos=None,
+                     isTime=False,
+                     timeFmtStr='%H:%M'):
+    if isTime:
+        return df.iloc[df.index.get_loc(x, method='nearest')][quant].strftime(timeFmtStr)
+    else:
+        return "{:.1f}".format(df.iloc[
+            df.index.get_loc(x, method='nearest')][quant])
 
 
 def tickFormat_mlt(x, df, pos=None):
