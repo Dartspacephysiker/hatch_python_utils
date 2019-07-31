@@ -9,7 +9,9 @@ def tetthet_profile(z_km,
                     dayside=True,
                     solar_max=True,
                     units='cm',
-                    return_DataFrame=True):
+                    add_magnetosphere_profile=True,
+                    return_DataFrame=True,
+                    verbose=False):
     """
     From Lysak (1999), "Propagation of Alfvén waves through the ionosphere: Dependence on ionospheric parameters"
 
@@ -28,6 +30,7 @@ def tetthet_profile(z_km,
 
     if doDayMax:
         # Dayside max (E layer, F1 layer, F2 layer)
+        layerStr = ("E layer", "F1 layer", "F2 layer")
         plotTit = "Dayside max"
         plotCol = "orange"
 
@@ -41,6 +44,7 @@ def tetthet_profile(z_km,
         hbot = np.array([10, 30, 75])
     elif doDayMin:
         # Dayside min (E layer, F1 layer, F2 layer)
+        layerStr = ("E layer", "F1 layer", "F2 layer")
         plotTit = "Dayside min"
         plotCol = "blue"
         if units == 'm':
@@ -55,9 +59,13 @@ def tetthet_profile(z_km,
     else:
         assert 2 < 0, "NO"
 
+    if verbose:
+        print(plotTit+': ', end='')
     # nLayers = []
     nTot = np.zeros(len(z_km), dtype=np.float64)
     for layerInd in range(len(z0)):
+        if verbose:
+            print(layerStr[layerInd] + '  ', end='')
         xLayer = np.where(z_km > z0[layerInd],
                           (z_km-z0[layerInd])/htop[layerInd],
                           (z0[layerInd]-z_km)/hbot[layerInd])
@@ -78,6 +86,17 @@ def tetthet_profile(z_km,
     # xF2Layer = np.where((z_km >z0[layerInd]),(z_km-z0[layerInd])/htop[layerInd],(z0[layerInd]-z_km)/hbot[layerInd])
     # nF2Layer = n0[layerInd] * np.exp(1-xF2Layer-np.exp(-xF2Layer))
     # nTot = nELayer + nF1Layer + nF2Layer
+
+    if add_magnetosphere_profile:
+        if verbose:
+            print("Adding magnetosphere profile ...")
+        R_E = 6400
+        REs = (z_km + R_E) / R_E
+        magsphFactor = 1.e7 if units == 'm' else 10.  # m^-3 or cm^-3
+        n_msph = magsphFactor / REs
+    else:
+        if verbose:
+            print("")
 
     if return_DataFrame:
         return pd.DataFrame(dict(h=z_km, n_plasma=nTot))

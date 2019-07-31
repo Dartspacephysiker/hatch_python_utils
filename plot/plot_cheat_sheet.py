@@ -27,7 +27,7 @@ def fabdata():
 # AXI1  (20190611): Forandre fargene til sekundær axis
 
 
-sekundFarge = 'orange'
+c2 = 'orange'
 
 x, y0, y1, y2 = fabdata()
 
@@ -41,9 +41,9 @@ l0 = ax.plot(x, y0, label="normal")
 ax1 = ax.twinx()
 l1 = ax1.plot(x, y1, label="gamma")
 
-ax1.axes.spines['right'].set_color(sekundFarge)
-ax1.yaxis.label.set_color(sekundFarge)
-ax1.tick_params(axis='y', colors=sekundFarge)
+ax1.axes.spines['right'].set_color(c2)
+ax1.yaxis.label.set_color(c2)
+ax1.tick_params(axis='y', colors=c2)
 
 
 # AXI2  (20190711): Gridspec!
