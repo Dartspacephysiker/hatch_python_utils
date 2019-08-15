@@ -27,8 +27,6 @@ def fabdata():
 # AXI1  (20190611): Forandre fargene til sekundær axis
 
 
-c2 = 'orange'
-
 x, y0, y1, y2 = fabdata()
 
 fig, ax = plt.subplots(1, 1, figsize=(16, 10))
@@ -41,6 +39,7 @@ l0 = ax.plot(x, y0, label="normal")
 ax1 = ax.twinx()
 l1 = ax1.plot(x, y1, label="gamma")
 
+c2 = 'orange'
 ax1.axes.spines['right'].set_color(c2)
 ax1.yaxis.label.set_color(c2)
 ax1.tick_params(axis='y', colors=c2)

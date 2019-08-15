@@ -42,7 +42,7 @@ def getMagFTP(sat='A',
               localSaveDir='/media/spencerh/data/Swarm/'):
     # Swarm_A/SW_OPER_MAGA_
 
-    localSaveDir += 'Swarm_'+sat+'/'
+    localSaveDir += 'MAGx_HR/Swarm_'+sat+'/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
     # outDir = '/SPENCEdata/Research/Satellites/Swarm/rawFTP/'
@@ -81,7 +81,7 @@ def getLPFTP(sat='A',
              # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'):
              localSaveDir='/media/spencerh/data/Swarm/'):
 
-    localSaveDir += 'Swarm_'+sat+'_EFI_LP/'
+    localSaveDir += '/EFI_LP/Swarm_'+sat+'/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
 
@@ -134,7 +134,7 @@ def getFPFTP(sat='A',
     Get a faceplate file
     """
 
-    localSaveDir += 'Swarm_'+sat+'_EFI_Faceplate_dens/'
+    localSaveDir += 'EFI_Faceplate_dens/Swarm_'+sat+'/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
 
@@ -181,7 +181,30 @@ def getFPFTP(sat='A',
     #     print("Already have " + ftpFile + '!')
 
 
-def _getFTP_dateGlob(dates, localSaveDir, subDir):
+def getCT2HzFTP(sat='A',
+                dates=None,
+                localSaveDir='/media/spencerh/data/Swarm/'):
+    """
+    Get a cross-track 2-Hz file
+    """
+
+    localSaveDir += '2Hz_TII_Cross-track/Swarm_'+sat+'/'
+
+    swarmFTPAddr = "swarm-diss.eo.esa.int"
+
+    subDir = '/Advanced/Plasma_Data/2Hz_TII_Cross-track_Dataset/Sat_{:s}/'.format(
+        sat)
+
+    # EXAMPLE: SW_EXPT_EFIA_TIICT_20151101T155814_20151101T235004_0101.CDF.ZIP
+    # ftpFilePref = 'SW_EXPT_EFI'+sat+'_TIICT_'
+
+    gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir)
+
+    return gotFiles
+
+
+def _getFTP_dateGlob(dates, localSaveDir, subDir,
+                     only_list=False):
     """
     Get a Swarm FTP file, genericizliaed
     """
@@ -194,6 +217,9 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir):
 
     filz = ftp.nlst(subDir)
     ftpFiles = []
+
+    if only_list:
+        return filz
 
     if isinstance(dates, str):
         dates = [dates]

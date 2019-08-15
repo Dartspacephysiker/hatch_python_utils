@@ -658,15 +658,15 @@ class TEAMS:
         origTall = self.mlt.size
         runningTall = origTall
 
-        junkString = "Junked {:8d} inds due to {:14s} ({:8d} matches)"
+        junkedStr = "Junked {:8d} inds due to {:14s} ({:8d} matches)"
         freshKeeps = np.ones(self.mlt.size, dtype=np.bool)
 
         if hasattr(self, 'quality_flag'):
             newKeeps = (self.quality_flag == 0)
             if verbose:
-                print(junkString.format(
-                    runningTall - keeps[keeps].size, "quality_flag", origTall-newKeeps[newKeeps].size))
-                runningTall = keeps[keeps].size
+                print(junkedStr.format(
+                    runningTall - newKeeps[newKeeps].size, "quality_flag", origTall-newKeeps[newKeeps].size))
+                runningTall = newKeeps[newKeeps].size
         else:
             newKeeps = np.ones(self.mlt.size, dtype=np.bool)
 
@@ -686,7 +686,7 @@ class TEAMS:
             keeps = keeps & newKeeps
 
             if verbose:
-                print(junkString.format(
+                print(junkedStr.format(
                     runningTall - keeps[keeps].size, "time restric", origTall-newKeeps[newKeeps].size))
                 runningTall = keeps[keeps].size
 
@@ -704,7 +704,7 @@ class TEAMS:
             keeps = keeps & newKeeps
 
             if verbose:
-                print(junkString.format(
+                print(junkedStr.format(
                     runningTall - keeps[keeps].size, "MLT lims", origTall-newKeeps[newKeeps].size))
                 runningTall = keeps[keeps].size
 
@@ -722,7 +722,7 @@ class TEAMS:
             keeps = keeps & newKeeps
 
             if verbose:
-                print(junkString.format(
+                print(junkedStr.format(
                     runningTall - keeps[keeps].size, "alt lims", origTall-newKeeps[newKeeps].size))
                 runningTall = keeps[keeps].size
 
@@ -750,7 +750,7 @@ class TEAMS:
             keeps = keeps & newKeeps
 
             if verbose:
-                print(junkString.format(
+                print(junkedStr.format(
                     runningTall - keeps[keeps].size, "ilat lims", origTall-newKeeps[newKeeps].size))
                 runningTall = keeps[keeps].size
 
