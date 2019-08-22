@@ -1,7 +1,17 @@
 ########################################
 # Conversions
+#
 # atomic mass to eV/c^2 (20190724)
 # K_to_eV               (20190724)
+########################################
+# Formulæ
+#
+# gyroradius(m, vperp, B, q=sciConst.elementary_charge)
+# gyroradius_temperature(m, Tperp, B, q=sciConst.elementary_charge)
+# gyrofrequency_Hz(m, B, q=sciConst.elementary_charge)
+# plasma_freq_Hz(m, density)
+# plasma_dens_from_f_pe_Hz(f_pe)
+# plasma_dens__cm3_from_f_pe_kHz(f_pe)
 ########################################
 
 
@@ -109,3 +119,9 @@ def plasma_freq_Hz(m, density):
 
 def plasma_dens_from_f_pe_Hz(f_pe):
     return (2*np.pi*f_pe)*sciConst.epsilon_0*sciConst.electron_mass/(sciConst.elementary_charge**2.)
+
+# https://library.psfc.mit.edu/catalog/online_pubs/NRL_FORMULARY_13.pdf
+
+
+def plasma_dens__cm3_from_f_pe_kHz(f_pe):
+    return (f_pe/8.98)**2       # Frequency in kHz

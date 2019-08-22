@@ -36,10 +36,11 @@ ax.grid()
 junk = ax.set_xlabel("Time (s)")
 
 l0 = ax.plot(x, y0, label="normal")
+
+c2 = 'orange'
 ax1 = ax.twinx()
 l1 = ax1.plot(x, y1, label="gamma")
 
-c2 = 'orange'
 ax1.axes.spines['right'].set_color(c2)
 ax1.yaxis.label.set_color(c2)
 ax1.tick_params(axis='y', colors=c2)
