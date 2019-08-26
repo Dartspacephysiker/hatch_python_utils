@@ -49,6 +49,7 @@ kelvin_to_eV = sciConst.Boltzmann/sciConst.eV
 ########################################
 
 
+# F.Gyroradius
 def gyroradius(m, vperp, B, q=sciConst.elementary_charge):
     """
     Alle enheter er SI
@@ -86,6 +87,7 @@ def gyroradius_temperature(m, Tperp, B, q=sciConst.elementary_charge):
     return m*vperp/q/B
 
 
+# F.Gyrofrequency
 def gyrofrequency_Hz(m, B, q=sciConst.elementary_charge):
     """
     Alle enheter er SI
@@ -102,6 +104,7 @@ def gyrofrequency_Hz(m, B, q=sciConst.elementary_charge):
     return q*B/m/2/np.pi
 
 
+# F.PlasmaFrequency
 def plasma_freq_Hz(m, density):
     """
     Alle enheter er SI
@@ -123,5 +126,70 @@ def plasma_dens_from_f_pe_Hz(f_pe):
 # https://library.psfc.mit.edu/catalog/online_pubs/NRL_FORMULARY_13.pdf
 
 
+# F.PlasmaDens_from_PlasmaFreq
 def plasma_dens__cm3_from_f_pe_kHz(f_pe):
     return (f_pe/8.98)**2       # Frequency in kHz
+
+
+# F.CollisionFreqs
+def collisionfrequency__N2(nN2, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nN2     : Neutral N2 density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 2.33e-11 * nN2 * (1-1.21e-4*Te)*Te
+
+
+def collisionfrequency__O2(nO2, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nO2     : Neutral O2 density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 1.82e-10 * nO2 * (1+3.6e-2*np.sqrt(Te))*np.sqrt(Te)
+
+
+def collisionfrequency__O(nO, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nO      : Neutral O density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 8.9e-11 * nO * (1+5.7e-4*Te)*np.sqrt(Te)
+
+
+def collisionfrequency__He(nHe, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nHe     : Neutral He density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 4.6e-10 * nHe * np.sqrt(Te)
+
+
+def collisionfrequency__H(nH, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nH      : Neutral H density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 4.5e-9 * nH * (1-1.35e-4*Te)*np.sqrt(Te)
+
+
+def collisionfrequency__CO(nCO, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nCO     : Neutral CO density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 2.34e-11 * nCO * (Te+165)
+
+
+def collisionfrequency__CO2(nCO2, Te):
+    """
+    Schunk and Nagy Table 4.6
+    nCO2    : Neutral CO2 density   (cm^-3)
+    Te      : Electron temperature (K)
+    """
+    return 3.68e-8 * nCO2 * (1+4.1e-11*np.abs(4500-Te)**(2.93))

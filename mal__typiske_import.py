@@ -16,6 +16,9 @@ import matplotlib.pyplot as plt
 
 plt.ion()
 
+import colorcet as cc           # Perceptually uniform spacing
+cmap = cc.cm.colorwheel
+
 mpl.rcParams.update({'text.color': 'k'})
 mpl.rcParams.update({'axes.labelcolor': 'k'})
 mpl.rcParams.update({'xtick.color': 'k'})

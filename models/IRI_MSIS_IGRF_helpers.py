@@ -214,7 +214,7 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
     return outtie
 
 
-def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlat, mlon,
+def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
                                    get_IGRF=True,
                                    get_IRI=True,
                                    get_MSIS=True,
@@ -253,7 +253,32 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlat, mlon,
     msisList = []
     # outtie = []
 
-    for picktime in picktimes:
+    try:
+        nMLats = len(mlats)
+        haveMultiMLats = True
+    except:
+        nMLats = 1
+        mlats = [mlats]
+        haveMultiMLats = False
+
+    try:
+        nMLons = len(mlons)
+        haveMultiMLons = True
+    except:
+        nMLons = 1
+        mlons = [mlons]
+        haveMultiMLons = False
+
+        maxNum = np.max([nMLats, nMLons, nTimes])
+
+        if (nTimes != maxNum) or (nMLats != maxNum) or (nMLons != maxNum):
+            print("Must provide equal numbers of stuff!")
+            return None
+
+    for picktime, mlat, mlon in zip(picktimes, mlats, mlons):
+
+        print("{:s} {:6.2f} {:6.2f}".format(
+            picktime.strftime("%Y-%m-%dT%H:%M:%S"), mlat, mlon))
 
         glats = np.zeros(nZ, dtype=np.float64)
         glons = np.zeros(nZ, dtype=np.float64)
@@ -322,7 +347,9 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlat, mlon,
         msisInd = int(get_IGRF)+int(get_IRI)
 
         iriAvgCols = ['ni', 'ne', 'Te', 'Ti']
-        msisAvgCols = ['M', 'nn']
+        msisAvgCols = ['M', 'nn',
+                       'HE', 'O', 'N2', 'O2',
+                       'AR', 'H', 'N', 'O_anomalous']
 
         # Ta IGRF først
         if get_IGRF:
