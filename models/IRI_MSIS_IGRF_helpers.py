@@ -170,6 +170,12 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                 print(
                     "Extrapolating IRI n_i and n_e below and above valid IRI alt range with exponential falloff ...")
 
+            # Electrons
+            max_e_model_i, needModel_exp_cont = exp_model_continue__above(
+                iri['ne'])
+
+            iri.loc[iri.iloc[max_e_model_i:].index, 'ne'] = needModel_exp_cont
+
             # Ions
             max_ion_model_i, needModel_exp_cont = exp_model_continue__above(
                 iri['ni'])
@@ -188,12 +194,6 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
 
                 iri.loc[iri.iloc[max_ion_model_i:].index,
                         species] = needModel_exp_cont
-
-            # Electrons
-            max_e_model_i, needModel_exp_cont = exp_model_continue__above(
-                iri['ne'])
-
-            iri.loc[iri.iloc[max_e_model_i:].index, 'ne'] = needModel_exp_cont
 
         if extrapolate_model_below_min_valid_height:
             if verbose:
@@ -474,7 +474,7 @@ def exp_model_continue__above(series, scaleHeight=None):  # ,
     return max_model_i, needModel_exp_cont
 
 
-def exp_model_continue__below(series, scaleHeight=8):
+def exp_model_continue__below(series, scaleHeight=10):
 
     R_E = 6400
 

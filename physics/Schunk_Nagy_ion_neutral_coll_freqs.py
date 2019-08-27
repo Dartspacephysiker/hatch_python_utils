@@ -129,6 +129,7 @@ def ion_neutral_coll_freqs(neutral_list, ion_list,
                            nn_list, ni_list,
                            Tn_list, Ti_list,
                            list_output=False,
+                           ion_species_avg=False,
                            use_only_neutral_density=False,  # Actually True, see below!
                            use_only_ion_density=False,
                            use_sum_of_neutral_and_ion_density=False,
@@ -189,6 +190,7 @@ def ion_neutral_coll_freqs(neutral_list, ion_list,
     collFreq = 0
     listie = []
 
+    nu_species = dict()
     # All list entries are in this order:
     # H+, He+, C+, N+, O+, CO+, N2+, NO+, O2+, CO2+
     # H, He, N, O, CO, N2, O2, CO2
@@ -200,9 +202,18 @@ def ion_neutral_coll_freqs(neutral_list, ion_list,
     print(titleFmtStr.format("Neutr", "Ion",
                              "Combdens", "nn", "ni", "Tn", "Ti", "nu", "Alt"))
 
-    for neutral, nn, Tn in zip(neutral_list, nn_list, Tn_list):
+    for ion, ni, Ti in zip(ion_list, ni_list, Ti_list):
 
-        for ion, ni, Ti in zip(ion_list, ni_list, Ti_list):
+        tmpni = ni.copy()
+        fixni = np.where(tmpni <= 0)[0]
+        if fixni.size > 0:
+            tmpni[fixni] = 1e-10
+
+        if ion_species_avg:
+            collFreq = 0
+            denom_dens = 0
+
+        for neutral, nn, Tn in zip(neutral_list, nn_list, Tn_list):
 
             # pickDens(use_geometric_mean_of_neutral_and_ion_density=True,
             #          use_harmonic_mean_of_neutral_and_ion_density=True,
@@ -215,11 +226,6 @@ def ion_neutral_coll_freqs(neutral_list, ion_list,
             fixnn = np.where(tmpnn <= 0)[0]
             if fixnn.size > 0:
                 tmpnn[fixnn] = 1e-10
-
-            tmpni = ni.copy()
-            fixni = np.where(tmpni <= 0)[0]
-            if fixni.size > 0:
-                tmpni[fixni] = 1e-10
 
             # HVILKEN TETTHET BRUKER VI?
             if use_only_neutral_density:
@@ -243,6 +249,9 @@ def ion_neutral_coll_freqs(neutral_list, ion_list,
             # HOW TO OUTPUT
             if list_output:
                 listie.append((neutral, ion, tmpCollFreq))
+            elif ion_species_avg:
+                denom_dens += tmpnn
+                collFreq += tmpnn * tmpCollFreq
             else:
                 collFreq += tmpCollFreq
 
@@ -258,9 +267,15 @@ def ion_neutral_coll_freqs(neutral_list, ion_list,
                                                  Tn.iloc[tmpind], Ti.iloc[tmpind],
                                                  tmpCollFreq[tmpind],
                                                  tmpnn.index[tmpind]))
+        if ion_species_avg:
+            print("Getting avg for {:s}".format(ion))
+            collFreq = collFreq / denom_dens
+            nu_species[ion] = collFreq
 
     if list_output:
         return listie
+    elif ion_species_avg:
+        return nu_species
     else:
         return collFreq
 
