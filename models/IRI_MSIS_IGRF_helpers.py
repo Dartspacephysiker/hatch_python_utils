@@ -11,11 +11,26 @@ from pytt.earth import geodesy
 from functools import reduce
 
 
+# IRI LIMITS from iri.org:
+# HEIGHT RANGE:
+# Electron density: daytime: 65-2000km, nighttime: 80-2000km
+# Electron and ion temperature: 60-2500km (IRI-95 option: 60-3000km)
+# Ion composition: 75-2000km (DS95/DY85 option: 80-2000km)
+
+# IRIspecies = ['nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN', 'nCluster']
+IRIspecies = ['nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN']
+IRIKeepSpecies__density = ['ne', 'ni',
+                           'nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN']
+
+MSISKeepSpecies__density = ['nn', 'HE', 'O', 'N2', 'O2',
+                            'AR', 'H', 'N', 'O_anomalous']
+
+
 def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                              get_IRI=True,
                              get_MSIS=True,
                              set_neg_vals_to_zero=False,
-                             iri_use_F107=True,
+                             iri_use_F107=False,
                              msis_use_F107=False,
                              do_scale_dens_to_mneg3=False,
                              extrapolate_model_above_max_valid_height=True,
@@ -24,6 +39,8 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                              make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range=True,
                              F107=None,
                              verbose=False):
+
+    global IRIspecies, IRIKeepSpecies__density, MSISKeepSpecies__density
 
     if make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range and (not get_MSIS):
         print("Må be om MSIS for å fike IRI-elektrontemperatur!")
@@ -50,9 +67,11 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                       z_km.flatten())
 
         IRIdtype = np.dtype({'names': ('ne', 'Te', 'Ti', 'Tn', 'NmF2', 'hmF2',
-                                       'nO', 'nH', 'nHE', 'nO2', 'nNO'),
+                                       'nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN',
+                                       'nCluster'),
                              'formats': ('f8', 'f8', 'f8', 'f8', 'f8', 'f8',
-                                         'f8', 'f8', 'f8', 'f8', 'f8')})
+                                         'f8', 'f8', 'f8', 'f8', 'f8', 'f8',
+                                         'f8')})
         iri = np.rec.array(np.zeros(nZ, dtype=IRIdtype))
 
         for i, (lat, lon, alt) in enumerate(loopers):
@@ -67,10 +86,14 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
             yunk = pt.run_iri()  # default year is 2016
 
             iri[i] = (pt.ne, pt.Te, pt.Ti, pt.Tn_iri, pt.NmF2, pt.hmF2,
-                      pt.ni['O+'], pt.ni['H+'], pt.ni['HE+'], pt.ni['O2+'], pt.ni['NO+'])
+                      pt.ni['O+'], pt.ni['H+'], pt.ni['HE+'], pt.ni['O2+'],
+                      pt.ni['NO+'], pt.ni['N+'],
+                      pt.ni['Cluster+'])
 
+            # iri.loc[200,['nO','nH','nHE','nO2','nNO','nN']].sum()/iri.loc[200,['ne']]
         ########################################
         # Make IRI dataframe
+
         iri = pd.DataFrame(iri)
         iri.set_index(pd.Series(z_km, name='Height'), inplace=True)
 
@@ -84,8 +107,13 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
             iri['nH'][iri['nH'] < 0] = 0
             iri['nHE'][iri['nHE'] < 0] = 0
             iri['nO2'][iri['nO2'] < 0] = 0
+            iri['nNO'][iri['nNO'] < 0] = 0
+            iri['nN'][iri['nN'] < 0] = 0
+            iri['nCluster'][iri['nCluster'] < 0] = 0
 
-        iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2']].sum(axis=1)
+        # iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2']].sum(axis=1)
+        # iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2', 'nNO']].sum(axis=1)
+        iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN']].sum(axis=1)
 
         # bad_ne = np.where(iri['ne'] < 0)[0]
         # if bad_ne.size > 0:
@@ -143,16 +171,29 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                     "Extrapolating IRI n_i and n_e below and above valid IRI alt range with exponential falloff ...")
 
             # Ions
-            max_ion_model_i, noModel_exp_cont = exp_model_continue__above(
+            max_ion_model_i, needModel_exp_cont = exp_model_continue__above(
                 iri['ni'])
 
-            iri.loc[iri.iloc[max_ion_model_i:].index, 'ni'] = noModel_exp_cont
+            iri.loc[iri.iloc[max_ion_model_i:].index,
+                    'ni'] = needModel_exp_cont
+
+            # And species
+            print(
+                "extrapolate above {:.1f} for ion species {:s} ...".format(
+                    iri.iloc[max_ion_model_i].name,
+                    ", ".join([spec.lstrip('n')+'+' for spec in IRIspecies])))
+            for species in IRIspecies:
+                max_ion_model_i, needModel_exp_cont = exp_model_continue__above(
+                    iri[species])
+
+                iri.loc[iri.iloc[max_ion_model_i:].index,
+                        species] = needModel_exp_cont
 
             # Electrons
-            max_e_model_i, noModel_exp_cont = exp_model_continue__above(
+            max_e_model_i, needModel_exp_cont = exp_model_continue__above(
                 iri['ne'])
 
-            iri.loc[iri.iloc[max_e_model_i:].index, 'ne'] = noModel_exp_cont
+            iri.loc[iri.iloc[max_e_model_i:].index, 'ne'] = needModel_exp_cont
 
         if extrapolate_model_below_min_valid_height:
             if verbose:
@@ -160,25 +201,42 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                     "Extrapolating IRI n_e below valid IRI alt range with exponential falloff ...")
 
             # Now lower edge
-            min_e_model_i, noModel_exp_cont = exp_model_continue__below(iri['ne'],
-                                                                        scaleHeight=extrapolate_model_below__scaleHeight_km)
-            iri.loc[iri.iloc[:min_e_model_i].index, 'ne'] = noModel_exp_cont
+            min_e_model_i, needModel_exp_cont = exp_model_continue__below(
+                iri['ne'],
+                scaleHeight=extrapolate_model_below__scaleHeight_km)
+
+            iri.loc[iri.iloc[:min_e_model_i].index, 'ne'] = needModel_exp_cont
 
             # Ioner
-            min_e_model_i, noModel_exp_cont = exp_model_continue__below(iri['ni'],
-                                                                        scaleHeight=extrapolate_model_below__scaleHeight_km)
-            iri.loc[iri.iloc[:min_e_model_i].index, 'ni'] = noModel_exp_cont
+            min_ion_model_i, needModel_exp_cont = exp_model_continue__below(
+                iri['ni'],
+                scaleHeight=extrapolate_model_below__scaleHeight_km)
+
+            iri.loc[iri.iloc[:min_ion_model_i].index,
+                    'ni'] = needModel_exp_cont
+
+            print(
+                "extrapolate below {:.1f} for ion species {:s} ...".format(
+                    iri.iloc[max_ion_model_i].name,
+                    ", ".join([spec.lstrip('n')+'+' for spec in IRIspecies])))
+
+            for species in IRIspecies:
+                min_ion_model_i, needModel_exp_cont = exp_model_continue__below(
+                    iri[species],
+                    scaleHeight=extrapolate_model_below__scaleHeight_km)
+
+                iri.loc[iri.iloc[:min_ion_model_i].index,
+                        species] = needModel_exp_cont
 
     ########################################
     # Scaling
     ########################################
     if do_scale_dens_to_mneg3:
         if get_IRI:
-            iri.loc[:, ['ne', 'ni', 'nO', 'nH', 'nHE', 'nO2']] *= 1e6
+            iri.loc[:, IRIKeepSpecies__density] *= 1e6
 
         if get_MSIS:
-            msis.loc[:, ['nn', 'HE', 'O', 'N2', 'O2',
-                         'AR', 'H', 'N', 'O_anomalous']] *= 1e6
+            msis.loc[:, MSISKeepSpecies__density] *= 1e6
 
     ########################################
     # Make Te the same as neutral temperature below ~60 km
@@ -229,6 +287,8 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
                                    extrapolate_model_below__scaleHeight_km=8,
                                    make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range=True,
                                    verbose=False):
+
+    global IRIspecies, IRIKeepSpecies__density, MSISKeepSpecies__density
 
     igrf_isv = 0
     igrf_itype = 1
@@ -346,10 +406,8 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
         iriInd = int(get_IGRF)
         msisInd = int(get_IGRF)+int(get_IRI)
 
-        iriAvgCols = ['ni', 'ne', 'Te', 'Ti']
-        msisAvgCols = ['M', 'nn',
-                       'HE', 'O', 'N2', 'O2',
-                       'AR', 'H', 'N', 'O_anomalous']
+        iriAvgCols = ['Te', 'Ti']+IRIKeepSpecies__density
+        msisAvgCols = ['M', 'Tn'] + MSISKeepSpecies__density
 
         # Ta IGRF først
         if get_IGRF:
@@ -370,6 +428,7 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
 
         # og så IRI
         if get_IRI:
+
             finalList.append(gjennomsnitt__IRI_MSIS(iriList, iriAvgCols))
 
         # og så MSIS
@@ -386,7 +445,7 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
         return igrfList, iriList, msisList
 
 
-def exp_model_continue__above(series):  # ,
+def exp_model_continue__above(series, scaleHeight=None):  # ,
     # for_lower_edge=True):
 
     R_E = 6400
@@ -399,17 +458,20 @@ def exp_model_continue__above(series):  # ,
     max_model_height = series.index[max_model_i]
     max_model = series.iloc[max_model_i]
 
-    scaleHeight = max_model_height
+    if scaleHeight is None:
+        scaleHeight = max_model_height/4
+        print("Using scaleHeight = {:.2f} km for above interp".format(
+            scaleHeight))
 
-    noModel_heights = series.iloc[max_model_i:].index.values
-    # noModel_heights
-    noModel_r = R_E + noModel_heights
+    needModel_heights = series.iloc[max_model_i:].index.values
+
+    needModel_r = R_E + needModel_heights
     max_model_r = max_model_height+R_E
 
-    noModel_exp_cont = ((max_model_r)-noModel_r)/scaleHeight
-    noModel_exp_cont = np.exp(noModel_exp_cont)*max_model
+    needModel_exp_cont = ((max_model_r)-needModel_r)/scaleHeight
+    needModel_exp_cont = np.exp(needModel_exp_cont)*max_model
 
-    return max_model_i, noModel_exp_cont
+    return max_model_i, needModel_exp_cont
 
 
 def exp_model_continue__below(series, scaleHeight=8):
@@ -421,15 +483,15 @@ def exp_model_continue__below(series, scaleHeight=8):
     min_model_height = series.index[min_model_i]
     min_model = series.iloc[min_model_i]
 
-    noModel_heights = series.iloc[:min_model_i].index.values
+    needModel_heights = series.iloc[:min_model_i].index.values
 
-    noModel_r = R_E + noModel_heights
+    needModel_r = R_E + needModel_heights
     min_model_r = min_model_height+R_E
 
-    noModel_exp_cont = np.abs(min_model_r-noModel_r)/scaleHeight
-    noModel_exp_cont = np.exp((-1.)*noModel_exp_cont)*min_model
+    needModel_exp_cont = np.abs(min_model_r-needModel_r)/scaleHeight
+    needModel_exp_cont = np.exp((-1.)*needModel_exp_cont)*min_model
 
-    return min_model_i, noModel_exp_cont
+    return min_model_i, needModel_exp_cont
 
 
 def gjennomsnitt__IRI_MSIS(dfList, avgCols):

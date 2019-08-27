@@ -1,5 +1,4 @@
 # 2019/07/31
-# def Kelley_1989_neutral_atmosphere():
 
 import numpy as np
 import pandas as pd
@@ -40,11 +39,17 @@ def load_model(*args, units='cm', sunspot_max=True,
         kelley = pd.concat([kelley, kelley.reindex(z_km)]).sort_index()
         kelley = kelley[~kelley.index.duplicated(keep='first')]
 
+        # kelley = kelley.interpolate(method='polynomial', order=2)
         kelley = kelley.interpolate(method='linear')
 
         kelley['n'] = 10**(kelley['n'])
+        for col in ['T', 'M', 'n']:
+            kelley.loc[:, [col]] = kelley.loc[:, [col]].rolling(
+                21, center=True, min_periods=1).mean()
 
         kelley = kelley.reset_index()
+
+    kelley.set_index('h', inplace=True)
 
     # else:
     return kelley
