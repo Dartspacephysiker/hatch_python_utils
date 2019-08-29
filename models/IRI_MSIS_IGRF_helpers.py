@@ -26,21 +26,74 @@ MSISKeepSpecies__density = ['nn', 'HE', 'O', 'N2', 'O2',
                             'AR', 'H', 'N', 'O_anomalous']
 
 
-def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
-                             get_IRI=True,
-                             get_MSIS=True,
-                             set_neg_vals_to_zero=False,
-                             iri_use_F107=False,
-                             msis_use_F107=False,
-                             do_scale_dens_to_mneg3=False,
-                             extrapolate_model_above_max_valid_height=True,
-                             extrapolate_model_below_min_valid_height=True,
-                             extrapolate_model_below__scaleHeight_km=8,
-                             make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range=True,
-                             F107=None,
-                             verbose=False):
+def get_IGRF_profile(picktime, glats, glons, z_km, igrf_isv, igrf_itype):
+    igrf = igrf12.gridigrf12(picktime,
+                             glat=glats.flatten(),
+                             glon=glons.flatten(),
+                             alt_km=z_km,
+                             isv=igrf_isv, itype=igrf_itype)
+
+    igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
+                      2. + igrf.down.values**2.)
+
+    igrfeast = igrf.east.values
+    igrfnorth = igrf.north.values
+    igrfdown = igrf.down.values
+
+    igrf = pd.DataFrame(
+        dict(east=igrfeast, north=igrfnorth, down=igrfdown, mag=igrfMag))
+    igrf.set_index(pd.Series(z_km, name='Height'), inplace=True)
+
+    return igrf
+
+
+def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
+                                  convert_from_apex_mlat_mlt_to_glat_glon=False,
+                                  apex_mlat=None,
+                                  apex_mlt=None,
+                                  apex_ref_alt_km=None,
+                                  get_IGRF=True,
+                                  get_IRI=True,
+                                  get_MSIS=True,
+                                  set_neg_vals_to_zero=False,
+                                  iri_use_F107=False,
+                                  msis_use_F107=False,
+                                  do_scale_dens_to_mneg3=False,
+                                  extrapolate_model_above_max_valid_height=True,
+                                  extrapolate_model_below_min_valid_height=True,
+                                  extrapolate_model_below__scaleHeight_km=8,
+                                  make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range=True,
+                                  dataframe=False,
+                                  F107=None,
+                                  verbose=False):
 
     global IRIspecies, IRIKeepSpecies__density, MSISKeepSpecies__density
+
+    igrf_isv = 0
+    igrf_itype = 1
+
+    if convert_from_apex_mlat_mlt_to_glat_glon:
+
+        # print("{:s} {:6.2f} {:6.2f}".format(
+        #     picktime.strftime("%Y-%m-%dT%H:%M:%S"), mlat, mlon))
+
+        nZ = z_km.size
+
+        glats = np.zeros(nZ, dtype=np.float64)
+        glons = np.zeros(nZ, dtype=np.float64)
+
+        a = apexpy.Apex(date=picktime, refh=apex_ref_alt_km)
+        mlon = a.mlt2mlon(apex_mlt, picktime)
+
+        for iH, height in enumerate(z_km):
+
+            mgdlat, glon, error = a.apex2geo(apex_mlat, mlon, height)
+            theta, r, _, _ = geodesy.geod2geoc(mgdlat, height, 0, 0)
+            glats[iH] = 90.-theta
+            glons[iH] = glon
+
+        print("Converted {:.2f} MLat, {:.2f} MLT to (median) {:.2f} glat, {:.2f} glon".format(
+            apex_mlat, apex_mlt, np.median(glats), np.median(glons)))
 
     if make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range and (not get_MSIS):
         print("Må be om MSIS for å fike IRI-elektrontemperatur!")
@@ -57,6 +110,18 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
 
     # print("F10.7s : ", f107, f107a)
 
+    igrf = None
+    iri = None
+    msis = None
+
+    ########################################
+    # IGRF-modell
+    ########################################
+
+    if get_IGRF:
+        igrf = get_IGRF_profile(picktime, glats, glons,
+                                z_km, igrf_isv, igrf_itype)
+
     ########################################
     # IRI-modell
     ########################################
@@ -66,7 +131,7 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                       glons.flatten(),
                       z_km.flatten())
 
-        IRIdtype = np.dtype({'names': ('ne', 'Te', 'Ti', 'Tn', 'NmF2', 'hmF2',
+        IRIdtype = np.dtype({'names': ('ne', 'Te', 'Ti', 'Tn_iri', 'NmF2', 'hmF2',
                                        'nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN',
                                        'nCluster'),
                              'formats': ('f8', 'f8', 'f8', 'f8', 'f8', 'f8',
@@ -132,7 +197,7 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                       glons.flatten(),
                       z_km.flatten())
 
-        MSISdtype = np.dtype(dict(names=('Tn', 'HE', 'O', 'N2', 'O2', 'AR', 'H', 'N', 'O_anomalous', 'rho'),
+        MSISdtype = np.dtype(dict(names=('Tn_msis', 'HE', 'O', 'N2', 'O2', 'AR', 'H', 'N', 'O_anomalous', 'rho'),
                                   formats=(('f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8', 'f8'))))
 
         msis = np.rec.array(np.zeros(nZ, dtype=MSISdtype))
@@ -217,7 +282,7 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
 
             print(
                 "extrapolate below {:.1f} for ion species {:s} ...".format(
-                    iri.iloc[max_ion_model_i].name,
+                    iri.iloc[min_ion_model_i].name,
                     ", ".join([spec.lstrip('n')+'+' for spec in IRIspecies])))
 
             for species in IRIspecies:
@@ -255,7 +320,7 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
         # This is not a good idea for altitudes < 1000 km
         if iri_no_Te_inds_lower.size > 0:
             iri.loc[iri_no_Te_inds_lower,
-                    'Te'] = msis.loc[iri_no_Te_inds_lower, 'Tn'].values
+                    'Te'] = msis.loc[iri_no_Te_inds_lower, 'Tn_msis'].values
 
         if iri_no_Te_inds_upper.size > 0:
             upper_Te = iri.iloc[iri.index.get_loc(
@@ -264,12 +329,30 @@ def get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
 
     # Føye sammen forespurte profilene
     outtie = []
-    if get_IRI:
+
+    if dataframe:
+        if get_IGRF:
+            outtie.append(igrf)
+        if get_IRI:
+            outtie.append(iri)
+        if get_MSIS:
+            outtie.append(msis)
+
+        final = reduce(lambda left, right: pd.merge(left, right,
+                                                    left_index=True,
+                                                    right_index=True),
+                       outtie)
+        return final
+
+    else:
+
+        outtie.append(igrf)
+
         outtie.append(iri)
-    if get_MSIS:
+
         outtie.append(msis)
 
-    return outtie
+        return outtie
 
 
 def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
@@ -354,41 +437,29 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
 
         # glat, glon: geographic Latitude, Longitude
         # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
-        if get_IGRF:
-            igrf = igrf12.gridigrf12(picktime,
-                                     glat=glats.flatten(),
-                                     glon=glons.flatten(),
-                                     alt_km=z_km,
-                                     isv=igrf_isv, itype=igrf_itype)
+        # if get_IGRF:
+        #     igrfList.append(get_IGRF_profile(picktime,glats,glons,z_km,igrf_isv,igrf_itype))
 
-            igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
-                              2. + igrf.down.values**2.)
+            # igrfList.append(igrf)
 
-            igrfeast = igrf.east.values
-            igrfnorth = igrf.north.values
-            igrfdown = igrf.down.values
+        if get_IGRF or get_IRI or get_MSIS:
+            igrf, iri, msis = get_IGRF_IRI2016_MSIS_profile(
+                picktime, z_km, glats, glons,
+                get_IGRF=get_IGRF,
+                get_IRI=get_IRI,
+                get_MSIS=get_MSIS,
+                set_neg_vals_to_zero=set_neg_vals_to_zero,
+                iri_use_F107=iri_use_F107,
+                msis_use_F107=msis_use_F107,
+                do_scale_dens_to_mneg3=do_scale_dens_to_mneg3,
+                extrapolate_model_above_max_valid_height=extrapolate_model_above_max_valid_height,
+                extrapolate_model_below_min_valid_height=extrapolate_model_below_min_valid_height,
+                extrapolate_model_below__scaleHeight_km=extrapolate_model_below__scaleHeight_km,
+                make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range=make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range,
+                F107=F107,
+                verbose=verbose)
 
-            igrf = pd.DataFrame(
-                dict(east=igrfeast, north=igrfnorth, down=igrfdown, mag=igrfMag))
-            igrf.set_index(pd.Series(z_km, name='Height'), inplace=True)
-
-            igrfList.append(igrf)
-
-        if get_IRI or get_MSIS:
-            iri, msis = get_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
-                                                 get_IRI=get_IRI,
-                                                 get_MSIS=get_MSIS,
-                                                 set_neg_vals_to_zero=set_neg_vals_to_zero,
-                                                 iri_use_F107=iri_use_F107,
-                                                 msis_use_F107=msis_use_F107,
-                                                 do_scale_dens_to_mneg3=do_scale_dens_to_mneg3,
-                                                 extrapolate_model_above_max_valid_height=extrapolate_model_above_max_valid_height,
-                                                 extrapolate_model_below_min_valid_height=extrapolate_model_below_min_valid_height,
-                                                 extrapolate_model_below__scaleHeight_km=extrapolate_model_below__scaleHeight_km,
-                                                 make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range=make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range,
-                                                 F107=F107,
-                                                 verbose=verbose)
-
+        igrfList.append(igrf)
         iriList.append(iri)
         msisList.append(msis)
 
@@ -406,8 +477,8 @@ def get_IGRF_IRI2016_MSIS_profiles(picktimes, z_km, mlats, mlons,
         iriInd = int(get_IGRF)
         msisInd = int(get_IGRF)+int(get_IRI)
 
-        iriAvgCols = ['Te', 'Ti']+IRIKeepSpecies__density
-        msisAvgCols = ['M', 'Tn'] + MSISKeepSpecies__density
+        iriAvgCols = ['Te', 'Ti', 'Tn_iri']+IRIKeepSpecies__density
+        msisAvgCols = ['M', 'Tn_msis'] + MSISKeepSpecies__density
 
         # Ta IGRF først
         if get_IGRF:
