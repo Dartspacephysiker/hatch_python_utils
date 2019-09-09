@@ -207,3 +207,63 @@ class EqualAreaBins(object):
 
         #       self.ea.minM = tmpMinM
         #       self.ea.maxM = tmpMaxM
+
+
+def geoclatR2geodlatheight(glat, r_km):
+    """
+    glat : geocentric latitude (degrees)
+    r_km : radius (km)
+    Ripped off Kalle's pytt.geodesy.geoc2geod ...
+    """
+    d2r = np.pi/180
+    r2d = 180 / np.pi
+    WGS84_e2 = 0.00669437999014
+    WGS84_a = 6378.137
+
+    a = WGS84_a
+    b = a*np.sqrt(1 - WGS84_e2)
+
+    # breakpoint()
+
+    E2 = 1.-(b/a)**2
+    E4 = E2*E2
+    E6 = E4*E2
+    E8 = E4*E4
+    A21 = (512.*E2 + 128.*E4 + 60.*E6 + 35.*E8)/1024.
+    A22 = (E6 + E8) / 32.
+    A23 = -3.*(4.*E6 + 3.*E8) / 256.
+    A41 = -(64.*E4 + 48.*E6 + 35.*E8)/1024.
+    A42 = (4.*E4 + 2.*E6 + E8) / 16.
+    A43 = 15.*E8 / 256.
+    A44 = -E8 / 16.
+    A61 = 3.*(4.*E6 + 5.*E8)/1024.
+    A62 = -3.*(E6 + E8) / 32.
+    A63 = 35.*(4.*E6 + 3.*E8) / 768.
+    A81 = -5.*E8 / 2048.
+    A82 = 64.*E8 / 2048.
+    A83 = -252.*E8 / 2048.
+    A84 = 320.*E8 / 2048.
+
+    SCL = np.sin(glat * d2r)
+
+    RI = a/r_km
+    A2 = RI*(A21 + RI * (A22 + RI * A23))
+    A4 = RI*(A41 + RI * (A42 + RI*(A43+RI*A44)))
+    A6 = RI*(A61 + RI * (A62 + RI * A63))
+    A8 = RI*(A81 + RI * (A82 + RI*(A83+RI*A84)))
+
+    CCL = np.sqrt(1-SCL**2)
+    S2CL = 2.*SCL * CCL
+    C2CL = 2.*CCL * CCL-1.
+    S4CL = 2.*S2CL * C2CL
+    C4CL = 2.*C2CL * C2CL-1.
+    S8CL = 2.*S4CL * C4CL
+    S6CL = S2CL * C4CL + C2CL * S4CL
+
+    DLTCL = S2CL * A2 + S4CL * A4 + S6CL * A6 + S8CL * A8
+    gdlat = DLTCL + glat * d2r
+    height = r_km * np.cos(DLTCL) - a * np.sqrt(1 - E2 * np.sin(gdlat) ** 2)
+
+    gdlat = gdlat / d2r
+
+    return gdlat, height

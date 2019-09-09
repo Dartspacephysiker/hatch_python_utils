@@ -4,11 +4,17 @@
 # AXI2  (20190711): Gridspec!
 # AXI3  (20190823): Sekundær akse med forskjellige tick-merker
 ########################################
+# BOXPLOTS
+# BP1   (20190904): Multi boxplots, change colors, etc.
+########################################
 # LEGENDS
 # LEG1  (20190604): Multiple axes, single legend
 ########################################
 # SPACING
 # SPA1  (20190723): fig.suptitle with plt.tight_layout()
+########################################
+# TEXT
+# TEX1  (20190904): Text annotation example
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -25,7 +31,7 @@ def fabdata():
 # AXISNESS
 ########################################
 
-### AXI1  (20190611): Forandre fargene til sekundær axis
+# AXI1  (20190611): Forandre fargene til sekundær axis
 
 
 x, y0, y1, y2 = fabdata()
@@ -47,7 +53,7 @@ ax1.yaxis.label.set_color(c2)
 ax1.tick_params(axis='y', colors=c2)
 
 
-### AXI2  (20190711): Gridspec!
+# AXI2  (20190711): Gridspec!
 
 fig3 = plt.figure(constrained_layout=True)
 gs = fig3.add_gridspec(2, 3)
@@ -63,7 +69,7 @@ f3_ax01.grid()
 f3_ax10.grid()
 f3_ax11.grid()
 
-### AXI3  (20190823): Sekundær akse med forskjellige tick-merker
+# AXI3  (20190823): Sekundær akse med forskjellige tick-merker
 ax2 = ax1.twiny()
 ax1Xs = ax1.get_xticks()
 
@@ -76,10 +82,19 @@ ax2.set_xbound(ax1.get_xbound())
 ax2.set_xticklabels(ax2Xs)
 
 ########################################
+# BOXPLOTS
+########################################
+
+# BP1   (20190904): Multi boxplots, change colors, etc.
+
+# SEE journal__20190814__standalone_JGR_Figur_7.ipynb in /SPENCEdata/Research/sandbox_and_journals/journals/batch_jobs/Strangeway_2005/.
+# Funksjoner update_bp osv. er nyttige
+
+########################################
 # LEGENDS
 ########################################
 
-### LEG1 (20190604) : Multiple axes, single legend
+# LEG1 (20190604) : Multiple axes, single legend
 
 
 x = np.arange(0, 100, 1)
@@ -107,6 +122,17 @@ leg = ax.legend(ls, llabs, loc=0)
 # SPACING
 ########################################
 
-### SPA1  (20190723): fig.suptitle with plt.tight_layout()
+# SPA1  (20190723): fig.suptitle with plt.tight_layout()
 # Just do dis!
 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+########################################
+# TEXT
+########################################
+
+# TEX1  (20190904): Text annotation example
+fontsize = 35
+normtextpos = (0.02, 0.86)       # Normalized axis coordinates
+junkera = ax.text(*normtextpos, 'a',
+                  transform=ax.transAxes,
+                  fontsize=fontsize)

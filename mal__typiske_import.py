@@ -28,7 +28,7 @@ mpl.rcParams.update({'figure.figsize' : [10.0, 8.0]})
 
 import hatch_python_utils
 from hatch_python_utils import arrays as hArr
-from hatch_python_utils import coordinates as hCoord
+from hatch_python_utils.earth import coordinates as hCoord
 junk = importlib.reload(hatch_python_utils)
 junk = importlib.reload(hArr)
 junk = importlib.reload(hCoord)
