@@ -7,6 +7,9 @@
 # BOXPLOTS
 # BP1   (20190904): Multi boxplots, change colors, etc.
 ########################################
+# COLOR MAPS
+# COL1  (20190910): Get colormap values for an array
+########################################
 # LEGENDS
 # LEG1  (20190604): Multiple axes, single legend
 ########################################
@@ -89,6 +92,14 @@ ax2.set_xticklabels(ax2Xs)
 
 # SEE journal__20190814__standalone_JGR_Figur_7.ipynb in /SPENCEdata/Research/sandbox_and_journals/journals/batch_jobs/Strangeway_2005/.
 # Funksjoner update_bp osv. er nyttige
+
+########################################
+# Color maps
+# COL1  (20190910): Get colormap values for an array
+plotstat = np.random.uniform(0, 1000, 100)
+plotmax, plotmin = np.max(plotstat[np.isfinite(plotstat)]), np.min(
+    plotstat[np.isfinite(plotstat)])
+cmapvals = cmap(plt.Normalize(plotmin, plotmax)(plotstat))
 
 ########################################
 # LEGENDS

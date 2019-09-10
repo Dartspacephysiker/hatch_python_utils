@@ -184,29 +184,55 @@ def geodetic2apex(*args,
 
 
 class EqualAreaBins(object):
+    """
+    See example usage in journal__20190815__lek_med_Swarm_crosstrack.ipynb
+    """
 
     def __init__(self, hemi='north'):
 
-        indir = '/SPENCEdata/Research/database/equal-area_binning/'
-        infile = 'equalArea--20161014--struct_and_ASCII_tmplt.idl'
+        self._indir = '/SPENCEdata/Research/database/equal-area_binning/'
+        self._infile = 'equalArea--20161014--struct_and_ASCII_tmplt.idl'
 
-        self.ea = sio.readsav(indir+infile, python_dict=True)['ea']
+        self.ea = None
+        self._hemi = hemi
 
-        self.hemi = hemi
+        self.set_hemi(hemi)
 
-        # if self.hemi.lower() == 'south':
+        # self.ea = sio.readsav(indir+infile, python_dict=True)['ea']
 
-        #       tmpMinI    = (-1.)*np.flip(self.ea.maxI)
-        #       tmpMaxI    = (-1.)*np.flip(self.ea.minI)
+        # self._hemi = hemi
 
-        #       tmpMinM    = np.flip(self.ea.minM)
-        #       tmpMaxM    = np.flip(self.ea.maxM)
+    @property
+    def hemi(self):
+        """Get the current hemi."""
+        return self._hemi
 
-        #       self.ea.minI = TEMPORARY(tmpMinI)
-        #       self.ea.maxI = TEMPORARY(tmpMaxI)
+    def set_hemi(self, hemi):
 
-        #       self.ea.minM = tmpMinM
-        #       self.ea.maxM = tmpMaxM
+        allowedHemis = ['north', 'south']
+
+        if hemi not in allowedHemis:
+            print("Must select either 'north' or 'south'!")
+            return
+
+        self.ea = sio.readsav(self._indir+self._infile, python_dict=True)['ea']
+
+        self._hemi == hemi
+
+        if hemi.lower() == 'south':
+
+            print("Using south stuff (never tested!)")
+            tmpMinI = (-1.)*np.flip(self.ea.maxi)
+            tmpMaxI = (-1.)*np.flip(self.ea.mini)
+
+            tmpMinM = np.flip(self.ea.minm)
+            tmpMaxM = np.flip(self.ea.maxm)
+
+            self.ea.mini = tmpMinI
+            self.ea.maxi = tmpMaxI
+
+            self.ea.minm = tmpMinM
+            self.ea.maxm = tmpMaxM
 
 
 def geoclatR2geodlatheight(glat, r_km):
