@@ -4,18 +4,29 @@
 import copy
 import numpy as np
 from scipy.optimize import curve_fit
+import random
+
+import matplotlib.pyplot as plt
 
 
 def func_powerlaw2(x, m, c):
     return x**m * c
 
 
-def f_resampler(freqs, fResampleStdDevs,
+def func_loggedpowerlaw2(log10x, m, log10c):
+    return 10**(m * log10x + log10c)
+
+
+def loguniform(low=1e-10, high=1, size=None):
+    return np.exp(np.random.uniform(np.log(low), np.log(high), size))
+
+
+def f_resampler(freqs, fResampleNormedStdDevs,
                 minFreq=0,
                 maxFreq=4):
     f_resampled = np.sort(np.random.normal(
         loc=freqs,
-        scale=freqs*fResampleStdDevs))
+        scale=freqs*fResampleNormedStdDevs))
 
     badFreqs = (f_resampled > maxFreq) | (
         f_resampled < minFreq)
@@ -30,14 +41,50 @@ class CalcMedianSpectrogram(object):
     def __init__(self,
                  saveDir='/home/spencerh/Research/sandbox_and_journals/saves_output_etc/',
                  fName=None,
-                 # Quant1Dict,
-                 # orbsToUse,
                  frequencyBins=None,
                  doRescaleFreqs=None):
 
         if fName is None:
             print("Provide filename!")
             return None
+
+        # self.saveDir = saveDir
+
+        self.fName = None
+        self.orbSetNav = None
+
+        self.nOrbits = 0
+        self.origSpecs = {}
+
+        self.MonteCarloParams = None
+
+        self.MCFitX = None
+        self.MCFitY = None
+
+        if frequencyBins is None:
+            self.f = np.arange(0, 4.01, .01)
+        else:
+            self.f = frequencyBins
+
+        if doRescaleFreqs is not None:
+            self.f = np.arange(0, 2.01, .01)
+
+        self.mednMaxN = 1000
+        self.orbitIndex = np.zeros(self.mednMaxN, dtype=np.int16)
+
+        self.doRescaleFreqs = doRescaleFreqs
+
+        self.list_spectrogramDict = {}
+
+        if isinstance(fName, list):
+            for fNm in fName:
+                self.add_specs_from_file(saveDir, fNm)
+        else:
+            self.add_specs_from_file(saveDir, fName)
+
+        self.calcMedian(self.f)
+
+    def add_specs_from_file(self, saveDir, fName):
 
         # try:
         npz = np.load(saveDir+fName, allow_pickle=True)
@@ -57,35 +104,26 @@ class CalcMedianSpectrogram(object):
         speedDict = npz['speedDict']
         useSpeedInd = npz['useSpeedInd']
 
-        self.saveDir = saveDir
-        self.fName = fName
-
-        self.orbSetNav = orbSetNav
-
-        if frequencyBins is None:
-            self.f = np.arange(0, 4.01, .01)
+        if self.fName == None:
+            self.fName = [saveDir+fName]
         else:
-            self.f = frequencyBins
+            self.fName.append(saveDir+fName)
 
-        if doRescaleFreqs is not None:
-            self.f = np.arange(0, 2.01, .01)
-
-        self.mednMaxN = 1000
-        self.orbitIndex = np.zeros(self.mednMaxN, dtype=np.int16)
+        if self.orbSetNav == None:
+            self.orbSetNav = [orbSetNav]
+        else:
+            self.orbSetNav.append(orbSetNav)
 
         #
-        self.list_spectrogramDict = copy.deepcopy(QuantDict)
+        self.list_spectrogramDict = {**self.list_spectrogramDict, **QuantDict}
         # self.orbits = copy.deepcopy(orbsToUse)
 
-        self.doRescaleFreqs = doRescaleFreqs
-
-        self.nOrbits = 0
-        self.origSpecs = {}
+        foreOrbs = self.nOrbits
 
         # Laste inn alle origs
         for dude in orbsToUse:
 
-            tmpspec = copy.deepcopy(self.list_spectrogramDict[dude])
+            tmpspec = QuantDict[dude]
 
             if tmpspec is None:
                 print("Orbit {0}: Nannies!".format(dude))
@@ -101,33 +139,19 @@ class CalcMedianSpectrogram(object):
 
             self.nOrbits += 1
 
-        self.orbitIndex = self.orbitIndex[0:self.nOrbits]
+        print("Added {:d} orbits from {:s} ...".format(
+            self.nOrbits-foreOrbs, fName))
 
-        self.calcMedian(self.f)
+        # self.orbitIndex = self.orbitIndex[0:self.nOrbits]
 
-    def calcMedian(self, interpfrequencies):
+    def calcMedian(self, interpfrequencies,
+                   isMonteCarlo=False):
 
         # Initialize interpedSpecArr
         self.interpedSpecArr = np.zeros((interpfrequencies.size,
                                          self.nOrbits))
 
-        for iOrb, dude in enumerate(self.orbitIndex):
-
-            # tmpspec = copy.deepcopy(self.list_spectrogramDict[dude])
-
-            # if tmpspec is None:
-            #     print("Orbit {0}: Nannies!".format(dude))
-            #     continue
-
-            # tmpspec[0]: frequencies
-            # tmpspec[1]: PSD
-
-            # tmpFreqs = tmpspec[0].copy()
-
-            # Krever refSpeed, speedDict, useSpeedInd
-            # if self.doRescaleFreqs is not None:
-            #     tmpFreqs = tmpFreqs*refSpeed / \
-            #         np.abs(speedDict[dude][useSpeedInd])
+        for iOrb, dude in enumerate(self.orbitIndex[0:self.nOrbits]):
 
             # x : The x-coordinates at which to evaluate the interpolated values.
             # xp : The x-coordinates of the data points, must be increasing if argument period is not specified.
@@ -142,20 +166,25 @@ class CalcMedianSpectrogram(object):
                 left=np.nan, right=np.nan, period=None)
 
         # Now median
-        self.mednSpec = np.median(self.interpedSpecArr, axis=1)
+        if isMonteCarlo:
+            self.tmpMCmednSpec = np.median(self.interpedSpecArr, axis=1)
+        else:
+            self.mednSpec = np.median(self.interpedSpecArr, axis=1)
 
     def init_MonteCarlo(self, MonteCarloParams=None,
                         minFreq=None,
-                        maxFreq=None):
+                        maxFreq=None,
+                        do_logfits=True,
+                        use_loguniform_for_coeff0=True):
 
         # MonteCarloParams = {'slope':(-4,-1),
         #                     'coeff':(0.5,10),
         #                     'N':1000,
-        #                     'fResampleStdDevs':MCresampleXStdDevs}
+        #                     'fResampleNormedStdDevs':MCresampleXStdDevs}
 
         if MonteCarloParams is None:
             print(
-                "Please provide dict with 'slope','coeff','N', and 'fResampleStdDevs' keys")
+                "Please provide dict with 'slope','coeff','N', and 'fResampleNormedStdDevs' keys")
             return
 
         self.origFreq = copy.deepcopy(self.f)
@@ -177,37 +206,65 @@ class CalcMedianSpectrogram(object):
 
         self.MonteCarloParams = copy.deepcopy(MonteCarloParams)
 
-        do_f_resampling = 'fResampleStdDevs' in self.MonteCarloParams
+        do_f_resampling = 'fResampleNormedStdDevs' in self.MonteCarloParams
         if do_f_resampling:
             # if self.fResampler is None:
             print("Init fResampler ...")
 
-            self.fResampler = lambda: f_resampler(self.origFreq, self.MonteCarloParams['fResampleStdDevs'],
+            self.fResampler = lambda: f_resampler(self.origFreq, self.MonteCarloParams['fResampleNormedStdDevs'],
                                                   minFreq=np.min(
                                                       self.origFreq),
                                                   maxFreq=np.max(self.origFreq))
+
+        self.do_logfits = False
+        if do_logfits:
+            print("Doing fits to log of all quants")
+
+            # self.baseFitFunc = func_loggedpowerlaw2
+            self.baseFitFunc = lambda x, m, c: func_loggedpowerlaw2(
+                np.log10(x), m, np.log10(c))
+
+            self.do_logfits = True
+        else:
+            print("Doing fits to a straight powerlaw...")
+            self.baseFitFunc = func_powerlaw2
+
+        if use_loguniform_for_coeff0:
+            print("Coeff inits med log-uniform!")
+            self.coeff0func = loguniform
+            self.use_loguniform_for_coeff0 = True
+        else:
+            print("Coeff inits med (not log) uniform!")
+            self.coeff0func = np.random.uniform
+            self.use_loguniform_for_coeff0 = False
 
     def execute_MonteCarlo(self,
                            verbose=True,
                            use_fixed_slope=False,
                            fixed_slope_val=-2,
                            maxfev=2000):
-
+        """
+        Use fResampler to randomize selection of resampling frequencies, regne ut medianspektrum; do it MonteCarloParams['N'] times. Then
+        perform fit to each medianspektrum to get dists of fit params.
+        """
         self.use_fixed_slope = use_fixed_slope
         self.fixed_slope_val = fixed_slope_val
 
         # Init all the neededses
         self.MC_medianspecs = []
         self.MC_medianfreqs = []
-
-        if self.use_fixed_slope:
-            self.fitFunc = lambda x, c: func_powerlaw2(
-                x, self.fixed_slope_val, c)
-        else:
-            self.fitFunc = func_powerlaw2
+        self.MC_p0 = []
 
         if verbose:
             print("Regne ut median-spectra ...")
+            print(
+                "Monte Carlo-picking frequencies for resampling all spectra, and performing  ...")
+
+        if self.use_fixed_slope:
+            self.fitFunc = lambda x, c: self.baseFitFunc(
+                x, self.fixed_slope_val, c)
+        else:
+            self.fitFunc = self.baseFitFunc
 
         MCFitParms = []
         MCFitCov = []
@@ -227,28 +284,30 @@ class CalcMedianSpectrogram(object):
             # self.medianSpec = np.interp(self.freqsResample, self.origFreq, self.origSpec,
             #                             left=np.nan, right=np.nan, period=None)
 
-            # breakpoint()
-
             self.MC_medianfreqs.append(copy.deepcopy(self.fResampler()))
-            self.calcMedian(self.MC_medianfreqs[i])
-            self.MC_medianspecs.append(copy.deepcopy(self.mednSpec))
+            self.calcMedian(self.MC_medianfreqs[i], isMonteCarlo=True)
+            self.MC_medianspecs.append(copy.deepcopy(self.tmpMCmednSpec))
 
             # NY
 
-            slopeTmp = np.random.uniform(self.MonteCarloParams['slope'][0],
-                                         self.MonteCarloParams['slope'][1])
+            coeffTmp = self.coeff0func(self.MonteCarloParams['coeff'][0],
+                                       self.MonteCarloParams['coeff'][1])
+
             if self.use_fixed_slope:
-                p0 = [slopeTmp]
+                p0 = [coeffTmp]
             else:
-                coeffTmp = np.random.uniform(self.MonteCarloParams['coeff'][0],
-                                             self.MonteCarloParams['coeff'][1])
+                slopeTmp = np.random.uniform(self.MonteCarloParams['slope'][0],
+                                             self.MonteCarloParams['slope'][1])
+
                 p0 = [slopeTmp, coeffTmp]
+
             # print(i, p0)
+
+            self.MC_p0.append(p0)
 
             xAll = self.MC_medianfreqs[i]
 
             # LIMIT TO FITLIMS
-
             if self.MC_minFreq is not None:
                 binStart_i = np.where(xAll >= self.MC_minFreq)[0][0]
             else:
@@ -263,6 +322,10 @@ class CalcMedianSpectrogram(object):
 
             x = xAll[xIndices]
             y = self.MC_medianspecs[i][xIndices]
+
+            if x.size <= 2:
+                print("Gonna run into trouble!")
+                print("Might need to increase the number of points that we fit to ...")
 
             if np.where(~(np.isfinite(x) & np.isfinite(y)))[0].size > 0:
                 breakpoint()
@@ -313,7 +376,8 @@ class CalcMedianSpectrogram(object):
     def powerLawFit(self, minFreq=None, maxFreq=None,
                     maxfev=2000, p0=None,
                     use_fixed_slope=False,
-                    fixed_slope_val=-2):  # ,
+                    fixed_slope_val=-2,
+                    do_logfits=True):  # ,
                     # MonteCarloParams=None):
 
         self.SingleMonteCarloParams = None
@@ -336,11 +400,19 @@ class CalcMedianSpectrogram(object):
         x = self.f[self.fitIndices]
         y = self.mednSpec[self.fitIndices]
 
+        if do_logfits:
+            print("Doing fits to log of all quants")
+            self.baseFitFunc = lambda x, m, c: func_loggedpowerlaw2(
+                np.log10(x), m, np.log10(c))
+        else:
+            print("Doing fits to a straight powerlaw...")
+            self.baseFitFunc = func_powerlaw2
+
         if self.use_fixed_slope:
-            self.fitFunc = lambda x, c: func_powerlaw2(
+            self.fitFunc = lambda x, c: self.baseFitFunc(
                 x, self.fixed_slope_val, c)
         else:
-            self.fitFunc = func_powerlaw2
+            self.fitFunc = self.baseFitFunc
 
         if self.SingleMonteCarloParams is None:
             sol1 = curve_fit(self.fitFunc, x, y, maxfev=maxfev)
@@ -354,12 +426,21 @@ class CalcMedianSpectrogram(object):
 
         elif self.SingleMonteCarloParams is not None:
 
-            do_f_resampling = 'fResampleStdDevs' in self.SingleMonteCarloParams
+            assert 2 < 0, "What was this for again? I'm using journal__20190903__Chrisfit__powerlawfits_to_MonteCarloed_median_spectra.ipynb, and it totally escapes me"
+
+            if use_loguniform_for_coeff0:
+                print("Coeff inits med log-uniform!")
+                self.singlecoeff0func = loguniform
+            else:
+                print("Coeff inits med (not log) uniform!")
+                self.singlecoeff0func = np.random.uniform
+
+            do_f_resampling = 'fResampleNormedStdDevs' in self.SingleMonteCarloParams
             if do_f_resampling:
                 print("Also resampling xs!")
                 self.fResampler = lambda: (np.random.normal(
                     loc=self.f,
-                    scale=self.f*self.SingleMonteCarloParams['fResampleStdDevs']))
+                    scale=self.f*self.SingleMonteCarloParams['fResampleNormedStdDevs']))
 
             MCFitParms = []
             MCFitCov = []
@@ -395,13 +476,14 @@ class CalcMedianSpectrogram(object):
                     x = self.fResample[self.tmpfitIndices]
                     y = self.mednSpec[self.tmpfitIndices]
 
-                slopeTmp = np.random.uniform(self.SingleMonteCarloParams['slope'][0],
-                                             self.SingleMonteCarloParams['slope'][1])
-                if self.use_fixed_slope:
-                    p0 = [slopeTmp]
-                else:
-                    coeffTmp = np.random.uniform(self.SingleMonteCarloParams['coeff'][0],
+                # Now get p0
+                coeffTmp = self.singlecoeff0func(self.SingleMonteCarloParams['coeff'][0],
                                                  self.SingleMonteCarloParams['coeff'][1])
+                if self.use_fixed_slope:
+                    p0 = [coeffTmp]
+                else:
+                    slopeTmp = np.random.uniform(self.SingleMonteCarloParams['slope'][0],
+                                                 self.SingleMonteCarloParams['slope'][1])
                     p0 = [slopeTmp, coeffTmp]
                 # print(i, p0)
 
@@ -432,3 +514,188 @@ class CalcMedianSpectrogram(object):
 
             self.fitY = self.fitFunc(self.f[self.fitIndices],
                                      *self.fitParams)
+
+    def plot__show_median_median_spec(self, ax):
+        return ax.plot(self.origFreq[self.origFitIndices], self.MCmednSpec,
+                       label='Median median spec (N = {:d})'.format(self.MonteCarloParams['N']))
+
+    def plot__show_fit_line(self, ax):
+
+        fitLabel = r'P = $P_0 f^a$' + " (a = {:.2f}, $P_0$ = {:.2f})".format(self.MCfitParamsFinal[0],
+                                                                             self.MCfitParamsFinal[1])
+
+        # junk = ax.plot(self.origFreq[self.origFitIndices],self.MCmednSpec,
+        #                label='Median median spec (N = {:d})'.format(self.MonteCarloParams['N']))
+        junk = ax.plot(self.MCFitX, self.MCFitY,
+                       color='orange',
+                       label=fitLabel)
+
+        return junk
+
+    def plot_psds(self,
+                  ylim=(1e-2, 7e7),
+                  show_fit=True,
+                  show_median_median_spec=False,
+                  indivPSDPlotOpts=None,
+                  medianPSDPlotOpts=None):
+
+        if show_fit and self.MCFitX is None:
+            print("Can't show fit!")
+            # return None, None
+
+        fig, ax = plt.subplots(1, 1)
+
+        ax.grid()
+
+        junk = ax.set_yscale('log')
+        junk = ax.set_xscale('log')
+
+        junk = ax.set_ylabel(r'PSD (nT$^2$/Hz)')
+        junk = ax.set_xlabel('Frequency (Hz)')
+
+        if indivPSDPlotOpts is None:
+
+            indivPSDPlotOpts = dict(color='black',
+                                    alpha=0.1)
+
+        if medianPSDPlotOpts is None:
+
+            medianPSDPlotOpts = dict(color='blue',
+                                     alpha=1.0,
+                                     linewidth=2.5)
+
+        for iOrb, dude in enumerate(self.orbitIndex[0:self.nOrbits]):
+
+            junk = ax.plot(self.origSpecs[dude]['f'],
+                           self.origSpecs[dude]['spec'],
+                           **indivPSDPlotOpts)
+
+        junk = ax.plot(self.f,
+                       self.mednSpec,
+                       **medianPSDPlotOpts,
+                       label="Orig median")
+
+        junk = ax.set_ylim(ylim)
+        # junk = ax.set_xlim('Frequency (Hz)')
+
+        if show_fit and (self.MCFitX is not None):
+            junk = self.plot__show_fit_line(ax)
+
+        if show_median_median_spec:
+            junk = self.plot__show_median_median_spec(ax)
+
+        junk = ax.legend()
+
+        return fig, ax
+
+    def plot_MC_medianspecs(self,
+                            Nlim=10000,
+                            show_fit=True,
+                            show_median_median_spec=False,
+                            N_random_sample=None,
+                            verbose=False,
+                            plotOpts=None):
+
+        if self.MonteCarloParams is None:
+            print("Haven't yet initialized/executed Monte Carlo fits! Returning ... ")
+            return None, None
+
+        if plotOpts == None:
+            plotOpts = dict(color='black',
+                            alpha=0.01)
+
+        fig, ax = plt.subplots(1, 1)
+
+        ax.grid()
+
+        junk = ax.set_yscale('log')
+        junk = ax.set_xscale('log')
+
+        junk = ax.set_ylabel(r'PSD (nT$^2$/Hz)')
+        junk = ax.set_xlabel('Frequency (Hz)')
+
+        junk = fig.suptitle(
+            "N = {:d} Monte Carlo specs".format(len(self.MC_medianspecs)))
+
+        inds = list(np.arange(len(self.MC_medianfreqs)))
+        if N_random_sample is not None:
+            if verbose:
+                print("{:d}-sample of MC median spectra ...".format(N_random_sample))
+
+            inds = random.sample(inds, k=N_random_sample)
+
+        # for i, (freq, spec) in enumerate(zip(self.MC_medianfreqs, self.MC_medianspecs)):
+        for iSpec in inds:
+
+            freq = self.MC_medianfreqs[iSpec]
+            spec = self.MC_medianspecs[iSpec]
+            junk = ax.plot(freq,
+                           spec,
+                           **plotOpts)
+
+        if show_fit and (self.MCFitX is not None):
+            junk = self.plot__show_fit_line(ax)
+
+        if show_median_median_spec:
+            junk = self.plot__show_median_median_spec(ax)
+
+        junk = ax.legend()
+
+        return fig, ax
+
+    def plot_MC_param_histos(self,
+                             show_p0=False):
+        if self.MonteCarloParams is None:
+            print("Haven't yet initialized/executed Monte Carlo fits! Returning ... ")
+            return None, None
+
+        titleSuff = ''
+        if show_p0:
+            if self.use_fixed_slope:
+                x0 = np.array([self.fixed_slope_val]*len(self.MC_p0))
+                x1 = np.array(self.MC_p0)
+            else:
+                x0 = np.array([p0[0] for p0 in self.MC_p0])
+                x1 = np.array([p0[1] for p0 in self.MC_p0])
+
+            x0final = np.median(x0)
+            x1final = np.median(x1)
+
+            titleSuff = ' (p0s)'
+
+        else:
+            x0 = self.MCFitParms[:, 0]
+            x1 = self.MCFitParms[:, 1]
+            x0final = self.MCfitParamsFinal[0]
+            x1final = self.MCfitParamsFinal[1]
+
+        P0label = r'$P_0$'
+        if self.use_loguniform_for_coeff0:
+            x1 = np.log10(x1)
+            x1final = np.log10(x1final)
+            P0label = r'log($P_0$)'
+
+        fig2, ax2 = plt.subplots(1, 2)
+
+        junk = fig2.suptitle(",".join(self.orbSetNav)+titleSuff)
+
+        junk = ax2[0].hist(x0)
+        junk = ax2[0].axvline(x0final,
+                              color='red',
+                              label='med(a) = {:.3f}'.format(x0final))
+
+        junk = ax2[1].hist(x1)
+        junk = ax2[1].axvline(x1final,
+                              color='red',
+                              label=r'med($P_0$) = {:.3f}'.format(x1final))
+
+        # if self.use_loguniform_for_coeff0:
+        #     junk = ax2[1].set_xscale('log')
+
+        junk = ax2[0].set_xlabel('a')
+        junk = ax2[1].set_xlabel(P0label)
+
+        junka = ax2[0].legend()
+        junkb = ax2[1].legend()
+
+        return fig2, ax2

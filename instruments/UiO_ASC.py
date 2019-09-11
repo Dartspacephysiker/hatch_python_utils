@@ -7,8 +7,153 @@ import os
 import requests
 import scipy.io as sio
 import urllib.request
+import time
+import re
 
 UiOASCBaseAddr = 'http://tid.uio.no/plasma/aurora'
+
+
+def get_UiO_ASC_calfile_list_from_net(site='lyr5',
+                                      date='20190104',
+                                      boelgelengde='5577',
+                                      calAddr=None):
+
+    try:
+        nDates = len(date)
+        batchMode = True
+    except:
+        batchMode = False
+
+    if not batchMode:
+
+        if calAddr is None:
+            if isinstance(date, datetime.datetime) or isinstance(date, datetime.date):
+                date = date.strftime("%Y%m%d")
+
+            calAddr = '/'.join((UiOASCBaseAddr, site,
+                                boelgelengde,
+                                date[0:4], date))+'/'
+
+        availFiles = [filer for filer in get_url_paths(
+            calAddr) if filer.endswith('.dat')]
+
+    else:
+
+        availFiles = []
+        print("Getting list for {:d} dates ...".format(nDates))
+
+        for tmpdate in date:
+
+            # if calAddr is None:
+            if isinstance(tmpdate, datetime.datetime) \
+               or isinstance(tmpdate, datetime.date) \
+               or isinstance(tmpdate, numpy.ndarray):
+                tmpdate = tmpdate.strftime("%Y%m%d")
+
+            calAddr = '/'.join((UiOASCBaseAddr, site,
+                                boelgelengde,
+                                tmpdate[0:4], tmpdate))+'/'
+
+            try:
+                theseFiles = get_url_paths(calAddr)
+            except:
+                print(
+                    "Couldn't get files for {:s}! Continuing ...".format(tmpdate))
+                continue
+
+            availFiles += [
+                filer for filer in theseFiles if filer.endswith('.dat')]
+
+    return availFiles
+
+
+def get_UiO_ASC_image_list_from_net(site='lyr5',
+                                    date='20190104',
+                                    boelgelengde='5577',
+                                    add_datetimes=False):
+
+    try:
+        nDates = len(date)
+        batchMode = True
+    except:
+        batchMode = False
+
+    if not batchMode:
+
+        return "BUNK"
+
+    else:
+
+        availFiles = []
+        print("Getting image list for {:d} dates ...".format(nDates))
+
+        for tmpdate in date:
+
+            # if calAddr is None:
+            if isinstance(tmpdate, datetime.datetime) \
+               or isinstance(tmpdate, datetime.date) \
+               or isinstance(tmpdate, numpy.ndarray):
+                tmpdate = tmpdate.strftime("%Y%m%d")
+
+            print("{:s}".format(tmpdate), end=' ')
+
+            remoteDir = '/'.join((UiOASCBaseAddr, site,
+                                  boelgelengde,
+                                  tmpdate[0:4], tmpdate))+'/'
+            try:
+                blig = get_url_paths(remoteDir)
+            except:
+                print(
+                    "Couldn't get files! Continuing ...".format(tmpdate))
+                continue
+
+            dirs = [dirr for dirr in blig if dirr[-5:-3] == 'ut']
+
+            if len(dirs) == 0:
+                print(
+                    "No directories! Continuing ...".format(tmpdate))
+
+            for dirr in dirs:
+
+                time.sleep(0.1)
+
+                try:
+                    theseFiles = get_url_paths(dirr)
+                except:
+                    print(
+                        "Couldn't get files for {:s}! Continuing ...".format(dirr))
+                    continue
+
+                if add_datetimes:
+
+                    myRE = re.compile(
+                        site+"_"+tmpdate+"_([0-9]{2})([0-9]{2})([0-9]{2})_"+boelgelengde+'_cal.png')
+
+                    dt_file_list = []
+                    for filer in theseFiles:
+
+                        this = myRE.search(filer.split("/")[-1])
+                        if this is None:
+                            continue
+
+                        hr, mt, sec = this.groups()
+
+                        dt_file_list.append((datetime.datetime(int(tmpdate[0:4]),
+                                                               int(tmpdate[4:6]),
+                                                               int(tmpdate[6:8]),
+                                                               int(hr), int(mt), int(sec)),
+                                             filer))
+
+                    availFiles += dt_file_list
+
+                else:
+
+                    availFiles += [
+                        filer for filer in theseFiles if filer.endswith('.png')]
+
+            print("")
+
+    return availFiles
 
 
 class UiO_ASC_cal(object):
@@ -36,6 +181,7 @@ class UiO_ASC_cal(object):
 
         if not os.path.isfile(calDir+calFile):
             print(calFile+" not found!", end='')
+
             if not fetch_from_net:
                 print(" Returning ...")
                 return
@@ -46,8 +192,13 @@ class UiO_ASC_cal(object):
                                     boelgelengde,
                                     date[0:4], date))+'/'
 
-                availFiles = [filer for filer in get_url_paths(
-                    calAddr) if filer.endswith('.dat')]
+                availFiles = get_calfile_list_from_net(calAddr=calAddr)
+
+                # availFiles = [filer for filer in get_url_paths(
+                #     calAddr) if filer.endswith('.dat')]
+
+                # if list_from_net:
+                #     return availFiles
 
                 if (len(availFiles) == 0) or (not (calAddr+calFile) in availFiles):
                     print("Couldn't find cal file ...")
