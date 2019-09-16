@@ -13,58 +13,63 @@ import re
 UiOASCBaseAddr = 'http://tid.uio.no/plasma/aurora'
 
 
-def get_UiO_ASC_calfile_list_from_net(site='lyr5',
-                                      date='20190104',
-                                      boelgelengde='5577',
-                                      calAddr=None):
+# def get_UiO_ASC_calfile_list_from_net(site='lyr5',
+#                                       date='20190104',
+#                                       boelgelengde='5577',
+#                                       calAddr=None):
 
-    try:
-        nDates = len(date)
-        batchMode = True
-    except:
-        batchMode = False
+#     try:
+#         if not isinstance(date, str):
+#             nDates = len(date)
+#             batchMode = True
+#         else:
+#             nDates = 1
+#             date = [date]
+#             batchMode = True
+#     except:
+#         batchMode = False
 
-    if not batchMode:
+#     if not batchMode:
 
-        if calAddr is None:
-            if isinstance(date, datetime.datetime) or isinstance(date, datetime.date):
-                date = date.strftime("%Y%m%d")
+#         if calAddr is None:
+#             if isinstance(date, datetime.datetime) or isinstance(date, datetime.date):
+#                 date = date.strftime("%Y%m%d")
 
-            calAddr = '/'.join((UiOASCBaseAddr, site,
-                                boelgelengde,
-                                date[0:4], date))+'/'
+#             calAddr = '/'.join((UiOASCBaseAddr, site,
+#                                 boelgelengde,
+#                                 date[0:4], date))+'/'
 
-        availFiles = [filer for filer in get_url_paths(
-            calAddr) if filer.endswith('.dat')]
+#         availFiles = [filer for filer in get_url_paths(
+#             calAddr) if filer.endswith('.dat')]
 
-    else:
+#     else:
 
-        availFiles = []
-        print("Getting list for {:d} dates ...".format(nDates))
+#         availFiles = []
+#         print("Getting list for {:d} dates ...".format(nDates))
 
-        for tmpdate in date:
+#         for tmpdate in date:
 
-            # if calAddr is None:
-            if isinstance(tmpdate, datetime.datetime) \
-               or isinstance(tmpdate, datetime.date) \
-               or isinstance(tmpdate, numpy.ndarray):
-                tmpdate = tmpdate.strftime("%Y%m%d")
+#             # if calAddr is None:
+#             if isinstance(tmpdate, datetime.datetime) \
+#                or isinstance(tmpdate, datetime.date) \
+#                or isinstance(tmpdate, np.ndarray):
+#                 tmpdate = tmpdate.strftime("%Y%m%d")
 
-            calAddr = '/'.join((UiOASCBaseAddr, site,
-                                boelgelengde,
-                                tmpdate[0:4], tmpdate))+'/'
+#             calAddr = '/'.join((UiOASCBaseAddr, site,
+#                                 boelgelengde,
+#                                 tmpdate[0:4], tmpdate))+'/'
 
-            try:
-                theseFiles = get_url_paths(calAddr)
-            except:
-                print(
-                    "Couldn't get files for {:s}! Continuing ...".format(tmpdate))
-                continue
+#             try:
+#                 theseFiles = get_url_paths(calAddr)
+#             except:
+#                 print(
+#                     "Couldn't get files for {:s}! Continuing ...".format(tmpdate))
+#                 continue
 
-            availFiles += [
-                filer for filer in theseFiles if filer.endswith('.dat')]
+#             availFiles += [
+#                 filer for filer in theseFiles if filer.endswith('.dat')]
 
-    return availFiles
+#     return availFiles
 
 
 def get_UiO_ASC_image_list_from_net(site='lyr5',
@@ -73,10 +78,32 @@ def get_UiO_ASC_image_list_from_net(site='lyr5',
                                     add_datetimes=False):
 
     try:
-        nDates = len(date)
-        batchMode = True
+        nSites = len(site)
+
     except:
-        batchMode = False
+        site = [site]
+
+    sitelist = ['lyr5', 'nya4', 'and3', 'lyr1', 'all']
+    for sit in site:
+        if sit not in sitelist:
+            print("please choose one of {:s} as a site (no Skibotn?)!".format(
+                ", ".join(sitelist)))
+            return None
+
+    batchMode = False
+    try:
+        if not isinstance(date, str):
+            nDates = len(date)
+            batchMode = True
+        else:
+            nDates = 1
+            date = [date]
+            batchMode = True
+    except:
+        print("Single date! {:s}".format(date.strftime("%Y-%m-%d")))
+        date = [date]
+        nDates = 1
+        batchMode = True
 
     if not batchMode:
 
@@ -97,63 +124,95 @@ def get_UiO_ASC_image_list_from_net(site='lyr5',
 
             print("{:s}".format(tmpdate), end=' ')
 
-            remoteDir = '/'.join((UiOASCBaseAddr, site,
-                                  boelgelengde,
-                                  tmpdate[0:4], tmpdate))+'/'
-            try:
-                blig = get_url_paths(remoteDir)
-            except:
-                print(
-                    "Couldn't get files! Continuing ...".format(tmpdate))
-                continue
+            for sit in site:
 
-            dirs = [dirr for dirr in blig if dirr[-5:-3] == 'ut']
+                print("{:s}".format(sit), end=' ')
 
-            if len(dirs) == 0:
-                print(
-                    "No directories! Continuing ...".format(tmpdate))
-
-            for dirr in dirs:
-
-                time.sleep(0.1)
-
+                remoteDir = '/'.join((UiOASCBaseAddr, sit,
+                                      boelgelengde,
+                                      tmpdate[0:4], tmpdate))+'/'
                 try:
-                    theseFiles = get_url_paths(dirr)
+                    blig = get_url_paths(remoteDir)
                 except:
                     print(
-                        "Couldn't get files for {:s}! Continuing ...".format(dirr))
+                        "Couldn't get files! Continuing ...".format(tmpdate))
                     continue
 
-                if add_datetimes:
+                dirs = [dirr for dirr in blig if dirr[-5:-3] == 'ut']
 
-                    myRE = re.compile(
-                        site+"_"+tmpdate+"_([0-9]{2})([0-9]{2})([0-9]{2})_"+boelgelengde+'_cal.png')
+                if len(dirs) == 0:
+                    print(
+                        "No directories! Continuing ...".format(tmpdate))
 
-                    dt_file_list = []
-                    for filer in theseFiles:
+                for dirr in dirs:
 
-                        this = myRE.search(filer.split("/")[-1])
-                        if this is None:
-                            continue
+                    time.sleep(0.1)
 
-                        hr, mt, sec = this.groups()
+                    try:
+                        theseFiles = get_url_paths(dirr)
+                    except:
+                        print(
+                            "Couldn't get files for {:s}! Continuing ...".format(dirr))
+                        continue
 
-                        dt_file_list.append((datetime.datetime(int(tmpdate[0:4]),
-                                                               int(tmpdate[4:6]),
-                                                               int(tmpdate[6:8]),
-                                                               int(hr), int(mt), int(sec)),
-                                             filer))
+                    if add_datetimes:
 
-                    availFiles += dt_file_list
+                        myRE = re.compile(
+                            sit+"_"+tmpdate+"_([0-9]{2})([0-9]{2})([0-9]{2})_"+boelgelengde+'_cal.png')
 
-                else:
+                        dt_file_list = []
+                        for filer in theseFiles:
 
-                    availFiles += [
-                        filer for filer in theseFiles if filer.endswith('.png')]
+                            this = myRE.search(filer.split("/")[-1])
+                            if this is None:
+                                continue
+
+                            hr, mt, sec = this.groups()
+
+                            dt_file_list.append((datetime.datetime(int(tmpdate[0:4]),
+                                                                   int(tmpdate[4:6]),
+                                                                   int(tmpdate[6:8]),
+                                                                   int(hr), int(mt), int(sec)),
+                                                 filer))
+
+                        availFiles += dt_file_list
+
+                    else:
+
+                        availFiles += [
+                            filer for filer in theseFiles if filer.endswith('.png')]
 
             print("")
 
     return availFiles
+
+
+def download_UiO_ASC_image_list_from_net(availFiles,
+                                         saveDir='/SPENCEdata/Research/database/Rockets/CAPER2/nordlyskamera/',
+                                         verbose=False):
+
+    try:
+        doubleInder = len(availFiles[0]) > 1
+    except:
+        doubleInder = False
+
+    if doubleInder:
+        availFiles = [tup[1] for tup in availFiles]
+
+    print("Getting {:d} files".format(len(availFiles)))
+
+    # Download the file from `url` and save it locally under `file_name`:
+    for remoteFile in availFiles:
+        filNavn = remoteFile.split('/')[-1]
+
+        localFile = saveDir + filNavn
+        if not os.path.isfile(localFile):
+            if verbose:
+                print("Saving to " + localFile)
+
+            urllib.request.urlretrieve(remoteFile, localFile)
+
+    print("Done!")
 
 
 class UiO_ASC_cal(object):
@@ -164,7 +223,8 @@ class UiO_ASC_cal(object):
                  date='20190104',
                  boelgelengde='5577',
                  calDir='/SPENCEdata/Research/database/Rockets/CAPER2/nordlyskamera/',
-                 fetch_from_net=True):
+                 fetch_from_net=True,
+                 verbose=False):
 
         if len(args) == 1:
             assert (isinstance(args[0], str) or
@@ -172,10 +232,12 @@ class UiO_ASC_cal(object):
                     isinstance(
                         args[0], datetime.datetime)), "Argument should be of type 'YYYYMMDD' or of type date/datetime!"
 
-            if isinstance(args[0], str):
-                date = args[0]
-            elif (isinstance(args[0], datetime.date) or isinstance(args[0], datetime.datetime)):
-                date = args[0].strftime("%Y%m%d")
+            date = args[0]
+
+        # if isinstance(date, str):
+        #     date = date
+        if (isinstance(date, datetime.date) or isinstance(date, datetime.datetime)):
+            date = date.strftime("%Y%m%d")
 
         calFile = site+'_'+date+'_'+boelgelengde+'_cal.dat'
 
@@ -192,10 +254,10 @@ class UiO_ASC_cal(object):
                                     boelgelengde,
                                     date[0:4], date))+'/'
 
-                availFiles = get_calfile_list_from_net(calAddr=calAddr)
+                # availFiles = get_UiO_ASC_calfile_list_from_net(calAddr=calAddr)
 
-                # availFiles = [filer for filer in get_url_paths(
-                #     calAddr) if filer.endswith('.dat')]
+                availFiles = [filer for filer in get_url_paths(
+                    calAddr) if filer.endswith('.dat')]
 
                 # if list_from_net:
                 #     return availFiles
@@ -211,26 +273,49 @@ class UiO_ASC_cal(object):
 
         calStruc = sio.readsav(calDir+calFile)
 
-        self.site = calStruc['site'].decode("utf-8")
-        self.glats = calStruc['glats']
-        self.glons = calStruc['glons']
-        self.mlats = calStruc['mlats']
-        self.mlons = calStruc['mlons']
-        self.alts = calStruc['alts']
-        self.gazms = calStruc['gazms']
-        self.mazms = calStruc['mazms']
-        self.elevs = calStruc['elevs']
-        self.x0 = calStruc['x0']
-        self.y0 = calStruc['y0']
-        self.r0 = calStruc['r0']
-        self.angle = calStruc['angle']
-        self.mirror_xaxis = calStruc['mirror_xaxis']
-        self.conversion_factor = calStruc['conversion_factor']
-        self.station = calStruc['station'].decode("utf-8")
-        self.location = calStruc['location'].decode("utf-8")
-        self.comment = calStruc['comment'].decode("utf-8")
-        self.version = calStruc['version']
-        self.time_modified = calStruc['time_modified'].decode("utf-8")
+        self.calFile = calFile
+        self.calDir = calDir
+
+        if 'site' in calStruc:
+            self.site = calStruc['site'].decode("utf-8")
+        if 'glats' in calStruc:
+            self.glats = calStruc['glats']
+        if 'glons' in calStruc:
+            self.glons = calStruc['glons']
+        if 'mlats' in calStruc:
+            self.mlats = calStruc['mlats']
+        if 'mlons' in calStruc:
+            self.mlons = calStruc['mlons']
+        if 'alts' in calStruc:
+            self.alts = calStruc['alts']
+        if 'gazms' in calStruc:
+            self.gazms = calStruc['gazms']
+        if 'mazms' in calStruc:
+            self.mazms = calStruc['mazms']
+        if 'elevs' in calStruc:
+            self.elevs = calStruc['elevs']
+        if 'x0' in calStruc:
+            self.x0 = calStruc['x0']
+        if 'y0' in calStruc:
+            self.y0 = calStruc['y0']
+        if 'r0' in calStruc:
+            self.r0 = calStruc['r0']
+        if 'angle' in calStruc:
+            self.angle = calStruc['angle']
+        if 'mirror_xaxis' in calStruc:
+            self.mirror_xaxis = calStruc['mirror_xaxis']
+        if 'conversion_factor' in calStruc:
+            self.conversion_factor = calStruc['conversion_factor']
+        if 'station' in calStruc:
+            self.station = calStruc['station'].decode("utf-8")
+        if 'location' in calStruc:
+            self.location = calStruc['location'].decode("utf-8")
+        if 'comment' in calStruc:
+            self.comment = calStruc['comment'].decode("utf-8")
+        if 'version' in calStruc:
+            self.version = calStruc['version']
+        if 'time_modified' in calStruc:
+            self.time_modified = calStruc['time_modified'].decode("utf-8")
         self.date = date
         self.utc = datetime.date(
             int(date[0:4]), int(date[4:6]), int(date[6:8]))
@@ -353,6 +438,8 @@ class UiO_ASC_image(object):
 
         self.remoteFile = self.remoteDir + fName
 
+        self.get_UiO_image_times()
+
         # Check local dir
         if os.path.isfile(saveDir+fName):
             if verbose:
@@ -363,8 +450,6 @@ class UiO_ASC_image(object):
                                          int(self.UTCHHMMSS[0:2]), int(self.UTCHHMMSS[2:4]), int(self.UTCHHMMSS[4:6]))
 
             return
-
-        self.get_UiO_image_times()
 
         dtWant = datetime.datetime(int(self.date[0:4]), int(self.date[4:6]), int(self.date[6:8]),
                                    int(self.UTCHHMMSS[0:2]), int(self.UTCHHMMSS[2:4]), int(self.UTCHHMMSS[4:6]))
