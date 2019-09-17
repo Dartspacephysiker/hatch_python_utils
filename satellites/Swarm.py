@@ -408,7 +408,9 @@ def _getFTP_FilesDataFrame(sat='A',
                            t2=None,
                            add_OMNI_data=False,
                            OMNI_stats_list=['mean'],
-                           OMNI_columns=None):
+                           OMNI_columns=None,
+                           saveLocal=True,
+                           localSaveDir='/SPENCEdata/Research/database/Swarm/buffered_lists/'):
     """
     t1: start of desired interval (datetime-like object)
     t2: end   of desired interval (datetime-like object)
@@ -439,17 +441,41 @@ def _getFTP_FilesDataFrame(sat='A',
     print(
         "Getting {:s} files dataframe for satellite {:s} ...".format(descrip,
                                                                      sat))
-    these = ftpFunc(sat=sat,
-                    only_list=True)
-    starts = np.array([fileDateParseFunc(that)[0] for that in these])
-    stops = np.array([fileDateParseFunc(that)[1] for that in these])
 
-    lens = stops-starts
-    lens_tSec = (stops-starts)/timedelta(seconds=1)
+    omniStr = ''
+    if add_OMNI_data:
+        omniStr = '_w_OMNI'
 
-    df = pd.DataFrame(dict(start=starts, stop=stops,
-                           dt=lens,
-                           dt_sec=lens_tSec))
+    bufFile = 'Swarm'+sat+'_'+getType+'_files'+omniStr+'.pkl'
+
+    try:
+        these = ftpFunc(sat=sat,
+                        only_list=True)
+        starts = np.array([fileDateParseFunc(that)[0] for that in these])
+        stops = np.array([fileDateParseFunc(that)[1] for that in these])
+
+        lens = stops-starts
+        lens_tSec = (stops-starts)/timedelta(seconds=1)
+
+        df = pd.DataFrame(dict(start=starts, stop=stops,
+                               dt=lens,
+                               dt_sec=lens_tSec))
+
+        if saveLocal:
+            print("Saving {:s} list to {:s} ...".format(bufFile, localSaveDir))
+
+            df.to_pickle(localSaveDir+bufFile)
+
+    except:
+        print("Couldn't get file from net!", end=' ')
+        if os.path.isfile(localSaveDir + bufFile):
+            print("Loading local file {:s} ...".format(bufFile))
+            df = pd.read_pickle(localSaveDir+bufFile)
+        else:
+            print(
+                "No local file! Sorry, no Swarm-{:s} {:s} files for you ...".format(sat, getType))
+
+            return None
 
     havet1 = t1 is not None
     havet2 = t2 is not None
