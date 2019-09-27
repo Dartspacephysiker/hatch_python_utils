@@ -137,7 +137,6 @@ def get_Swarm_combo(dates,
                 apexDict2 = hCoord.geodetic2apex(gdlat, dfList["Longitude"].values,
                                                  gdalt_km,
                                                  dfList.index.to_pydatetime(),
-                                                 nancheck=True,
                                                  **apex__geodetic2apexOpts)
 
                 dfList = dfList.assign(**apexDict2)
