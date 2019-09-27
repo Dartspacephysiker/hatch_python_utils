@@ -44,10 +44,12 @@ def geodetic2apex(*args,
                   min_time_resolution__sec=1,
                   interpolateArgs={'method': 'time', 'limit': 21},
                   returnPandas=True,
+                  return_IGRF=False,
                   return_apex_d_basevecs=False,
                   return_apex_e_basevecs=False,
                   return_apex_f_basevecs=False,
-                  return_apex_g_basevecs=False):
+                  return_apex_g_basevecs=False,
+                  return_mapratio=False):
     """
     geodetic2apex(gdlat, gdlon, gdalt_km[, times])
     gdlat, gdlon in degrees
@@ -55,6 +57,9 @@ def geodetic2apex(*args,
     apexRefTime: datetime object
     Returns
     """
+
+    get_apex_basevecs = return_apex_d_basevecs or return_apex_e_basevecs or \
+        return_apex_f_basevecs or return_apex_g_basevecs or return_mapratio
 
     if max_N_months_twixt_apexRefTime_and_obs is None:
         max_N_months_twixt_apexRefTime_and_obs = 0
@@ -85,8 +90,8 @@ def geodetic2apex(*args,
                      max_Nsec_tot=5,
                      interpolateArgs={'method': 'time', 'limit': 21})
 
-    if df.isna().any().any():
-        print("HELP!")
+    if df.isna().any().any() and not nancheck:
+        print("HELP (or just set nancheck=True)!")
         breakpoint()
 
     ########################################
@@ -99,16 +104,29 @@ def geodetic2apex(*args,
     is_subsampled = False
     if period_df < min_time_resolution__sec:
 
-        if debug:
-            print("DEBUG   NEDSAMPLE")
-
         strider = int(min_time_resolution__sec/period_df)
+
+        if debug:
+            print("DEBUG   NEDSAMPLE: Reduserer antall konversjoner med en faktor på {:d}".format(
+                strider))
 
         dfSub = df.iloc[0::strider]
         is_subsampled = True
 
     else:
         dfSub = df
+
+    # Return these to NaNs further down ...
+    if nancheck:
+
+        nanners = dfSub['gdlat'].isna(
+        ) | dfSub['gdlon'].isna() | dfSub['gdalt_km'].isna()
+
+        if nanners[nanners].size/nanners.size > 0.0:
+            if not quiet:
+                print("nannies!"+"{0}".format(nanners[nanners].size))
+            dfSub.loc[nanners, 'gdlat'] = 0
+            dfSub.loc[nanners, 'gdalt_km'] = 0
 
     a = apexpy.Apex(apexRefTime, refh=apexRefHeight_km)
 
@@ -190,104 +208,100 @@ def geodetic2apex(*args,
                 mlon = mlon[unsortinds]
                 mlt = mlt[unsortinds]
 
-    # quiet = False
-    isv = 0
-    itype = 1
-    if not quiet:
-        print("Getting IGRF ...")
+    # returnList = [mlat, mlon, mapratio]
+    # rListNames = ['mlat', 'mlon', 'mapratio']
 
-    # glat, glon: geographic Latitude, Longitude
-    # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
+    returnList = [mlat, mlon]
+    rListNames = ['mlat', 'mlon']
 
-    igrf = igrf12.gridigrf12(times,
-                             glat=geodesy.geodetic2geocentriclat(
-                                 dfSub['gdlat'].values),
-                             glon=dfSub['gdlon'].values,
-                             alt_km=dfSub['gdalt_km'].values, isv=isv, itype=itype)
+    if canDoMLT:
+        returnList.append(mlt)
+        rListNames.append('mlt')
 
-    igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
-                      2. + igrf.down.values**2.)
+    if return_IGRF:
+        # quiet = False
+        isv = 0
+        itype = 1
+        if not quiet:
+            print("Getting IGRF ...")
 
-    gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(dfSub['gdlat'].values),
-                                                   geodesy.geodeticheight2geocentricR(
-                                                       dfSub['gdlat'].values, dfSub['gdalt_km'].values),
-                                                   -igrf.north.values, -igrf.down.values)
+        # glat, glon: geographic Latitude, Longitude
+        # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
 
-    if nancheck:
-        # nanners = np.isnan(dfSub['gdlat'].values) | np.isnan(
-        #     dfSub['gdlon'].values) | np.isnan(dfSub['gdalt_km'].values)
+        igrf = igrf12.gridigrf12(times,
+                                 glat=geodesy.geodetic2geocentriclat(
+                                     dfSub['gdlat'].values),
+                                 glon=dfSub['gdlon'].values,
+                                 alt_km=dfSub['gdalt_km'].values, isv=isv, itype=itype)
 
-        nanners = dfSub['gdlat'].isna(
-        ) | dfSub['gdlon'].isna() | dfSub['gdalt_km'].isna()
+        igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
+                          2. + igrf.down.values**2.)
 
-        if nanners[nanners].size/nanners.size > 0.0:
-            if not quiet:
-                print("nannies!"+"{0}".format(nanners[nanners].size))
-            dfSub.loc[nanners, 'gdlat'] = 0
-            dfSub.loc[nanners, 'gdalt_km'] = 0
+        gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(dfSub['gdlat'].values),
+                                                       geodesy.geodeticheight2geocentricR(
+                                                           dfSub['gdlat'].values, dfSub['gdalt_km'].values),
+                                                       -igrf.north.values, -igrf.down.values)
 
-    if not quiet:
-        print("Getting Apex basevectors ...")
-    # From Laundal and Richmond (2016):
-    # e1 "points eastward along contours of constant λma,"
-    # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
-    f1, f2, f3, g1, g2, g3, d1, d2, d3, e1, e2, e3 = a.basevectors_apex(
-        dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values, coords='geo')
+        # output?
+        # mlat,mlon,mapratio[,mlt],igrf.east,XIGRF(northGeodetic),-ZIGRF(upGeodetic),igrfMag
 
-    mapratio = 1. / np.linalg.norm(np.cross(d1.T, d2.T), axis=1)
+        returnList = returnList + [igrf.east.values, XIGRF, -ZIGRF, igrfMag]
+        rListNames = rListNames + ['igrfE', 'igrfN', 'igrfU', 'igrfMag']
 
-    # del f1, f2, f3, g1, g2, g3, d1, d2, d3
+    if get_apex_basevecs:
+
+        if not quiet:
+            print("Getting Apex basevectors ...")
+        # From Laundal and Richmond (2016):
+        # e1 "points eastward along contours of constant λma,"
+        # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
+        f1, f2, f3, g1, g2, g3, d1, d2, d3, e1, e2, e3 = a.basevectors_apex(
+            dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values, coords='geo')
+
+        if return_mapratio:
+            mapratio = 1. / np.linalg.norm(np.cross(d1.T, d2.T), axis=1)
+            returnList = returnList + [mapratio]
+            rListNames = rListNames + ['mapratio']
+
+        # del f1, f2, f3, g1, g2, g3, d1, d2, d3
+
+        if return_apex_d_basevecs:
+            returnList = returnList + [d1[0, ], d1[1, ], d1[2, ],
+                                       d2[0, ], d2[1, ], d2[2, ],
+                                       d3[0, ], d3[1, ], d3[2, ]]
+            rListNames = rListNames + ['d10', 'd11', 'd12',
+                                       'd20', 'd21', 'd22',
+                                       'd30', 'd31', 'd32']
+
+        if return_apex_e_basevecs:
+            returnList = returnList + [e1[0, ], e1[1, ], e1[2, ],
+                                       e2[0, ], e2[1, ], e2[2, ],
+                                       e3[0, ], e3[1, ], e3[2, ]]
+            rListNames = rListNames + ['e10', 'e11', 'e12',
+                                       'e20', 'e21', 'e22',
+                                       'e30', 'e31', 'e32']
+        if return_apex_f_basevecs:
+            returnList = returnList + [f1[0, ], f1[1, ], f1[2, ],
+                                       f2[0, ], f2[1, ], f2[2, ],
+                                       f3[0, ], f3[1, ], f3[2, ]]
+            rListNames = rListNames + ['f10', 'f11', 'f12',
+                                       'f20', 'f21', 'f22',
+                                       'f30', 'f31', 'f32']
+        if return_apex_g_basevecs:
+            returnList = returnList + [g1[0, ], g1[1, ], g1[2, ],
+                                       g2[0, ], g2[1, ], g2[2, ],
+                                       g3[0, ], g3[1, ], g3[2, ]]
+            rListNames = rListNames + ['g10', 'g11', 'g12',
+                                       'g20', 'g21', 'g22',
+                                       'g30', 'g31', 'g32']
 
     if nancheck:
         if nanners[nanners].size/nanners.size > 0.0:
             dfSub.loc[nanners, 'gdlat'] = np.nan
             dfSub.loc[nanners, 'gdalt_km'] = np.nan
 
-    returnList = [mlat, mlon, mapratio]
-    rListNames = ['mlat', 'mlon', 'mapratio']
-
-    # if return_apex_basevecs:
-
-    if return_apex_d_basevecs:
-        returnList = returnList + [d1[0, ], d1[1, ], d1[2, ],
-                                   d2[0, ], d2[1, ], d2[2, ],
-                                   d3[0, ], d3[1, ], d3[2, ]]
-        rListNames = rListNames + ['d10', 'd11', 'd12',
-                                   'd20', 'd21', 'd22',
-                                   'd30', 'd31', 'd32']
-
-    if return_apex_e_basevecs:
-        returnList = returnList + [e1[0, ], e1[1, ], e1[2, ],
-                                   e2[0, ], e2[1, ], e2[2, ],
-                                   e3[0, ], e3[1, ], e3[2, ]]
-        rListNames = rListNames + ['e10', 'e11', 'e12',
-                                   'e20', 'e21', 'e22',
-                                   'e30', 'e31', 'e32']
-    if return_apex_f_basevecs:
-        returnList = returnList + [f1[0, ], f1[1, ], f1[2, ],
-                                   f2[0, ], f2[1, ], f2[2, ],
-                                   f3[0, ], f3[1, ], f3[2, ]]
-        rListNames = rListNames + ['f10', 'f11', 'f12',
-                                   'f20', 'f21', 'f22',
-                                   'f30', 'f31', 'f32']
-    if return_apex_g_basevecs:
-        returnList = returnList + [g1[0, ], g1[1, ], g1[2, ],
-                                   g2[0, ], g2[1, ], g2[2, ],
-                                   g3[0, ], g3[1, ], g3[2, ]]
-        rListNames = rListNames + ['g10', 'g11', 'g12',
-                                   'g20', 'g21', 'g22',
-                                   'g30', 'g31', 'g32']
-
-    # output?
-    # mlat,mlon,mapratio[,mlt],igrf.east,XIGRF(northGeodetic),-ZIGRF(upGeodetic),igrfMag
-
-    if canDoMLT:
-        returnList.append(mlt)
-        rListNames.append('mlt')
-
-    returnList = returnList + [igrf.east.values, XIGRF, -ZIGRF, igrfMag]
-    rListNames = rListNames + ['igrfE', 'igrfN', 'igrfU', 'igrfMag']
-
+    ########################################
+    # Make final outputdict
     returnDict = {key: val for key, val in zip(rListNames, returnList)}
 
     if returnPandas:
@@ -295,7 +309,17 @@ def geodetic2apex(*args,
         if is_subsampled:
             intoApexIndex = df.index.intersection(dfSub.index)
 
-            dfOut = pd.DataFrame(columns=rListNames, index=df.index)
+            dfOut = pd.DataFrame(columns=rListNames, dtype=np.float64,
+                                 index=df.index)
+
+            # dfOut = pd.DataFrame(returnDict,
+            #                      index=df.index)
+
+            # dfOut['utc'] = dfOut.index
+            # dfOut.index = (dfOut.index-dfOut.index[0])/pd.Timedelta('1s')
+            # interpolateArgs['method'] = 'index'
+            # if 'limit' in interpolateArgs.keys():
+            #     _ = interpolateArgs.pop('limit')
 
             shouldBeUnwrapped = ['mlon', 'mlt']
             for col in rListNames:
@@ -310,6 +334,9 @@ def geodetic2apex(*args,
                     else:
                         print("What is this?")
                         breakpoint()
+
+                else:
+                    dfOut.loc[intoApexIndex, col] = returnDict[col]
 
                 dfOut.loc[:, col] = dfOut[col].interpolate(**interpolateArgs)
 

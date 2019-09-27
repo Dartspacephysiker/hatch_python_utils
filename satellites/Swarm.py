@@ -52,6 +52,8 @@ def get_Swarm_combo(dates,
                     sat='A',
                     get_dtypes=['MAG'],
                     dtype__add_Apex=[],
+                    apex__geodetic2apexOpts=dict(min_time_resolution__sec=1,
+                                                 max_N_months_twixt_apexRefTime_and_obs=3),
                     only_list=False):
 
     getFuncDict = dict(MAG=getMagFTP,
@@ -131,15 +133,14 @@ def get_Swarm_combo(dates,
 
                 gdlat, gdalt_km = hCoord.geoclatR2geodlatheight(
                     dfList["Latitude"].values, dfList["Radius"].values/1000.)
-                print("")
 
                 apexDict2 = hCoord.geodetic2apex(gdlat, dfList["Longitude"].values,
                                                  gdalt_km,
                                                  dfList.index.to_pydatetime(),
-                                                 min_time_resolution__sec=1,
-                                                 max_N_months_twixt_apexRefTime_and_obs=3)
+                                                 nancheck=True,
+                                                 **apex__geodetic2apexOpts)
 
-                dfList.assign(**apexDict2)
+                dfList = dfList.assign(**apexDict2)
 
         outList.append(dfList)
 
