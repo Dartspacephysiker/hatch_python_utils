@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 from hatch_python_utils import omni_utils as hOMNI
+from hatch_python_utils.earth import coordinates as hCoord
+
 
 import sys
 needdir = '/SPENCEdata/Research/sandbox_and_journals/journals/Swarm/'
@@ -49,6 +51,7 @@ def load_2015_corr_db(date=None):
 def get_Swarm_combo(dates,
                     sat='A',
                     get_dtypes=['MAG'],
+                    dtype__add_Apex=[],
                     only_list=False):
 
     getFuncDict = dict(MAG=getMagFTP,
@@ -121,6 +124,22 @@ def get_Swarm_combo(dates,
 
         if len(dfList) != 0:
             dfList = pd.concat(dfList)
+
+            if (dtyper in dtype__add_Apex) and (dtyper != 'MAG'):
+
+                print("Adding Apex coords to {:s}".format(dtyper))
+
+                gdlat, gdalt_km = hCoord.geoclatR2geodlatheight(
+                    dfList["Latitude"].values, dfList["Radius"].values/1000.)
+                print("")
+
+                apexDict2 = hCoord.geodetic2apex(gdlat, dfList["Longitude"].values,
+                                                 gdalt_km,
+                                                 dfList.index.to_pydatetime(),
+                                                 min_time_resolution__sec=1,
+                                                 max_N_months_twixt_apexRefTime_and_obs=3)
+
+                dfList.assign(**apexDict2)
 
         outList.append(dfList)
 

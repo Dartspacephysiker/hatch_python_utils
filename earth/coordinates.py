@@ -102,9 +102,9 @@ def geodetic2apex(*args,
         if debug:
             print("DEBUG   NEDSAMPLE")
 
-        strider = int(min_time_resolution__sec/period)
+        strider = int(min_time_resolution__sec/period_df)
 
-        dfSub = dfMInterp.iloc[0::strider]
+        dfSub = df.iloc[0::strider]
         is_subsampled = True
 
     else:
@@ -305,7 +305,7 @@ def geodetic2apex(*args,
                         dfOut.loc[intoApexIndex, col] = np.unwrap(
                             np.deg2rad(returnDict['mlon']))
                     elif col == 'mlt':
-                        dfMOut.loc[intoApexIndex, 'mlt'] = np.unwrap(
+                        dfOut.loc[intoApexIndex, 'mlt'] = np.unwrap(
                             np.deg2rad(returnDict['mlt']*15.))
                     else:
                         print("What is this?")
