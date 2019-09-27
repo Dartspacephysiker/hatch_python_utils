@@ -5,6 +5,26 @@ import time
 from datetime import datetime
 
 
+def toYearFraction(date):
+    """
+    From https://stackoverflow.com/questions/6451655/python-how-to-convert-datetime-dates-to-decimal-years
+    """
+    def sinceEpoch(date):  # returns seconds since epoch
+        return time.mktime(date.timetuple())
+
+    s = sinceEpoch
+
+    year = date.year
+    startOfThisYear = datetime(year=year, month=1, day=1)
+    startOfNextYear = datetime(year=year+1, month=1, day=1)
+
+    yearElapsed = s(date) - s(startOfThisYear)
+    yearDuration = s(startOfNextYear) - s(startOfThisYear)
+    fraction = yearElapsed/yearDuration
+
+    return date.year + fraction
+
+
 def strTimeProp(start, end, format, prop):
     """Get a time at a proportion of a range of two formatted times.
 

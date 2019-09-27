@@ -6,6 +6,10 @@ from pytt.earth import geodesy
 import numpy as np
 import pandas as pd
 import scipy.io as sio
+from hatch_python_utils import arrays as hArr
+from hatch_python_utils.pandas_utils import interp_over_nans
+from dateutil.relativedelta import relativedelta
+from hatch_python_utils.date_time import toYearFraction
 
 
 def babyFunc2(a, mlon, datime):
@@ -36,6 +40,9 @@ def geodetic2apex(*args,
                   apexRefHeight_km=110,
                   quiet=False,
                   nancheck=False,
+                  max_N_months_twixt_apexRefTime_and_obs=3,
+                  min_time_resolution__sec=1,
+                  interpolateArgs={'method': 'time', 'limit': 21},
                   returnPandas=True,
                   return_apex_d_basevecs=False,
                   return_apex_e_basevecs=False,
@@ -46,33 +53,142 @@ def geodetic2apex(*args,
     gdlat, gdlon in degrees
     times: datetime list object
     apexRefTime: datetime object
+    Returns
     """
+
+    if max_N_months_twixt_apexRefTime_and_obs is None:
+        max_N_months_twixt_apexRefTime_and_obs = 0
 
     # assert len(args) >= 3, "geodetic2apex(gdlat, gdlon, gdalt_km[,times])"
     assert len(args) == 4, "geodetic2apex(gdlat, gdlon, gdalt_km,times)"
-    gdlat = args[0]
-    gdlon = args[1]
-    gdalt_km = args[2]
 
-    # print(gdlat)
-    # print(gdlon)
-    # print(gdalt_km)
+    # gdlat = args[0]
+    # gdlon = args[1]
+    # gdalt_km = args[2]
 
-    canDoMLT = False
-    if len(args) > 3:
-        times = args[3]
-        canDoMLT = True
+    # canDoMLT = False
+    # if len(args) > 3:
+    #     times = args[3]
+    #     canDoMLT = True
+
+    canDoMLT = True
+
+    # df = pd.DataFrame({'gdlat':gdlat,'gdlon':gdlon,'gdalt_km':gdalt_km},index=times)
+
+    df = pd.DataFrame(
+        {'gdlat': args[0], 'gdlon': args[1], 'gdalt_km': args[2]}, index=args[3])
+
+    # Interp over nans
+    checkCols = ['gdlat', 'gdalt_km']
+    interp_over_nans(df, checkCols,
+                     max_Nsec_twixt_nans=1,
+                     max_Nsec_tot=5,
+                     interpolateArgs={'method': 'time', 'limit': 21})
+
+    if df.isna().any().any():
+        print("HELP!")
+        breakpoint()
+
+    ########################################
+    # check if we need to downsample/consider subset
+    debug = True
+
+    period_df = ((df.iloc[1].name -
+                  df.iloc[0].name)/pd.Timedelta('1s'))
+
+    is_subsampled = False
+    if period_df < min_time_resolution__sec:
+
+        if debug:
+            print("DEBUG   NEDSAMPLE")
+
+        strider = int(min_time_resolution__sec/period)
+
+        dfSub = dfMInterp.iloc[0::strider]
+        is_subsampled = True
+
+    else:
+        dfSub = df
 
     a = apexpy.Apex(apexRefTime, refh=apexRefHeight_km)
 
     mlat, mlon = a.geo2apex(
-        gdlat, gdlon, gdalt_km)
+        dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
     # This can be replaced with PyAMPS code
     # /SPENCEdata/Research/Satellites/Swarm/pyAMPS/pyamps/mlt_utils.py
 
     if canDoMLT:
-        mlt = np.array([babyFunc2(a, mlonna, datime) for mlonna, datime in zip(
-            mlon, times)])
+
+        times = dfSub.index.to_pydatetime()
+
+        if max_N_months_twixt_apexRefTime_and_obs == 0:
+
+            mlt = np.array([babyFunc2(a, mlonna, datime)
+                            for mlonna, datime in zip(mlon,
+                                                      times)])
+
+        else:
+
+            print("Updating apexRefTime as we go ...")
+
+            mlt = np.zeros(mlat.shape)*np.nan
+
+            wasSorted = hArr.isSorted_alt(times)
+            if not wasSorted:
+                print("Times not sorted! Sorting ...")
+                sortinds = np.argsort(notsorted)
+                unsortinds = np.argsort(sortinds)
+
+                times = np.array(times)[sortinds]
+                mlat = mlat[sortinds]
+                mlon = mlon[sortinds]
+
+            # Now group by max_N_months_twixt_apexRefTime_and_obs
+            apexRefTime = times[0]
+
+            relDelta = relativedelta(
+                months=max_N_months_twixt_apexRefTime_and_obs)
+
+            maxIterHere = 3000
+            nIter = 0
+            while apexRefTime < times[-1]:
+
+                # See if we have any here; if not, skip
+
+                ind_timesHere = (times >= apexRefTime) & (
+                    times < (apexRefTime+relDelta))
+
+                if debug:
+                    print("DEBUG   {:s} to {:s} : Got {:d} inds for MLT conversion".format(
+                        apexRefTime.strftime("%Y%m%d"),
+                        (apexRefTime+relDelta).strftime("%Y%m%d"),
+                        np.where(ind_timesHere)[0].size))
+
+                if np.where(ind_timesHere)[0].size == 0:
+                    # Increment apexRefTime by relDelta
+                    apexRefTime += relDelta
+                    continue
+
+                a.set_epoch(toYearFraction(apexRefTime))
+
+                mlt[ind_timesHere] = np.array([babyFunc2(a, mlonna, datime)
+                                               for mlonna, datime in zip(mlon[ind_timesHere],
+                                                                         times[ind_timesHere])])
+
+                # Increment apexRefTime by relDelta
+                apexRefTime += relDelta
+
+                nIter += 1
+                if nIter >= maxIterHere:
+                    print("Too many iterations! Breaking ...")
+                    break
+
+            if not wasSorted:
+                print("Unsorting things again, you filthy animal")
+                times = list(times[unsortinds])
+                mlat = mlat[unsortinds]
+                mlon = mlon[unsortinds]
+                mlt = mlt[unsortinds]
 
     # quiet = False
     isv = 0
@@ -84,25 +200,31 @@ def geodetic2apex(*args,
     # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
 
     igrf = igrf12.gridigrf12(times,
-                             glat=geodesy.geodetic2geocentriclat(gdlat),
-                             glon=gdlon,
-                             alt_km=gdalt_km, isv=isv, itype=itype)
+                             glat=geodesy.geodetic2geocentriclat(
+                                 dfSub['gdlat'].values),
+                             glon=dfSub['gdlon'].values,
+                             alt_km=dfSub['gdalt_km'].values, isv=isv, itype=itype)
 
     igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
                       2. + igrf.down.values**2.)
 
-    gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(gdlat),
+    gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(dfSub['gdlat'].values),
                                                    geodesy.geodeticheight2geocentricR(
-                                                       gdlat, gdalt_km),
+                                                       dfSub['gdlat'].values, dfSub['gdalt_km'].values),
                                                    -igrf.north.values, -igrf.down.values)
 
     if nancheck:
-        nanners = np.isnan(gdlat) | np.isnan(gdlon) | np.isnan(gdalt_km)
+        # nanners = np.isnan(dfSub['gdlat'].values) | np.isnan(
+        #     dfSub['gdlon'].values) | np.isnan(dfSub['gdalt_km'].values)
+
+        nanners = dfSub['gdlat'].isna(
+        ) | dfSub['gdlon'].isna() | dfSub['gdalt_km'].isna()
+
         if nanners[nanners].size/nanners.size > 0.0:
             if not quiet:
                 print("nannies!"+"{0}".format(nanners[nanners].size))
-            gdlat[nanners] = 0
-            gdalt_km[nanners] = 0
+            dfSub.loc[nanners, 'gdlat'] = 0
+            dfSub.loc[nanners, 'gdalt_km'] = 0
 
     if not quiet:
         print("Getting Apex basevectors ...")
@@ -110,7 +232,7 @@ def geodetic2apex(*args,
     # e1 "points eastward along contours of constant λma,"
     # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
     f1, f2, f3, g1, g2, g3, d1, d2, d3, e1, e2, e3 = a.basevectors_apex(
-        gdlat, gdlon, gdalt_km, coords='geo')
+        dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values, coords='geo')
 
     mapratio = 1. / np.linalg.norm(np.cross(d1.T, d2.T), axis=1)
 
@@ -118,8 +240,8 @@ def geodetic2apex(*args,
 
     if nancheck:
         if nanners[nanners].size/nanners.size > 0.0:
-            gdlat[nanners] = np.nan
-            gdalt_km[nanners] = np.nan
+            dfSub.loc[nanners, 'gdlat'] = np.nan
+            dfSub.loc[nanners, 'gdalt_km'] = np.nan
 
     returnList = [mlat, mlon, mapratio]
     rListNames = ['mlat', 'mlon', 'mapratio']
@@ -156,13 +278,6 @@ def geodetic2apex(*args,
                                    'g20', 'g21', 'g22',
                                    'g30', 'g31', 'g32']
 
-    # dfMInterp.loc[:, 'e10'] = e1[0, ]
-    # dfMInterp.loc[:, 'e11'] = e1[1, ]
-    # dfMInterp.loc[:, 'e12'] = e1[2, ]
-    # dfMInterp.loc[:, 'e20'] = e2[0, ]
-    # dfMInterp.loc[:, 'e21'] = e2[1, ]
-    # dfMInterp.loc[:, 'e22'] = e2[2, ]
-
     # output?
     # mlat,mlon,mapratio[,mlt],igrf.east,XIGRF(northGeodetic),-ZIGRF(upGeodetic),igrfMag
 
@@ -173,14 +288,47 @@ def geodetic2apex(*args,
     returnList = returnList + [igrf.east.values, XIGRF, -ZIGRF, igrfMag]
     rListNames = rListNames + ['igrfE', 'igrfN', 'igrfU', 'igrfMag']
 
+    returnDict = {key: val for key, val in zip(rListNames, returnList)}
+
     if returnPandas:
-        df = pd.DataFrame(data=np.vstack(returnList).T, columns=rListNames)
-        if canDoMLT:
-            df.set_index(times, inplace=True)
-        return df
+
+        if is_subsampled:
+            intoApexIndex = df.index.intersection(dfSub.index)
+
+            dfOut = pd.DataFrame(columns=rListNames, index=df.index)
+
+            shouldBeUnwrapped = ['mlon', 'mlt']
+            for col in rListNames:
+
+                if col in shouldBeUnwrapped:
+                    if col == 'mlon':
+                        dfOut.loc[intoApexIndex, col] = np.unwrap(
+                            np.deg2rad(returnDict['mlon']))
+                    elif col == 'mlt':
+                        dfMOut.loc[intoApexIndex, 'mlt'] = np.unwrap(
+                            np.deg2rad(returnDict['mlt']*15.))
+                    else:
+                        print("What is this?")
+                        breakpoint()
+
+                dfOut.loc[:, col] = dfOut[col].interpolate(**interpolateArgs)
+
+                if col in shouldBeUnwrapped:
+                    if col == 'mlon':
+                        dfOut.loc[:, 'mlon'] = np.rad2deg(
+                            (dfOut['mlon'].values + np.pi) % (2 * np.pi) - np.pi)
+                    elif col == 'mlt':
+                        dfOut.loc[:, 'mlt'] = np.rad2deg(
+                            (dfOut['mlt'].values) % (2 * np.pi))/15.
+
+        else:
+            dfOut = pd.DataFrame(data=np.vstack(returnList).T,
+                                 columns=rListNames, index=df.index)
+
+        return dfOut
 
     else:
-        return returnList, rListNames
+        return returnDict
 
 
 class EqualAreaBins(object):
@@ -239,6 +387,7 @@ def geoclatR2geodlatheight(glat, r_km):
     """
     glat : geocentric latitude (degrees)
     r_km : radius (km)
+    Returns gdlat, gdalt_km
     Ripped off Kalle's pytt.geodesy.geoc2geod ...
     """
     d2r = np.pi/180
@@ -288,8 +437,8 @@ def geoclatR2geodlatheight(glat, r_km):
 
     DLTCL = S2CL * A2 + S4CL * A4 + S6CL * A6 + S8CL * A8
     gdlat = DLTCL + glat * d2r
-    height = r_km * np.cos(DLTCL) - a * np.sqrt(1 - E2 * np.sin(gdlat) ** 2)
+    gdalt_km = r_km * np.cos(DLTCL) - a * np.sqrt(1 - E2 * np.sin(gdlat) ** 2)
 
     gdlat = gdlat / d2r
 
-    return gdlat, height
+    return gdlat, gdalt_km

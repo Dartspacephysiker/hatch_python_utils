@@ -115,9 +115,14 @@ def get_Swarm_combo(dates,
                                 customSaveSuff='',
                                 dont_touch_data=False,
                                 make_pickles=True)
-            dfList.append(df)
 
-        outList.append(pd.concat(dfList))
+            if df is not None:
+                dfList.append(df)
+
+        if len(dfList) != 0:
+            dfList = pd.concat(dfList)
+
+        outList.append(dfList)
 
     return outList
 

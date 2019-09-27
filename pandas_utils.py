@@ -8,6 +8,60 @@ from .arrays import group_consecutives
 # def resample_and_interp_df__timedate(df, interpCols,
 
 
+def interp_over_nans(df, checkCols,
+                     max_Nsec_twixt_nans=1,
+                     max_Nsec_tot=5,
+                     interpolateArgs={'method': 'time', 'limit': 21}):
+
+    max_Nsec_dt = pd.Timedelta(str(max_Nsec_twixt_nans)+'s')
+    max_Nsec_dtTot = pd.Timedelta(str(max_Nsec_tot)+'s')
+
+    naninds = (df[checkCols[0]] != df[checkCols[0]]) & False
+    for col in checkCols:
+        naninds = naninds | df[col].isna()
+    naninds = np.where(naninds)[0]
+
+    if naninds.size == 0:
+        print("No NaNs in this df (at least not in {:s})!".format(
+            ", ".join(checkCols)))
+        return
+
+    if naninds.size > 0:
+        # Check if good timeresolution before and after
+
+        nanindgroups = group_consecutives(naninds)
+
+        print("Interping over {:d} nanInd groups ({:d} total nanInds) ...".format(
+            len(nanindgroups),
+            naninds.size))
+
+        for indgrp in nanindgroups:
+
+            nInGrp = indgrp.size
+            if indgrp[0] == 0:
+                startInd = 0
+                stopInd = 1
+            else:
+                startInd = indgrp[0] - 1
+
+            if indgrp[-1] == df.shape[0]-1:
+                stopInd = df.shape[0]-1
+            else:
+                stopInd = indgrp[-1] + 1
+
+            # dtBef = df.iloc[ind].name-df.iloc[startInd].name
+            # dtAft = df.iloc[stopInd].name-df.iloc[ind].name
+            # if (dtBef <= pd.Timedelta('1s')) and (dtAft <= pd.Timedelta('1s')):
+
+            dtTot = df.iloc[stopInd].name-df.iloc[startInd].name
+            if (dtTot/nInGrp <= max_Nsec_dt) and (dtTot <= max_Nsec_dtTot):
+
+                # print("Good, Rickie")
+
+                df.loc[df.iloc[startInd:stopInd+1].index,
+                       :] = df.iloc[startInd:stopInd+1].interpolate(**interpolateArgs)
+
+
 def resample_and_interp_df__timedate(*args,
                                      resampleString='500ms',
                                      resampleFunc='mean',

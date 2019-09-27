@@ -8,6 +8,13 @@ def isSorted(array):
     return np.array_equal(array, np.sort(array))
 
 
+def isSorted_alt(x, key=lambda x: x):
+    """
+    Just another way to do it
+    """
+    return all([key(x[i]) <= key(x[i + 1]) for i in range(len(x) - 1)])
+
+
 def group_consecutives(vals, maxDiff=1,
                        min_streak=None,
                        do_absDiff=False,
