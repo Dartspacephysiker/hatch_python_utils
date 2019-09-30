@@ -390,7 +390,19 @@ class EqualAreaBins(object):
             print("Must select either 'north' or 'south'!")
             return
 
-        self.ea = sio.readsav(self._indir+self._infile, python_dict=True)['ea']
+        tmpea = sio.readsav(self._indir+self._infile, python_dict=True)['ea']
+
+        newea = np.zeros(tmpea[0][0].shape, np.dtype(dict(names=['mini', 'maxi', 'centeri', 'minm', 'maxm', 'centerm'],
+                                                          formats=[np.float32, np.float32, np.float32,
+                                                                   np.float32, np.float32, np.float32])))
+        newea['mini'] = tmpea['mini'].item()
+        newea['maxi'] = tmpea['maxi'].item()
+        newea['centeri'] = (tmpea.maxi.item()+tmpea.mini.item())/2.
+        newea['minm'] = tmpea['minm'].item()
+        newea['maxm'] = tmpea['maxm'].item()
+        newea['centerm'] = (tmpea.maxm.item()+tmpea.minm.item())/2.
+
+        self.ea = newea.view(np.recarray)
 
         self._hemi == hemi
 
