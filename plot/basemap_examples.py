@@ -232,7 +232,7 @@ apexRefHeight_km = 130
 polcaplowlat = 70.
 upperlat = 80.
 deltalat = 10.
-deltalon = 10.
+deltamlt = 3.
 
 if isSH and not mirror_SH:
     lowlatlim__mlatglines = (-1.)*upperlat
@@ -255,8 +255,8 @@ if doApexGridLines:
     ##########
     # MLAT GRID LINES
     ##########
-    mlonsForGrid = np.arange(-180.,181.,deltalat)
-    mlatsForGrid = np.arange(lowlatlim__mlatglines,highlatlim__mlatglines+1,deltalon)
+    mlonsForGrid = np.arange(-180.,181.,2)
+    mlatsForGrid = np.arange(lowlatlim__mlatglines,highlatlim__mlatglines+1,deltalat)
 
     mlatGridLines = []
     for mlfg in mlatsForGrid:
@@ -276,7 +276,7 @@ if doApexGridLines:
     ##########
 
     # mlonsForGrid = np.arange(-180.,181.,30.)+lon_0
-    mltsForGrid = np.arange(0,24,3)
+    mltsForGrid = np.arange(0,24,deltamlt)
     mlatsForGrid = np.arange(lowlatlim__mlonglines,highlatlim__mlonglines+1.,2.5)
 
     mlonsForGrid = []
