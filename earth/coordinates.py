@@ -176,22 +176,46 @@ def geodetic2apex(*args,
                 ind_timesHere = (times >= apexRefTime) & (
                     times < (apexRefTime+relDelta))
 
+                nIndsHere = np.where(ind_timesHere)[0].size
+
                 if debug:
                     print("DEBUG   {:s} to {:s} : Got {:d} inds for MLT conversion".format(
                         apexRefTime.strftime("%Y%m%d"),
                         (apexRefTime+relDelta).strftime("%Y%m%d"),
-                        np.where(ind_timesHere)[0].size))
+                        nIndsHere))
 
-                if np.where(ind_timesHere)[0].size == 0:
+                if nIndsHere == 0:
                     # Increment apexRefTime by relDelta
                     apexRefTime += relDelta
                     continue
 
                 a.set_epoch(toYearFraction(apexRefTime))
 
-                mlt[ind_timesHere] = np.array([babyFunc2(a, mlonna, datime)
-                                               for mlonna, datime in zip(mlon[ind_timesHere],
-                                                                         times[ind_timesHere])])
+                maxNIndsSamtidig = 500000
+                if nIndsHere > maxNIndsSamtidig:
+                    print("Break it up...")
+
+                    indbatchCounter = 0
+                    nIndsConverted = 0
+                    while nIndsConverted < nIndsHere:
+
+                        startIndInd = nIndsConverted
+                        stopIndInd = np.min(
+                            [startIndInd+maxNIndsSamtidig, nIndsHere])
+                        nToConvert = stopIndInd-startIndInd
+
+                        tmpUseInds = np.where(ind_timesHere)[
+                            0][startIndInd:stopIndInd]
+                        mlt[tmpUseInds] = np.array([babyFunc2(a, mlonna, datime)
+                                                    for mlonna, datime in zip(mlon[tmpUseInds],
+                                                                              times[tmpUseInds])])
+
+                        nIndsConverted += nToConvert
+
+                else:
+                    mlt[ind_timesHere] = np.array([babyFunc2(a, mlonna, datime)
+                                                   for mlonna, datime in zip(mlon[ind_timesHere],
+                                                                             times[ind_timesHere])])
 
                 # Increment apexRefTime by relDelta
                 apexRefTime += relDelta
