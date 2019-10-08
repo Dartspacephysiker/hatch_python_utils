@@ -16,6 +16,7 @@ mpl.rcParams.update({'xtick.color': 'k'})
 mpl.rcParams.update({'ytick.color': 'k'})
 mpl.rcParams.update({'font.size': 15})
 mpl.rcParams.update({'figure.figsize': [10.0, 8.0]})
+# mpl.rcParams.update({'savefig.directory': '/home/spencerh/Research/sandbox_and_journals/plots/Swarm/201909__Steinstudie/IRI__detaljert/'})
 
 import matplotlib.pyplot as plt
 plt.ion()
@@ -44,6 +45,13 @@ junk = importlib.reload(hCoord)
 #Dirs
 dataDir = '/SPENCEdata/Research/database/Rockets/CAPER2/caper-2-ny-alesund-data/spencers-work/'
 plotDir = '/SPENCEdata/Research/sandbox_and_journals/plots/Rockets/CAPER2/'
+
+########################################
+# Hvis
+# import sys
+# SwarmDir = '/SPENCEdata/Research/sandbox_and_journals/journals/Swarm/'
+# if SwarmDir not in sys.path:
+#     sys.path.insert(0,SwarmDir)
 
 ########################################
 # Bonus

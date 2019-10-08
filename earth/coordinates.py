@@ -505,3 +505,60 @@ def geoclatR2geodlatheight(glat, r_km):
     gdlat = gdlat / d2r
 
     return gdlat, gdalt_km
+
+
+def bin_into_equal_area(lats, mlts, data,
+                        statfunc=np.median,
+                        verbose=False):
+    """
+    'data' is assumed to have rows of observations, and columns of different observation types
+    """
+
+    isPandas = isinstance(data, pd.core.frame.DataFrame)
+
+    if isPandas:
+        def intrastatfunc(data, inds):
+            return statfunc(data[inds], axis=0)
+    else:
+        def intrastatfunc(data, inds):
+            return statfunc(data[inds, :], axis=0)
+
+    ea = EqualAreaBins()
+
+    latII = pd.IntervalIndex.from_arrays(ea.ea.mini, ea.ea.maxi, closed='left')
+    mltII = pd.IntervalIndex.from_arrays(ea.ea.minm, ea.ea.maxm, closed='left')
+
+    # indlist = []
+    statlist = []
+
+    assert len(data.shape) < 3, "Can't handle three-dim data!"
+
+    if len(data.shape) == 2:
+        nObs = data.shape[0]
+        nCols = data.shape[1]
+
+        if (nCols > 20) or ((nCols/nObs) > 10):
+            print("Too funky, not sure what to do with your data")
+            breakpoint()
+
+    blankrow = np.array([np.nan]*nCols)
+    for i, (latbin, mltbin) in enumerate(zip(latII, mltII)):
+        tmpstat = blankrow
+        if verbose:
+            print(i, latbin, mltbin)
+
+        inds = (lats >= latbin.left) \
+            & (lats < latbin.right) \
+            & (mlts >= mltbin.left) \
+            & (mlts < mltbin.right)
+        # indlist.append(np.where(inds)[0])
+        if np.where(inds)[0].size > 0:
+            # breakpoint()
+            # tmpstat = statfunc(data[inds,:],axis=0)
+            tmpstat = intrastatfunc(data, inds)
+
+        statlist.append(tmpstat)
+
+    statlist = np.array(statlist)
+
+    return statlist
