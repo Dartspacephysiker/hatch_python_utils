@@ -59,7 +59,7 @@ def get_Swarm_combo(dates,
     getFuncDict = dict(MAG=getMagFTP,
                        LP=getLPFTP,
                        FP=getFPFTP,
-                       CT2Hz=getCT2HzFTP)
+                       CT2HZ=getCT2HzFTP)
 
     # Make sure want dtypes are in getFuncDict
 
@@ -106,7 +106,7 @@ def get_Swarm_combo(dates,
                                 doProcessLP=dtyper.upper() == 'LP',
                                 doProcessLowRes=False,
                                 doProcessFP=dtyper.upper() == 'FP',
-                                doProcessCT=dtyper.upper() == 'CT2Hz',
+                                doProcessCT=dtyper.upper() == 'CT2HZ',
                                 FP__doCorrectTimestamps=False,
                                 FP__doResample=False,
                                 ranDate=ranDate,

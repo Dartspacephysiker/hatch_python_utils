@@ -19,12 +19,15 @@ def draw_screen_poly(lats, lons, m, color='red', alpha=0.4):
 
 
 def draw_on_map(plotstat, m,
+                ea=None,
                 tryAattepunkter=True,
                 alphaval=0.8,
                 cmap=hCM.parula,
                 verbose=False):
 
-    ea = hCoord.EqualAreaBins()
+    if ea is None:
+        print("Defaulting to NH!")
+        ea = hCoord.EqualAreaBins(hemi='north')
 
     plotmax, plotmin = np.max(plotstat[np.isfinite(plotstat)]), np.min(
         plotstat[np.isfinite(plotstat)])

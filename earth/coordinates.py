@@ -432,18 +432,26 @@ class EqualAreaBins(object):
 
         if hemi.lower() == 'south':
 
-            print("Using south stuff (never tested!)")
-            tmpMinI = (-1.)*np.flip(self.ea.maxi)
-            tmpMaxI = (-1.)*np.flip(self.ea.mini)
+            print("Using south stuff")
+            # tmpMinI = (-1.)*np.flip(self.ea.maxi)
+            # tmpMaxI = (-1.)*np.flip(self.ea.mini)
 
-            tmpMinM = np.flip(self.ea.minm)
-            tmpMaxM = np.flip(self.ea.maxm)
+            # tmpMinM = np.flip(self.ea.minm)
+            # tmpMaxM = np.flip(self.ea.maxm)
+
+            tmpMinI = (-1.)*self.ea.maxi
+            tmpMaxI = (-1.)*self.ea.mini
+
+            tmpMinM = self.ea.minm
+            tmpMaxM = self.ea.maxm
 
             self.ea.mini = tmpMinI
             self.ea.maxi = tmpMaxI
+            self.ea.centeri = (tmpMinI+tmpMaxI)/2.
 
             self.ea.minm = tmpMinM
             self.ea.maxm = tmpMaxM
+            self.ea.centerm = (tmpMinM+tmpMaxM)/2.
 
 
 def geoclatR2geodlatheight(glat, r_km):
@@ -562,3 +570,71 @@ def bin_into_equal_area(lats, mlts, data,
     statlist = np.array(statlist)
 
     return statlist
+
+
+def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj, polcaplowlat=70.,
+                                              ea_altitude=0,
+                                              mirror_SH=False,
+                                              verbose=False):
+
+    isSH = ea.hemi.lower() == 'south'
+    if isSH and not mirror_SH:
+        if polcaplowlat > 0:
+            polcaplowlat *= -1.
+        # print("Is southern, wif polcaplowlat {:.2f}".format(polcaplowlat))
+
+        def tmpcompfunc(ea_mlat, polcaplowlat):
+            return ea_mlat <= polcaplowlat
+    else:
+        def tmpcompfunc(ea_mlat, polcaplowlat):
+            return ea_mlat >= polcaplowlat
+
+    nboxes = 9
+    ea_alts = np.array([ea_altitude]*len(ea.ea.maxi))
+
+    # weights = np.zeros((ea.ea.maxi.size,nboxes))
+    weights = np.zeros(ea.ea.maxi.size, dtype=np.float64)
+
+    # Divide each into 9 boxes, count up how many
+    # LON positions: LEFT, LEFT-CENTER, CENTER, CENTER-RIGHT, RIGHT [L, LC, C, CR, R]
+    # LAT positions: BOTTOM, BOTTOM-MID, MID, MID-TOP, TOP          [B, BM, M, MT, T]
+
+    # 'ea_9sq' = "Equal-area divided into nine squares"
+    ea_9sq = pd.DataFrame(dict(latbm=(ea.ea.mini+ea.ea.centeri)/2,
+                               latm=ea.ea.centeri,
+                               latmt=(ea.ea.maxi+ea.ea.centeri)/2,
+                               mltlc=(ea.ea.minm+ea.ea.centerm)/2,
+                               mltc=ea.ea.centerm,
+                               mltcr=(ea.ea.maxm+ea.ea.centerm)/2))
+
+    # Top row
+    box0 = [ea_9sq['mltlc'].values*15., ea_9sq['latmt'].values]
+    box1 = [ea_9sq['mltc'].values*15., ea_9sq['latmt'].values]
+    box2 = [ea_9sq['mltcr'].values*15., ea_9sq['latmt'].values]
+
+    # Mid row
+    box3 = [ea_9sq['mltlc'].values*15., ea_9sq['latm'].values]
+    box4 = [ea_9sq['mltc'].values*15., ea_9sq['latm'].values]
+    box5 = [ea_9sq['mltcr'].values*15., ea_9sq['latm'].values]
+
+    # Bottom row
+    box6 = [ea_9sq['mltlc'].values*15., ea_9sq['latbm'].values]
+    box7 = [ea_9sq['mltc'].values*15., ea_9sq['latbm'].values]
+    box8 = [ea_9sq['mltcr'].values*15., ea_9sq['latbm'].values]
+
+    # breakpoint()
+
+    for ibox, box in enumerate([box0, box1, box2,
+                                box3, box4, box5,
+                                box6, box7, box8]):
+        if verbose:
+            print("Box #{:d}".format(ibox))
+
+        ea_mlat, ea_mlon = apexObj.geo2apex(box[1], box[0], ea_alts)
+        # incap_inds = ea_mlat >= polcaplowlat
+        incap_inds = tmpcompfunc(ea_mlat, polcaplowlat)
+        weights[incap_inds] += 1.
+
+    weights = weights/nboxes
+
+    return weights
