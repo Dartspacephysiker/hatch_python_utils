@@ -329,15 +329,15 @@ python module tsygFort ! in
             integer :: id
         end subroutine t96_mgnp_08
         subroutine t96_01(iopt,parmod,ps,x,y,z,bx,by,bz) ! in :tsygFort:T96.f
-            integer :: iopt
-            real dimension(10) :: parmod
-            real :: ps
-            real :: x
-            real :: y
-            real :: z
-            real :: bx
-            real :: by
-            real :: bz
+            integer intent(in) :: iopt
+            real dimension(10),intent(in) :: parmod
+            real intent(in) :: ps
+            real intent(in) :: x
+            real intent(in) :: y
+            real intent(in) :: z
+            real intent(out) :: bx
+            real intent(out) :: by
+            real intent(out) :: bz
         end subroutine t96_01
         subroutine dipshld(ps,x,y,z,bx,by,bz) ! in :tsygFort:T96.f
             real*8 :: ps
@@ -1070,6 +1070,35 @@ python module tsygFort ! in
             real*8 :: by
             real*8 :: bz
         end subroutine t02_dipole
+        subroutine t89d_dp(iopt,parmod,ps,x,y,z,bx,by,bz) ! in :tsygFort:T89.f
+            integer*8 intent(in) :: iopt
+            real*8 dimension(10),intent(in) :: parmod
+            real*8 intent(in) :: ps
+            real*8 intent(in) :: x
+            real*8 intent(in) :: y
+            real*8 intent(in) :: z
+            real*8 intent(out) :: bx
+            real*8 intent(out) :: by
+            real*8 intent(out) :: bz
+        end subroutine t89d_dp
+        subroutine t89c(iopt,parmod,ps,x,y,z,bx,by,bz) ! in :tsygFort:T89.f
+            integer intent(in) :: iopt
+            real dimension(10),intent(in) :: parmod
+            real intent(in) :: ps
+            real intent(in) :: x
+            real intent(in) :: y
+            real intent(in) :: z
+            real intent(out) :: bx
+            real intent(out) :: by
+            real intent(out) :: bz
+        end subroutine t89c
+        subroutine t89(id,a,xi,f,der) ! in :tsygFort:T89.f
+            integer :: id
+            real dimension(1) :: a
+            real dimension(1) :: xi
+            real dimension(3) :: f
+            real dimension(3,30) :: der
+        end subroutine t89
     end interface 
 end python module tsygFort
 

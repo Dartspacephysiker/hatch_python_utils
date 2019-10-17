@@ -13,7 +13,8 @@ OPT_FLAGS = -O2 -fbacktrace -fno-automatic -fPIC
 REQ_FLAGS = -w
 
 # Declare source code
-SOURCES = T96.f \
+SOURCES = T89.f \
+	  T96.f \
 	  T02.f
 SRC = geopack08.for
 OBJ = $(SOURCES:.f=.o) $(SRC:.for=.o)
