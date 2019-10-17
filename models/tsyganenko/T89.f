@@ -70,15 +70,22 @@ C                          HSTX CORP./NASA GSFC (1992-2007)
 C                          SPB STATE UNIVERSITY (2007-present)
 C
 
-Cf2py integer*8,intent(in)  :: iopt
+Cf2py integer*8,intent(in)  :: iopt      
 Cf2py real*8,intent(in)     :: parmod(10)
-Cf2py real*8,intent(in)     :: ps,x,y,z
-Cf2py real*8,intent(out)    :: bx,by,bz
+Cf2py real*8,intent(in)     :: ps,x,y,z  
+Cf2py real*8,intent(out)    :: bx,by,bz  
 
       IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION PARAM(30,7),A(30),PARMOD(10)
+c$$$      DIMENSION PARAM(30,7),A(30),PARMOD(10)
+      DIMENSION PARAM(30,7),A(30)
       DATA A02,XLW2,YN,RPI,RT/25.D0,170.D0,30.D0,0.31830989D0,30.D0/
       DATA XD,XLD2/0.D0,40.D0/
+
+      integer*8,intent(in)  :: iopt      
+      real*8,intent(in)     :: parmod(10)
+      real*8,intent(in)     :: ps,x,y,z  
+      real*8,intent(out)    :: bx,by,bz  
+
 C
 C   The last 2 quantities define variation of tail sheet thickness along X
 C
