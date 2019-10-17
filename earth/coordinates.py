@@ -517,12 +517,14 @@ def geoclatR2geodlatheight(glat, r_km):
 
 def bin_into_equal_area(lats, mlts, data,
                         statfunc=np.median,
+                        ea=None,
                         verbose=False):
     """
     'data' is assumed to have rows of observations, and columns of different observation types
     """
 
-    isPandas = isinstance(data, pd.core.frame.DataFrame)
+    isPandas = isinstance(data, pd.core.frame.DataFrame) or \
+        isinstance(data, pd.core.series.Series)
 
     if isPandas:
         def intrastatfunc(data, inds):
@@ -531,7 +533,9 @@ def bin_into_equal_area(lats, mlts, data,
         def intrastatfunc(data, inds):
             return statfunc(data[inds, :], axis=0)
 
-    ea = EqualAreaBins()
+    if ea is None:
+        print("Loading in equal-area thing sjølv")
+        ea = EqualAreaBins()
 
     latII = pd.IntervalIndex.from_arrays(ea.ea.mini, ea.ea.maxi, closed='left')
     mltII = pd.IntervalIndex.from_arrays(ea.ea.minm, ea.ea.maxm, closed='left')
@@ -544,12 +548,17 @@ def bin_into_equal_area(lats, mlts, data,
     if len(data.shape) == 2:
         nObs = data.shape[0]
         nCols = data.shape[1]
+        blankrow = np.array([np.nan]*nCols)
 
         if (nCols > 20) or ((nCols/nObs) > 10):
             print("Too funky, not sure what to do with your data")
             breakpoint()
 
-    blankrow = np.array([np.nan]*nCols)
+    else:
+        nObs = data.shape[0]
+        nCols = 1
+        blankrow = np.nan
+
     for i, (latbin, mltbin) in enumerate(zip(latII, mltII)):
         tmpstat = blankrow
         if verbose:

@@ -141,6 +141,9 @@ def get_Swarm_combo(dates,
 
                 dfList = dfList.assign(**apexDict2)
 
+        else:
+            dfList = pd.DataFrame()
+
         outList.append(dfList)
 
     return outList

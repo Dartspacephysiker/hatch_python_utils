@@ -1,2 +1,6 @@
 #No compiled fiels
 *.pyc
+
+*.so
+*.o
+*~

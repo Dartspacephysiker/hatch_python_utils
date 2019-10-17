@@ -1,6 +1,7 @@
 # 1  (20190910): Make stereographic map
 # 2  (20190910): Draw polygons (equal-area binning)
 # 3  (20191008): Apex grid lines
+# 4  (20191016): Colorbar with equal-area kart
 
 from hatch_python_utils.earth import coordinates as hCoord
 from matplotlib.patches import Polygon
@@ -213,10 +214,10 @@ junk = m.drawcoastlines()
 
 plotstat = np.random.normal(loc=0.0,scale=0.5,size=672)
 
-hEAPlot.draw_on_map(plotstat, m,
-                    tryAattepunkter=True,
-                    alphaval=0.8,
-                    cmap=hCM.parula)
+polylist, cmapvals = hEAPlot.draw_on_map(plotstat, m,
+                                         tryAattepunkter=True,
+                                         alphaval=0.8,
+                                         cmap=hCM.parula)
 
 ########################################
 # 3  (20191008): Apex grid lines
@@ -296,3 +297,16 @@ if doApexGridLines:
         
         mlonGridLines.append(gridline)
         # break
+
+########################################
+# 4  (20191016): Colorbar with equal-area kart
+
+norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+# norm(plotstat)
+cax = fig.add_axes([0.87, 0.1, 0.03, 0.8])
+
+cb1 = mpl.colorbar.ColorbarBase(cax,
+                                cmap=hCM.parula,
+                                norm=norm,
+                                orientation='vertical')
+yunk = cb1.set_label('Density')

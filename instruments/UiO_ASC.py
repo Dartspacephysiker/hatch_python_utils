@@ -75,19 +75,37 @@ UiOASCBaseAddr = 'http://tid.uio.no/plasma/aurora'
 def get_UiO_ASC_image_list_from_net(site='lyr5',
                                     date='20190104',
                                     boelgelengde='5577',
-                                    add_datetimes=False):
+                                    add_datetimes=False,
+                                    return_dict=False):
+
+    print("REMEMBER that you need to visit http://tid.uio.no/plasma/aurora and sign in FIRST; otherwise you'll never be able access the data...")
 
     try:
         nSites = len(site)
 
     except:
         site = [site]
+        nSites = 1
 
     sitelist = ['lyr5', 'nya4', 'and3', 'lyr1', 'all']
     for sit in site:
         if sit not in sitelist:
             print("please choose one of {:s} as a site (no Skibotn?)!".format(
                 ", ".join(sitelist)))
+            return None
+
+    try:
+        nBLer = len(boelgelengde)
+
+    except:
+        boelgelengde = [boelgelengde]
+        nBLer = 1
+
+    blList = ['5577', '6300']
+    for bl in boelgelengde:
+        if bl not in blList:
+            print("please choose one of {:s} as a boelgelengde!".format(
+                ", ".join(blList)))
             return None
 
     batchMode = False
@@ -112,77 +130,115 @@ def get_UiO_ASC_image_list_from_net(site='lyr5',
     else:
 
         availFiles = []
+        if return_dict:
+            availFiles = {sit: {bl: {} for bl in boelgelengde} for sit in site}
+
         print("Getting image list for {:d} dates ...".format(nDates))
 
-        for tmpdate in date:
+        for bl in boelgelengde:
 
-            # if calAddr is None:
-            if isinstance(tmpdate, datetime.datetime) \
-               or isinstance(tmpdate, datetime.date) \
-               or isinstance(tmpdate, numpy.ndarray):
-                tmpdate = tmpdate.strftime("%Y%m%d")
+            print("BL: {:s}".format(bl))
+            print("#########")
+            for tmpdate in date:
 
-            print("{:s}".format(tmpdate), end=' ')
+                # if calAddr is None:
+                if isinstance(tmpdate, datetime.datetime) \
+                   or isinstance(tmpdate, datetime.date) \
+                   or isinstance(tmpdate, numpy.ndarray):
+                    tmpdate = tmpdate.strftime("%Y%m%d")
 
-            for sit in site:
+                print("{:s}".format(tmpdate), end=' ')
 
-                print("{:s}".format(sit), end=' ')
+                for sit in site:
 
-                remoteDir = '/'.join((UiOASCBaseAddr, sit,
-                                      boelgelengde,
-                                      tmpdate[0:4], tmpdate))+'/'
-                try:
-                    blig = get_url_paths(remoteDir)
-                except:
-                    print(
-                        "Couldn't get files! Continuing ...".format(tmpdate))
-                    continue
+                    print("{:s}".format(sit), end=' ')
 
-                dirs = [dirr for dirr in blig if dirr[-5:-3] == 'ut']
-
-                if len(dirs) == 0:
-                    print(
-                        "No directories! Continuing ...".format(tmpdate))
-
-                for dirr in dirs:
-
-                    time.sleep(0.1)
-
+                    remoteDir = '/'.join((UiOASCBaseAddr, sit,
+                                          bl,
+                                          tmpdate[0:4], tmpdate))+'/'
                     try:
-                        theseFiles = get_url_paths(dirr)
+                        blig = get_url_paths(remoteDir)
                     except:
                         print(
-                            "Couldn't get files for {:s}! Continuing ...".format(dirr))
+                            "Couldn't get files! Continuing ...".format(tmpdate))
                         continue
 
-                    if add_datetimes:
+                    dirs = [dirr for dirr in blig if dirr[-5:-3] == 'ut']
 
-                        myRE = re.compile(
-                            sit+"_"+tmpdate+"_([0-9]{2})([0-9]{2})([0-9]{2})_"+boelgelengde+'_cal.png')
+                    if len(dirs) == 0:
+                        print(
+                            "No directories! Continuing ...".format(tmpdate))
 
-                        dt_file_list = []
-                        for filer in theseFiles:
+                    for dirr in dirs:
 
-                            this = myRE.search(filer.split("/")[-1])
-                            if this is None:
-                                continue
+                        time.sleep(0.1)
 
-                            hr, mt, sec = this.groups()
+                        try:
+                            theseFiles = get_url_paths(dirr)
+                        except:
+                            print(
+                                "Couldn't get files for {:s}! Continuing ...".format(dirr))
+                            continue
 
-                            dt_file_list.append((datetime.datetime(int(tmpdate[0:4]),
-                                                                   int(tmpdate[4:6]),
-                                                                   int(tmpdate[6:8]),
-                                                                   int(hr), int(mt), int(sec)),
-                                                 filer))
+                        if add_datetimes:
 
-                        availFiles += dt_file_list
+                            myRE = re.compile(
+                                sit+"_"+tmpdate+"_([0-9]{2})([0-9]{2})([0-9]{2})_"+bl+'_cal.png')
 
-                    else:
+                            dt_file_list = []
+                            for filer in theseFiles:
 
-                        availFiles += [
-                            filer for filer in theseFiles if filer.endswith('.png')]
+                                this = myRE.search(filer.split("/")[-1])
+                                if this is None:
+                                    continue
 
-            print("")
+                                hr, mt, sec = this.groups()
+
+                                dt_file_list.append((datetime.datetime(int(tmpdate[0:4]),
+                                                                       int(tmpdate[4:6]),
+                                                                       int(tmpdate[6:8]),
+                                                                       int(hr), int(mt), int(sec)),
+                                                     filer))
+
+                            if return_dict:
+                                if tmpdate not in availFiles[sit][bl].keys():
+                                    availFiles[sit][bl][tmpdate] = dt_file_list
+                                else:
+                                    availFiles[sit][bl][tmpdate] += dt_file_list
+                            else:
+                                availFiles += dt_file_list
+
+                        else:
+
+                            if return_dict:
+                                if tmpdate not in availFiles[sit][bl].keys():
+                                    availFiles[sit][bl][tmpdate] = [
+                                        filer for filer in theseFiles if filer.endswith('.png')]
+                                else:
+                                    availFiles[sit][bl][tmpdate] += [
+                                        filer for filer in theseFiles if filer.endswith('.png')]
+                            else:
+                                availFiles += [
+                                    filer for filer in theseFiles if filer.endswith('.png')]
+
+                print("")
+
+    if return_dict:
+        siteList = []
+        for sit in site:
+            keepsite = False
+            for bl in boelgelengde:
+                if len(availFiles[sit][bl].keys()) > 0:
+                    keepsite = True
+            if keepsite:
+                siteList.append(sit)
+        availFiles = {sit: availFiles[sit] for sit in siteList}
+
+        # tmpkeepkeylist = []
+        # for key in tmpdict.keys():
+
+        # availFiles[bl][sit] = {k:v for k,v in tmpdict.items if vif len(tmpdict.keys()) > 0
+        # removeMe =
 
     return availFiles
 
@@ -242,7 +298,7 @@ class UiO_ASC_cal(object):
         calFile = site+'_'+date+'_'+boelgelengde+'_cal.dat'
 
         if not os.path.isfile(calDir+calFile):
-            print(calFile+" not found!", end='')
+            print(calFile+" not found!", end=' ')
 
             if not fetch_from_net:
                 print(" Returning ...")
@@ -566,6 +622,8 @@ def get_UiO_ASC_image_from_net(site='lyr5',
     #                    date[0:4],date,'ut'+UTCHHMMSS[0:2],
     #                    fName))
 
+    breakpoint()
+
     availFiles = [filer for filer in get_url_paths(
         remoteDir) if filer.endswith('.png')]
 
@@ -626,12 +684,15 @@ def get_UiO_ASC_image_from_net(site='lyr5',
     return imageio.imread(remoteFile)
 
 
-def get_url_paths(url, ext='', params={}):
-    response = requests.get(url, params=params)
+def get_url_paths(url, ext='', params={}, debug=False):
+    if debug:
+        print("DEBUG: url = {:s}".format(url))
+    response = requests.get(url, params=params, timeout=10)
     if response.ok:
         response_text = response.text
     else:
         return response.raise_for_status()
+
     soup = BeautifulSoup(response_text, 'html.parser')
     parent = [url + node.get('href') for node in soup.find_all('a')
               if node.get('href').endswith(ext)]

@@ -16,10 +16,13 @@ def draw_screen_poly(lats, lons, m, color='red', alpha=0.4):
     xy = list(zip(x, y))
     poly = Polygon(xy, facecolor=color, alpha=alpha)
     plt.gca().add_patch(poly)
+    return poly
 
 
 def draw_on_map(plotstat, m,
                 ea=None,
+                vmin=None,
+                vmax=None,
                 tryAattepunkter=True,
                 alphaval=0.8,
                 cmap=hCM.parula,
@@ -31,8 +34,15 @@ def draw_on_map(plotstat, m,
 
     plotmax, plotmin = np.max(plotstat[np.isfinite(plotstat)]), np.min(
         plotstat[np.isfinite(plotstat)])
-    cmapvals = cmap(plt.Normalize(plotmin, plotmax)(plotstat))
 
+    if vmin is None:
+        vmin = plotmin
+    if vmax is None:
+        vmax = plotmax
+
+    cmapvals = cmap(plt.Normalize(vmin, vmax)(plotstat))
+
+    polylist = []
     for i, stat in enumerate(plotstat):
 
         if ~np.isfinite(stat):
@@ -70,6 +80,7 @@ def draw_on_map(plotstat, m,
             lons = [tmpms[0], tmpms[0], tmpms[0], midlon,
                     tmpms[1], tmpms[1], tmpms[1], midlon]
 
-        draw_screen_poly(lats, lons, m,
-                         color=cmapvals[i, :],
-                         alpha=alphaval)
+        polylist.append(draw_screen_poly(lats, lons, m,
+                                         color=cmapvals[i, :],
+                                         alpha=alphaval))
+    return polylist, cmapvals
