@@ -76,15 +76,16 @@ Cf2py real*8,intent(in)     :: ps,x,y,z
 Cf2py real*8,intent(out)    :: bx,by,bz  
 
       IMPLICIT REAL*8 (A-H,O-Z)
-c$$$      DIMENSION PARAM(30,7),A(30),PARMOD(10)
-      DIMENSION PARAM(30,7),A(30)
+      DIMENSION PARAM(30,7),A(30),PARMOD(10)
       DATA A02,XLW2,YN,RPI,RT/25.D0,170.D0,30.D0,0.31830989D0,30.D0/
       DATA XD,XLD2/0.D0,40.D0/
 
-      integer*8,intent(in)  :: iopt      
-      real*8,intent(in)     :: parmod(10)
-      real*8,intent(in)     :: ps,x,y,z  
-      real*8,intent(out)    :: bx,by,bz  
+c$$$      integer*8,intent(in)  :: iopt      
+c$$$      real*8,intent(in)     :: parmod(10)
+c$$$      real*8,intent(in)     :: ps,x,y,z  
+c$$$      real*8,intent(out)    :: bx,by,bz  
+
+c$$$      print *, '  iopt,ps,x,y,z',iopt,ps,x,y,z
 
 C
 C   The last 2 quantities define variation of tail sheet thickness along X
@@ -450,6 +451,11 @@ C
 C              AUTHOR:     NIKOLAI A. TSYGANENKO
 C                          HSTX CORP./NASA GSFC
 C
+Cf2py integer*8,intent(in)  :: iopt      
+Cf2py real*8,intent(in)     :: parmod(10)
+Cf2py real*8,intent(in)     :: ps,x,y,z  
+Cf2py real*8,intent(out)    :: bx,by,bz  
+
        DIMENSION XI(4),F(3),DER(3,30),PARAM(30,7),A(30),PARMOD(10)
        DOUBLE PRECISION F,DER
         DATA PARAM/-116.53,-10719.,42.375,59.753,-11363.,1.7844,30.268,
@@ -483,6 +489,8 @@ C
 
         DATA IOP/10/
 C
+        SAVE
+
          IF (IOP.NE.IOPT) THEN
 C
             ID=1
@@ -591,6 +599,8 @@ C
       DATA DXL/20.D0/
 C
 C
+      SAVE
+
          IF (ID.NE.1)  GOTO  3
 	   DO  2  I = 1, 30
 	     DO  1  L = 1, 3
