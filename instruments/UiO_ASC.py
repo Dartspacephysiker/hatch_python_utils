@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 
+import copy
 import datetime
 import imageio
 import numpy as np
@@ -11,6 +12,150 @@ import time
 import re
 
 UiOASCBaseAddr = 'http://tid.uio.no/plasma/aurora'
+
+allsitelist = ['lyr5', 'nya4', 'nya6', 'skn4', 'and3', 'lyr1', 'all']
+
+
+def get_UiO_data_for_time(wantTime,
+                          wantsite='lyr5',
+                          checksites=None,
+                          wantbl='6300',
+                          maxtdelt=datetime.timedelta(minutes=10),
+                          strictwant=False):
+
+    boelgelengde = ['5577', '6300']
+    if strictwant:
+        boelgelengde = wantbl
+
+    if checksites is None:
+        sites = ['lyr5', 'nya4', 'nya6', 'skn4', 'and3', 'lyr1']
+    else:
+        sites = checksites
+        try:
+            _ = sites[0]
+        except:
+            sites = [sites]
+
+    this = get_UiO_ASC_image_list_from_net(site=sites,
+                                           date=wantTime,
+                                           boelgelengde=boelgelengde,
+                                           add_datetimes=True,
+                                           return_dict=True)
+    # imgdts = [that[0] for that in this]
+
+    # roundConj = pd.Timestamp(wantTime).round('10min')
+    # np.abs(this[0][0]-wantTime)
+
+    if this is None:
+        print("Couldn't get UiO nothing!")
+        return None
+
+    if len(this.keys()) == 0:
+        print("Couldn't get UiO nothing!")
+        return None
+
+    if strictwant:
+        if wantsite not in this.keys():
+            print("Couldn't get UiO-{:s} data!".format(wantsite))
+            return None
+
+    UiOCloseDict = copy.deepcopy(this)
+
+    # breakpoint()
+
+    for site in this.keys():
+        for bl in this[site].keys():
+            for date in this[site][bl].keys():
+                keeps = [(tim, np.abs(tim-wantTime), fila) for tim, fila in this[site]
+                         [bl][date] if (np.abs(tim-wantTime) <= maxtdelt)]
+
+                if len(keeps) > 0:
+                    keepIkeep = -9
+                    bestetdiff = datetime.timedelta(minutes=1000)
+                    for ikeep, (tim, tdiff, fila) in enumerate(keeps):
+                        if tdiff < bestetdiff:
+                            bestetdiff = tdiff
+                            keepIkeep = ikeep
+                    if bestetdiff <= maxtdelt:
+                        UiOCloseDict[site][bl] = keeps[keepIkeep]
+                    else:
+                        UiOCloseDict[site][bl] = None
+                else:
+                    UiOCloseDict[site][bl] = None
+
+                this[site][bl][date] = keeps
+
+        #         break
+        #     break
+        # break
+
+    havesites = list(this.keys())
+
+    havebls = []
+    for site in havesites:
+        blshere = this[site].keys()
+        for bl in blshere:
+            if bl not in havebls:
+                havebls.append(bl)
+
+    cangetimage = (len(havesites) > 0) and (len(havebls) > 0)
+    wantsAreInClosedict = UiOCloseDict[wantsite][wantbl] is not None
+
+    haveAnyCloseDictStuff = wantsAreInClosedict
+    if not haveAnyCloseDictStuff:
+        haveAnyCloseDictStuff = False
+        doQuit = False
+        for site in this.keys():
+            for bl in this[site].keys():
+                if UiOCloseDict[site][bl] is not None:
+                    haveAnyCloseDictStuff = True
+                    useUiObl = bl
+                    useUiOsite = site
+                    doQuit = True
+                    break
+                if doQuit:
+                    break
+            if doQuit:
+                break
+
+    if not (cangetimage and haveAnyCloseDictStuff):
+        print("Couldn't get UiO image!")
+        return None
+
+    if cangetimage:
+        if (wantsite in havesites) and wantsAreInClosedict:
+            useUiOsite = wantsite
+            print("Have {:s} UiO images!".format(wantsite))
+        else:
+            useUiOsite = havesites[0]
+            print(
+                "Don't have {:s} UiO images! Defaulting to {:s} ...".format(useUiOsite))
+
+        if (wantbl in this[useUiOsite].keys()) and wantsAreInClosedict:
+            useUiObl = wantbl
+            print("Have {:s}-Å UiO images at {:s}!".format(wantbl, useUiOsite))
+        else:
+            # useUiObl = list(this[useUiOsite].keys())[0]
+            print(
+                "Don't have {:s}-Å UiO images at {:s}! Defaulting to {:s} ...".format(wantbl, useUiObl))
+
+        uioCal = UiO_ASC_cal(site=useUiOsite,
+                             date=wantTime,
+                             boelgelengde=useUiObl,
+                             fetch_from_net=True,
+                             verbose=True)
+
+        closedt, closedeltat, closefile = UiOCloseDict[useUiOsite][useUiObl]
+
+        img = UiO_ASC_image(site=useUiOsite,
+                            boelgelengde=useUiObl,
+                            date=closedt.strftime("%Y%m%d"),
+                            UTCHHMMSS=closedt.strftime("%H%M%S"),
+                            verbose=True,
+                            saveDir='/SPENCEdata/Research/database/Rockets/CAPER2/nordlyskamera/')
+
+        return dict(closedt=closedt, closedeltat=closedeltat, closefile=closefile,
+                    cal=uioCal, img=img)
 
 
 # def get_UiO_ASC_calfile_list_from_net(site='lyr5',
@@ -78,24 +223,34 @@ def get_UiO_ASC_image_list_from_net(site='lyr5',
                                     add_datetimes=False,
                                     return_dict=False):
 
+    global allsitelist
+
     print("REMEMBER that you need to visit http://tid.uio.no/plasma/aurora and sign in FIRST; otherwise you'll never be able access the data...")
 
     try:
-        nSites = len(site)
+        if not isinstance(site, str):
+            nSites = len(site)
+        else:
+            site = [site]
+            nSites = 1
 
     except:
         site = [site]
         nSites = 1
 
-    sitelist = ['lyr5', 'nya4', 'and3', 'lyr1', 'all']
     for sit in site:
-        if sit not in sitelist:
-            print("please choose one of {:s} as a site (no Skibotn?)!".format(
-                ", ".join(sitelist)))
+        if sit not in allsitelist:
+            print("No such thing as {:s}! please choose one of {:s} as a site!".format(
+                sit,
+                ", ".join(allsitelist)))
             return None
 
     try:
-        nBLer = len(boelgelengde)
+        if not isinstance(boelgelengde, str):
+            nBLer = len(boelgelengde)
+        else:
+            boelgelengde = [boelgelengde]
+            nBLer = 1
 
     except:
         boelgelengde = [boelgelengde]

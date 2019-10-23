@@ -56,6 +56,17 @@ def get_Swarm_combo(dates,
                                                  max_N_months_twixt_apexRefTime_and_obs=3),
                     only_list=False):
 
+    try:
+        _ = dates[0]
+        if isinstance(dates[0], str):
+            dateStrs = dates
+        else:
+            dateStrs = [dater.strftime("%Y%m%d") for dater in dates]
+    except:
+        if isinstance(dates, str):
+            dates = [dates]
+            dateStrs = dates
+
     getFuncDict = dict(MAG=getMagFTP,
                        LP=getLPFTP,
                        FP=getFPFTP,
@@ -93,12 +104,15 @@ def get_Swarm_combo(dates,
         getFunc = getFuncDict[dtyper.upper()]
 
         gotFiles = getFunc(sat=sat,
-                           dates=dates,
+                           dates=dateStrs,
                            only_list=only_list)
 
         if only_list:
             outList.append(gotFiles)
             continue
+
+        # if dtyper.upper() == 'CT2HZ':
+        #     breakpoint()
 
         for ranDate in dates:
             df = sPH.hurtigLast(sat=sat,
