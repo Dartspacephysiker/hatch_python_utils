@@ -111,9 +111,6 @@ def get_Swarm_combo(dates,
             outList.append(gotFiles)
             continue
 
-        # if dtyper.upper() == 'CT2HZ':
-        #     breakpoint()
-
         for ranDate in dates:
             df = sPH.hurtigLast(sat=sat,
                                 doProcessMag=dtyper.upper() == 'MAG',
@@ -292,7 +289,7 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir,
             if fnmatch.fnmatch(f, '*'+date+'*'):
                 # print(f)
                 ftpFiles.append(f)
-                break
+                # break
 
     if only_list:
         ftp.close()
