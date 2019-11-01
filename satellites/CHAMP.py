@@ -56,7 +56,13 @@ def load_CHAMP(*args,
 
         if not quiet:
             print("Loading {:s} ...".format(infile))
-        maxie.append(pd.read_pickle(tmpdir+infile))
+
+        tmpdf = pd.read_pickle(tmpdir+infile)
+        origsize = tmpdf.shape[0]
+        tmpdf = tmpdf.loc[~tmpdf.index.duplicated(keep='first')]
+        newsize = tmpdf.shape[0]
+        print("Chucked {:d} dupe inds ...".format(origsize-newsize))
+        maxie.append(tmpdf)
 
     df = pd.concat(maxie)
     if add_tParm:

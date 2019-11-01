@@ -103,8 +103,8 @@ def omni_getter(*args,
     # t_start = data.index.min() - datetime.timedelta(1)
     # t_end = data.index.max() + datetime.timedelta(1)
 
-    # cdf_or_txt = 'txt'
-    cdf_or_txt = 'cdf'
+    cdf_or_txt = 'txt'
+    # cdf_or_txt = 'cdf'
 
     if use_1minres:
         res = '1min'
