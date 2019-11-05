@@ -12,6 +12,7 @@
 ########################################
 # LEGENDS
 # LEG1  (20190604): Multiple axes, single legend
+# LEG2  (20191105): Gjør legend-alpha 1
 ########################################
 # SPACING
 # SPA1  (20190723): fig.suptitle with plt.tight_layout()
@@ -48,12 +49,12 @@ junk = ax.set_xlabel("Time (s)")
 l0 = ax.plot(x, y0, label="normal")
 
 c2 = 'orange'
-ax1 = ax.twinx()
-l1 = ax1.plot(x, y1, label="gamma")
+ax2 = ax.twinx()
+l1 = ax2.plot(x, y1, label="gamma")
 
-ax1.axes.spines['right'].set_color(c2)
-ax1.yaxis.label.set_color(c2)
-ax1.tick_params(axis='y', colors=c2)
+ax2.axes.spines['right'].set_color(c2)
+ax2.yaxis.label.set_color(c2)
+ax2.tick_params(axis='y', colors=c2)
 
 
 # AXI2  (20190711): Gridspec!
@@ -125,9 +126,15 @@ l1 = ax.plot(x, y1, label="gamma")
 ax2 = ax.twinx()
 l2 = ax2.plot(x, y2, label="neg_binom(5,0.5)")
 
-ls = l0+l1+l2
-llabs = [l.get_label() for l in ls]
-leg = ax.legend(ls, llabs, loc=0)
+lines = l0+l1+l2
+lines = [l0]+[l1]+[l2]                # IF SCATTER INSTEAD OF PLOT
+llabs = [l.get_label() for l in lines]
+leg = ax.legend(lines, llabs, loc=0)
+
+# LEG2  (20191105): Gjør legend-alpha 1
+for lh in leg.legendHandles:
+    lh._legmarker.set_alpha(0)
+    # lh.set_alpha(1) # IF SCATTER INSTEAD OF PLOT
 
 ########################################
 # SPACING
