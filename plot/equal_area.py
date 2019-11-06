@@ -11,6 +11,102 @@ from mpl_toolkits.basemap import Basemap, cm
 from matplotlib.patches import Polygon
 
 
+def PlotMap(hemi='north',
+            isEqualArea=True,
+            draw_coastlines=False,
+            mirror_SH=False):
+
+    figSize = (12, 12)
+    fig = plt.figure(figsize=figSize)
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+
+    littleAlpha = 0.5
+    thickAlpha = 0.3
+
+    ea = hCoord.EqualAreaBins(hemi=hemi)
+
+    projection = 'cyl'
+    projection = 'npstere'
+
+    isSH = ea.hemi.lower() == 'south'
+    isNH = ea.hemi.lower() == 'north'
+
+    # eaParallels = np.array([48,60,72,84])
+    eaParallels = np.array([48, 57, 66, 75, 84])
+    eaboundLat = 57
+
+    if isSH:
+        if mirror_SH:
+            if isEqualArea:
+                parallels = eaParallels
+                boundLat = eaboundLat
+            else:
+                parallels = np.arange(60., 86., 5.)
+                boundLat = 60
+            projection = 'npstere'
+            latmax = np.max(parallels)
+        else:
+            if isEqualArea:
+                parallels = np.flip(eaParallels*(-1.))
+                boundLat = -1*eaboundLat
+            else:
+                parallels = np.arange(-85., -59., 5.)
+                boundLat = -60
+            projection = 'spstere'
+            latmax = np.abs(np.min(parallels))
+    elif isNH:
+        if isEqualArea:
+            parallels = eaParallels
+            boundLat = eaboundLat
+        else:
+            parallels = np.arange(60., 86., 5.)
+            boundLat = 60
+        projection = 'npstere'
+        latmax = np.max(parallels)
+
+    if (projection == 'npstere') or (projection == 'spstere'):
+        projOpts = dict(projection=projection,
+                        boundinglat=boundLat,
+                        lon_0=0,
+                        resolution='l',
+                        round=True)
+
+    m = Basemap(**projOpts)
+
+    if isEqualArea:
+        meridians = np.arange(0, 360., 90.)
+    else:
+        meridians = np.arange(0, 360., 15.)
+
+    latLabelLon = 45
+
+    thinParDashes = [1, 1]
+    thickParDashes = [1, 0]
+    thickParWidth = 1.5
+
+    def meridianFmt(mer):
+        if mer in [-270., -90., 0., 90., 180., 270., 360.]:
+            return "{:.0f} MLT".format(mer/15.)
+        else:
+            return ""
+
+    def parallelFmt(par):
+        return "{:.0f} MLat".format(par)
+
+    junkMer = m.drawmeridians(meridians, labels=[True, True, True, True],
+                              fmt=meridianFmt,
+                              dashes=thinParDashes,
+                              latmax=latmax)
+    junkPar = m.drawparallels(parallels, labels=[True, True, True, True],
+                              fmt=parallelFmt,
+                              dashes=thinParDashes)
+
+    if draw_coastlines:
+        junk = m.drawcoastlines()
+
+    return m
+
+
 def draw_screen_poly(lats, lons, m, color='red', alpha=0.4):
     x, y = m(lons, lats)
     xy = list(zip(x, y))
@@ -27,10 +123,15 @@ def draw_on_map(plotstat, m,
                 alphaval=0.8,
                 cmap=hCM.parula,
                 verbose=False):
+    """
+    'ea' can actually be whatever; it just needs to have members 'mini','maxi','minm','maxm' corresponding to each plotstat bin
+    """
 
     if ea is None:
         print("Defaulting to NH!")
-        ea = hCoord.EqualAreaBins(hemi='north')
+        ea = hCoord.EqualAreaBins(hemi='north').ea
+    elif hasattr(ea, 'ea'):
+        ea = ea.ea
 
     plotmax, plotmin = np.max(plotstat[np.isfinite(plotstat)]), np.min(
         plotstat[np.isfinite(plotstat)])
@@ -51,8 +152,8 @@ def draw_on_map(plotstat, m,
         if verbose:
             print(i, stat)
 
-        tmpis = ea.ea.mini[i], ea.ea.maxi[i]
-        tmpms = ea.ea.minm[i], ea.ea.maxm[i]
+        tmpis = ea.mini[i], ea.maxi[i]
+        tmpms = ea.minm[i], ea.maxm[i]
         tmpms = np.rad2deg(np.unwrap(np.deg2rad(np.array(tmpms)*15)))
 
         midlat = np.mean(tmpis)
