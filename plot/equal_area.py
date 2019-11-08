@@ -12,13 +12,16 @@ from matplotlib.patches import Polygon
 
 
 def PlotMap(hemi='north',
+            fig=None,
+            ax=None,
             isEqualArea=True,
             draw_coastlines=False,
             mirror_SH=False):
 
-    figSize = (12, 12)
-    fig = plt.figure(figsize=figSize)
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    if (fig is None) or (ax is None):
+        figSize = (12, 12)
+        fig = plt.figure(figsize=figSize)
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
 
     littleAlpha = 0.5
     thickAlpha = 0.3
@@ -71,7 +74,7 @@ def PlotMap(hemi='north',
                         resolution='l',
                         round=True)
 
-    m = Basemap(**projOpts)
+    m = Basemap(ax=ax, **projOpts)
 
     if isEqualArea:
         meridians = np.arange(0, 360., 90.)
@@ -115,6 +118,28 @@ def draw_screen_poly(lats, lons, m, color='red', alpha=0.4):
     return poly
 
 
+def make_2dgrid_object_from_bin_edges(xedges, yedges):
+
+    xmins, ymins = np.meshgrid(xedges[0:-1], yedges[0:-1])
+    xmaxes, ymaxes = np.meshgrid(xedges[1:], yedges[1:])
+
+    xmins = xmins.flatten()
+    ymins = ymins.flatten()
+    xmaxes = xmaxes.flatten()
+    ymaxes = ymaxes.flatten()
+
+    histothing = np.recarray(ymaxes.size,
+                             dtype=np.dtype({'names': ['mini', 'maxi', 'minm', 'maxm'],
+                                             'formats': [np.float32, np.float32, np.float32, np.float32]}))
+    histothing.mini = xmins
+    histothing.maxi = xmaxes
+
+    histothing.minm = ymins
+    histothing.maxm = ymaxes
+
+    return histothing
+
+
 def draw_on_map(plotstat, m,
                 ea=None,
                 vmin=None,
@@ -125,6 +150,7 @@ def draw_on_map(plotstat, m,
                 verbose=False):
     """
     'ea' can actually be whatever; it just needs to have members 'mini','maxi','minm','maxm' corresponding to each plotstat bin
+    For example, use make_2dgrid_object_from_bin_edges(xedges,yedges) to make just such a thing
     """
 
     if ea is None:

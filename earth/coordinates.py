@@ -518,7 +518,9 @@ def geoclatR2geodlatheight(glat, r_km):
 def bin_into_equal_area(lats, mlts, data,
                         statfunc=np.median,
                         ea=None,
-                        verbose=False):
+                        verbose=False,
+                        add_count=False,
+                        return_indices=False):
     """
     'data' is assumed to have rows of observations, and columns of different observation types
     """
@@ -543,12 +545,17 @@ def bin_into_equal_area(lats, mlts, data,
     # indlist = []
     statlist = []
 
+    if return_indices:
+        returners = []
+
     assert len(data.shape) < 3, "Can't handle three-dim data!"
 
     if len(data.shape) == 2:
         nObs = data.shape[0]
         nCols = data.shape[1]
-        blankrow = np.array([np.nan]*nCols)
+
+        # if add_count:
+        #     nCols += 1
 
         if (nCols > 20) or ((nCols/nObs) > 10):
             print("Too funky, not sure what to do with your data")
@@ -557,10 +564,26 @@ def bin_into_equal_area(lats, mlts, data,
     else:
         nObs = data.shape[0]
         nCols = 1
+
+    # if add_count:
+    #     nCols += 1
+
+    if add_count:
+        nCols += 1
+        addcountcol = nCols-1
+        lastdataind = nCols-1
+    else:
+        lastdataind = nCols
+
+    if nCols > 1:
+        blankrow = np.array([np.nan]*nCols)
+    else:
         blankrow = np.nan
 
+    statlist = np.zeros((ea.ea.maxi.size, nCols), dtype=np.float64)*np.nan
+
     for i, (latbin, mltbin) in enumerate(zip(latII, mltII)):
-        tmpstat = blankrow
+        # tmpstat = blankrow.copy()
         if verbose:
             print(i, latbin, mltbin)
 
@@ -569,16 +592,29 @@ def bin_into_equal_area(lats, mlts, data,
             & (mlts >= mltbin.left) \
             & (mlts < mltbin.right)
         # indlist.append(np.where(inds)[0])
-        if np.where(inds)[0].size > 0:
+        nHere = np.where(inds)[0].size
+        if nHere > 0:
             # breakpoint()
             # tmpstat = statfunc(data[inds,:],axis=0)
-            tmpstat = intrastatfunc(data, inds)
+            # tmpstat[:nCols-add_count] = intrastatfunc(data, inds)
+            statlist[i, :lastdataind] = intrastatfunc(data, inds)
 
-        statlist.append(tmpstat)
+        if add_count:
+            # tmpstat[-1] = nHere
+            # print(i, latbin, mltbin, nHere)
+            statlist[i, addcountcol] = nHere
 
-    statlist = np.array(statlist)
+        if return_indices:
+            returners.append(np.where(inds)[0])
 
-    return statlist
+        # statlist.append(tmpstat)
+
+    # statlist = np.array(statlist)
+
+    if return_indices:
+        return statlist, return_indices
+    else:
+        return statlist
 
 
 def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj, polcaplowlat=70.,
