@@ -118,7 +118,8 @@ def draw_screen_poly(lats, lons, m, color='red', alpha=0.4):
     return poly
 
 
-def make_2dgrid_object_from_bin_edges(xedges, yedges):
+def make_2dgrid_object_from_bin_edges(xedges, yedges,
+                                      flip_if_south_to_make_compatible_w_north=True):
 
     xmins, ymins = np.meshgrid(xedges[0:-1], yedges[0:-1])
     xmaxes, ymaxes = np.meshgrid(xedges[1:], yedges[1:])
@@ -136,6 +137,15 @@ def make_2dgrid_object_from_bin_edges(xedges, yedges):
 
     histothing.minm = ymins
     histothing.maxm = ymaxes
+
+    if flip_if_south_to_make_compatible_w_north:
+        if np.where(histothing.mini < 0)[0].size == histothing.mini.size:
+            print("This is southern grid! Flip to make compatible with northern grid ...")
+
+            # tmpMinI = (-1.)*histothing.maxi
+            # tmpMaxI = (-1.)*histothing.mini
+            histothing.mini = np.flip(histothing.mini)
+            histothing.maxi = np.flip(histothing.maxi)
 
     return histothing
 

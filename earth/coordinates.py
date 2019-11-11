@@ -537,10 +537,10 @@ def bin_into_equal_area(lats, mlts, data,
 
     if ea is None:
         print("Loading in equal-area thing sjølv")
-        ea = EqualAreaBins()
+        ea = EqualAreaBins().ea
 
-    latII = pd.IntervalIndex.from_arrays(ea.ea.mini, ea.ea.maxi, closed='left')
-    mltII = pd.IntervalIndex.from_arrays(ea.ea.minm, ea.ea.maxm, closed='left')
+    latII = pd.IntervalIndex.from_arrays(ea.mini, ea.maxi, closed='left')
+    mltII = pd.IntervalIndex.from_arrays(ea.minm, ea.maxm, closed='left')
 
     # indlist = []
     statlist = []
@@ -580,7 +580,7 @@ def bin_into_equal_area(lats, mlts, data,
     else:
         blankrow = np.nan
 
-    statlist = np.zeros((ea.ea.maxi.size, nCols), dtype=np.float64)*np.nan
+    statlist = np.zeros((ea.maxi.size, nCols), dtype=np.float64)*np.nan
 
     for i, (latbin, mltbin) in enumerate(zip(latII, mltII)):
         # tmpstat = blankrow.copy()
@@ -635,22 +635,22 @@ def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj, polcaplowlat=70.,
             return ea_mlat >= polcaplowlat
 
     nboxes = 9
-    ea_alts = np.array([ea_altitude]*len(ea.ea.maxi))
+    ea_alts = np.array([ea_altitude]*len(ea.maxi))
 
-    # weights = np.zeros((ea.ea.maxi.size,nboxes))
-    weights = np.zeros(ea.ea.maxi.size, dtype=np.float64)
+    # weights = np.zeros((ea.maxi.size,nboxes))
+    weights = np.zeros(ea.maxi.size, dtype=np.float64)
 
     # Divide each into 9 boxes, count up how many
     # LON positions: LEFT, LEFT-CENTER, CENTER, CENTER-RIGHT, RIGHT [L, LC, C, CR, R]
     # LAT positions: BOTTOM, BOTTOM-MID, MID, MID-TOP, TOP          [B, BM, M, MT, T]
 
     # 'ea_9sq' = "Equal-area divided into nine squares"
-    ea_9sq = pd.DataFrame(dict(latbm=(ea.ea.mini+ea.ea.centeri)/2,
-                               latm=ea.ea.centeri,
-                               latmt=(ea.ea.maxi+ea.ea.centeri)/2,
-                               mltlc=(ea.ea.minm+ea.ea.centerm)/2,
-                               mltc=ea.ea.centerm,
-                               mltcr=(ea.ea.maxm+ea.ea.centerm)/2))
+    ea_9sq = pd.DataFrame(dict(latbm=(ea.mini+ea.centeri)/2,
+                               latm=ea.centeri,
+                               latmt=(ea.maxi+ea.centeri)/2,
+                               mltlc=(ea.minm+ea.centerm)/2,
+                               mltc=ea.centerm,
+                               mltcr=(ea.maxm+ea.centerm)/2))
 
     # Top row
     box0 = [ea_9sq['mltlc'].values*15., ea_9sq['latmt'].values]
