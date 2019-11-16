@@ -85,17 +85,30 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
         a = apexpy.Apex(date=picktime, refh=apex_ref_alt_km)
         mlon = a.mlt2mlon(apex_mlt, picktime)
 
-        for iH, height in enumerate(z_km):
+        if len(apex_mlat) == 1:
+            for iH, height in enumerate(z_km):
 
-            mgdlat, glon, error = a.apex2geo(apex_mlat, mlon, height)
-            theta, r, _, _ = geodesy.geod2geoc(mgdlat, height, 0, 0)
-            glats[iH] = 90.-theta
-            glons[iH] = glon
+                mgdlat, glon, error = a.apex2geo(apex_mlat, mlon, height)
+                theta, r, _, _ = geodesy.geod2geoc(mgdlat, height, 0, 0)
+                glats[iH] = 90.-theta
+                glons[iH] = glon
 
-        print("Converted {:.2f} MLat, {:.2f} MLT to (median) {:.2f} glat, {:.2f} glon".format(
-            apex_mlat, apex_mlt, np.median(glats), np.median(glons)))
+            print("Converted {:.2f} MLat, {:.2f} MLT to (median) {:.2f} glat, {:.2f} glon".format(
+                apex_mlat, apex_mlt, np.median(glats), np.median(glons)))
 
-    if make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range and (not get_MSIS):
+        else:
+
+            for iH, (Alat, alon, height) in enumerate(zip(apex_mlat, mlon, z_km)):
+
+                mgdlat, glon, error = a.apex2geo(Alat, alon, height)
+                theta, r, _, _ = geodesy.geod2geoc(mgdlat, height, 0, 0)
+                glats[iH] = 90.-theta
+                glons[iH] = glon
+
+            # print("Converted {:.2f} MLat, {:.2f} MLT to (median) {:.2f} glat, {:.2f} glon".format(
+            #     apex_mlat, apex_mlt, np.median(glats), np.median(glons)))
+
+    if make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range and (not get_MSIS) and get_IRI:
         print("Må be om MSIS for å fike IRI-elektrontemperatur!")
         return None
 
@@ -306,7 +319,7 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
     ########################################
     # Make Te the same as neutral temperature below ~60 km
 
-    if make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range:
+    if make_IRI_Te_eq_MSIS_Tn_below_and_above_valid_IRI_range and get_IRI:
 
         if verbose:
             print("Making IRI Te eq MSIS Tn below and above valid IRI range ...")

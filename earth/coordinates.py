@@ -517,6 +517,8 @@ def geoclatR2geodlatheight(glat, r_km):
 
 def bin_into_equal_area(lats, mlts, data,
                         statfunc=np.median,
+                        weights=None,
+                        col__doNotDivideByWeight=[],
                         ea=None,
                         verbose=False,
                         add_count=False,
@@ -529,11 +531,36 @@ def bin_into_equal_area(lats, mlts, data,
         isinstance(data, pd.core.series.Series)
 
     if isPandas:
-        def intrastatfunc(data, inds):
-            return statfunc(data[inds], axis=0)
+        candivideCols = ['j', 'je']
+        if weights is not None:
+            doNotDivideCols = ['deltat', 'count']
+
+            validcols = candivideCols + doNotDivideCols
+            assert all([col in validcols for col in list(data.columns)]
+                       ), "Not sure how to handle some of your columns!"
+
+            divideColInds = []
+            for divideCol in candivideCols:
+                candidateLoc = np.where(
+                    [col == divideCol for col in list(data.columns)])[0]
+                if candidateLoc.size > 0:
+                    divideColInds.append(candidateLoc)
+            divideColInds = np.array(divideColInds).flatten()
+
+        if weights is None:
+            def intrastatfunc(data, inds):
+                return statfunc(data[inds], axis=0)
+        else:
+            def intrastatfunc(data, inds, weights):
+                return statfunc(data[inds]*weights[inds], axis=0)
+
     else:
-        def intrastatfunc(data, inds):
-            return statfunc(data[inds, :], axis=0)
+        if weights is None:
+            def intrastatfunc(data, inds):
+                return statfunc(data[inds, :], axis=0)
+        else:
+            def intrastatfunc(data, inds, weights):
+                return statfunc(data[inds, :] * weights[inds, :], axis=0)
 
     if ea is None:
         print("Loading in equal-area thing sjølv")
@@ -594,10 +621,15 @@ def bin_into_equal_area(lats, mlts, data,
         # indlist.append(np.where(inds)[0])
         nHere = np.where(inds)[0].size
         if nHere > 0:
-            # breakpoint()
             # tmpstat = statfunc(data[inds,:],axis=0)
             # tmpstat[:nCols-add_count] = intrastatfunc(data, inds)
-            statlist[i, :lastdataind] = intrastatfunc(data, inds)
+            if weights is None:
+                statlist[i, :lastdataind] = intrastatfunc(data, inds)
+            else:
+                statlist[i, :lastdataind] = intrastatfunc(data, inds, weights)
+                # DON'T divide by weights here; typically want this to happen OUTSIDE this routine, since we divide, say, mono stats by all-time stats
+                # weightsums = np.sum(weights[inds], axis=0)
+                # statlist[i, divideColInds] /= weightsums.iloc[divideColInds]
 
         if add_count:
             # tmpstat[-1] = nHere
