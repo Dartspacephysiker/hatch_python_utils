@@ -66,7 +66,10 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                                   dataframe=False,
                                   F107=None,
                                   verbose=False):
-
+    """
+    If dataframe, return df with any of IGRF, IRI, MSIS
+    Else return list with members [IGRF,IRI,MSIS] any of which could be blank
+    """
     global IRIspecies, IRIKeepSpecies__density, MSISKeepSpecies__density
 
     igrf_isv = 0
@@ -114,12 +117,12 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
 
     nZ = z_km.size
 
-    if F107 is None:
+    if (F107 is None) and iri_use_F107:
         F107 = F107DB(nDaysToAvg=27).db
 
-    # Hente F10.7-indeks
-    f107_i = np.argmin(np.abs(F107.index-picktime))
-    f107, f107a = F107.loc[F107.iloc[f107_i].name, ['F107', 'F107_27DAvg']]
+        # Hente F10.7-indeks
+        f107_i = np.argmin(np.abs(F107.index-picktime))
+        f107, f107a = F107.loc[F107.iloc[f107_i].name, ['F107', 'F107_27DAvg']]
 
     # print("F10.7s : ", f107, f107a)
 
@@ -192,6 +195,12 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
         # iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2']].sum(axis=1)
         # iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2', 'nNO']].sum(axis=1)
         iri['ni'] = iri[['nO', 'nH', 'nHE', 'nO2', 'nNO', 'nN']].sum(axis=1)
+
+        Omass, Hmass, HEmass, O2mass, NOmass, Nmass = 15.999, 1.00784, 4.002602, 15.999 * \
+            2, 14.0067+15.999, 14.0067
+
+        iri['Mion'] = (Omass*iri['nO']+Hmass*iri['nH']+HEmass*iri['nHE'] +
+                       O2mass*iri['nO2']+NOmass*iri['nNO']+Nmass*iri['nN'])/iri['ni']
 
         # bad_ne = np.where(iri['ne'] < 0)[0]
         # if bad_ne.size > 0:

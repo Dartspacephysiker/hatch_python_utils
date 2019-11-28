@@ -2,7 +2,7 @@
 import numpy as np
 
 
-def bin_median_getter(X, Y, binlines=None):
+def bin_median_getter(X, Y, binlines=None, statfunc=np.median):
 
     if binlines is None:
         binlines = np.arange(0, 70.1, 2.5)
@@ -15,6 +15,6 @@ def bin_median_getter(X, Y, binlines=None):
         this = np.where((X >= tmpbinedges[0]) & (
             X <= tmpbinedges[1]) & np.isfinite(Y))[0]
         if len(this) > 0:
-            vals[i] = np.median(Y[this])
+            vals[i] = statfunc(Y[this])
         # print(*tmpbinedges,vals[i])
     return binmid, vals

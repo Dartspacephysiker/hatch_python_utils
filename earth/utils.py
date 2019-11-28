@@ -12,7 +12,7 @@ def earthSunDist(doy):
     1       : The mean distance between the Earth and the Sun is about one
     astronomical unit.
 
-    0.01672 : This is the eccentricity of the Earth's about about the Sun.
+    0.01672 : This is the eccentricity of the Earth's orbit about the Sun.
 
     cos     : This is of course the cosine function, but with argument in 
               degrees rather than radians.
@@ -105,6 +105,79 @@ def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
 #                       2. + igrf.down.values**2.)
 
 #     return
+
+def load_fancy_season_dict(y0=1900,
+                           y1=2051,
+                           return_doyDict=False,
+                           drop_timezone_info=True):
+    """
+    seasonDict = load_fancy_season_dict(y0=1990,y1=2020)
+    Get a dictionary of March and September equinox times + June and December solstice times
+    """
+    # Basert på dette: https://rhodesmill.org/skyfield/almanac.html
+
+    from skyfield import api
+    from skyfield import almanac
+
+    if return_doyDict:
+        from hatch_python_utils.time_tools import datetime_to_doy
+
+    ts = api.load.timescale()
+    e = api.load('de421.bsp')
+
+    # Note that almanac computation can be slow and expensive. To determine the moment of sunrise, for example, Skyfield has to search back and forth through time asking for the altitude of the Sun over and over until it finally works out the moment at which it crests the horizon.
+
+    # Create a start time and an end time to ask for all of the equinoxes and solstices that fall in between.
+    years = [year for year in range(y0, y1)]
+    seasonDict = dict(Mar={}, Jun={}, Sep={}, Dec={})
+
+    if return_doyDict:
+        typeStr = 'doy'
+    else:
+        typeStr = 'datetime'
+
+    print("Getting {:s}Dict for {:d}-{:d} ...".format(typeStr, y0, y1))
+
+    for year in years:
+
+        # print(year)
+
+        t0 = ts.utc(year, 1, 1)
+        t1 = ts.utc(year, 12, 31)
+        t, y = almanac.find_discrete(t0, t1, almanac.seasons(e))
+
+        # for yi, ti in zip(y, t):
+        #     print(yi, almanac.SEASON_EVENTS[yi], ti.utc_iso(' '))
+
+        if return_doyDict:
+            doys = datetime_to_doy([t[0].utc_datetime(),
+                                    t[1].utc_datetime(),
+                                    t[2].utc_datetime(),
+                                    t[3].utc_datetime()])
+
+            seasonDict['Mar'][year] = doys[0]
+            seasonDict['Jun'][year] = doys[1]
+            seasonDict['Sep'][year] = doys[2]
+            seasonDict['Dec'][year] = doys[3]
+
+        else:
+            if drop_timezone_info:
+                seasonDict['Mar'][year] = t[0].utc_datetime().replace(
+                    tzinfo=None)
+                seasonDict['Jun'][year] = t[1].utc_datetime().replace(
+                    tzinfo=None)
+                seasonDict['Sep'][year] = t[2].utc_datetime().replace(
+                    tzinfo=None)
+                seasonDict['Dec'][year] = t[3].utc_datetime().replace(
+                    tzinfo=None)
+            else:
+                seasonDict['Mar'][year] = t[0].utc_datetime()
+                seasonDict['Jun'][year] = t[1].utc_datetime()
+                seasonDict['Sep'][year] = t[2].utc_datetime()
+                seasonDict['Dec'][year] = t[3].utc_datetime()
+
+    return seasonDict
+
 
 def load_season_dict(load_extended=False):
 
