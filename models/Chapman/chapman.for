@@ -434,6 +434,8 @@ C     ====================================================================
 C     ====================================================================
 
       subroutine atm8_chapman_arr(X, chi0, N, atm8_chap)
+      use, intrinsic :: IEEE_ARITHMETIC
+
       implicit none
       real*8, parameter        :: rad=57.2957795130823208768d0
 
@@ -451,14 +453,20 @@ C     Funcs
       real*8                   :: atm8_chap_asy
       real*8                   :: atm8_chap_xK1
 
+      atm8_chap = IEEE_VALUE(1.,IEEE_QUIET_NAN)
+
       DO i = 1, N, 1
-         if((X(i).le.0).or.(chi0(i).le.0).or.(chi0(i).ge.180)) then
+
+         if(chi0(i).eq.0) then
             atm8_chap(i) = 1
+            CYCLE
+         end if 
+
+         if((X(i).le.0).or.(chi0(i).le.0).or.(chi0(i).ge.180)) then
+c$$$  atm8_chap(i) = -999
+            CYCLE
          end if
-      END DO
 
-
-      DO i = 1, N, 1
          if( chi0(i) .gt. 90 ) then
             chi(i) = 180 - chi0(i)
          else
