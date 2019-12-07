@@ -41,6 +41,34 @@ def nearest(items, pivot):
     return np.argmin(abs(items - pivot))
 
 
+def omni_screen(dfOMNI, requiredOMNIdict):
+
+    import operator
+
+    def get_truth(inp, relate, cut):
+        ops = {'>': operator.gt,
+               '<': operator.lt,
+               '>=': operator.ge,
+               '<=': operator.le,
+               '=': operator.eq}
+        return ops[relate](inp, cut)
+
+    nTot = dfOMNI.shape[0]
+    omni_keeps = np.ones(nTot, dtype=np.bool)
+
+    for key, val in requiredOMNIdict.items():
+        tmps = get_truth(dfOMNI[key].values, val[0], val[1])
+        print("{:11s} {:s}  {:.2f} : {:d}/{:d}  ({:.2f}%)".format(key,
+                                                                  val[0],
+                                                                  val[1],
+                                                                  np.sum(tmps),
+                                                                  nTot,
+                                                                  np.sum(tmps)/nTot*100.))
+        omni_keeps = omni_keeps & tmps
+
+    return omni_keeps
+
+
 def omni_getter(*args,
                 use_1minres=False,
                 merge_highres_and_hourly_dfs=True,
