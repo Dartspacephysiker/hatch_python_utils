@@ -7,6 +7,7 @@ def load_CHAMP(*args,
                cal_version='2',
                all_years=False,
                add_tParm=False,
+               useColtrane=False,
                quiet=False):
     """
     load_CHAMP(years)
@@ -31,7 +32,13 @@ def load_CHAMP(*args,
     if cal_version == '2':
         basename = 'CH-ME-2-PLPT+'
 
-    baselocalDir = '/media/spencerh/data/CHAMP/'
+    if useColtrane:
+        baselocalDir = '/Data/ift/ift_romfys1/Q1/folk/spencer/Coltrane/home/Research/database/CHAMP/'
+    else:
+        baselocalDir = '/media/spencerh/data/CHAMP/'
+
+
+
 
     # Determine if years is list or single item
     try:
@@ -51,7 +58,12 @@ def load_CHAMP(*args,
 
     maxie = []
     for year in yearStr:
-        tmpdir = baselocalDir+year+'/'
+
+        if useColtrane:
+            tmpdir = baselocalDir+'/'
+        else:
+            tmpdir = baselocalDir+year+'/'
+
         infile = basename+year+'.pd'
 
         if not quiet:
