@@ -3,7 +3,9 @@ import numpy as np
 
 
 def bin_median_getter(X, Y, binlines=None, statfunc=np.median):
-
+    """
+    bin_median_getter(X, Y, binlines=None, statfunc=np.median)
+    """
     if binlines is None:
         binlines = np.arange(0, 70.1, 2.5)
 

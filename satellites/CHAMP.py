@@ -35,10 +35,12 @@ def load_CHAMP(*args,
     if useColtrane:
         baselocalDir = '/Data/ift/ift_romfys1/Q1/folk/spencer/Coltrane/home/Research/database/CHAMP/'
     else:
-        baselocalDir = '/media/spencerh/data/CHAMP/'
+        useExternal = False
+        # baselocalDir = '/media/spencerh/data/CHAMP/'
+        baselocalDir = '/SPENCEdata/Research/database/CHAMP/'
 
-
-
+    if not quiet:
+        print("baselocalDir: {:s}".format(baselocalDir))
 
     # Determine if years is list or single item
     try:
@@ -62,7 +64,10 @@ def load_CHAMP(*args,
         if useColtrane:
             tmpdir = baselocalDir+'/'
         else:
-            tmpdir = baselocalDir+year+'/'
+            if useExternal:
+                tmpdir = baselocalDir+year+'/'
+            else:
+                tmpdir = baselocalDir+'/'
 
         infile = basename+year+'.pd'
 

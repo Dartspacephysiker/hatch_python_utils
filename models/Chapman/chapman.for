@@ -485,11 +485,33 @@ c$$$            atm8_chap(i) = 2*exp(X(i)*2*sin((90-chi(i))/(2*rad))**2)
 c$$$     *           * atm8_chap_xK1(X(i)*sin(chi(i)/rad)) - atm8_chap(i)
 
 C     TRY A NEW THING
+
+C     OLD THING AS OF 20191223
+c$$$            if( X(i) .lt. 36 ) then
+c$$$               atm8_chap(i) = 2.d0*atm8_chap_deq(X(i),chi90)
+c$$$     &              - atm8_chap(i)
+c$$$            else
+c$$$               atm8_chap(i) = 2.d0*atm8_chap_asy(X(i),chi90)
+c$$$     &              - atm8_chap(i)
+c$$$            end if
+
+C     NEW THING AS OF 20191223
+c$$$            if( X(i) .lt. 36 ) then
+c$$$               atm8_chap(i) = 2.d0*atm8_chap_deq(
+c$$$     &              X(i)*sin((chi0(i)/rad)),chi90)- atm8_chap(i)
+c$$$            else
+c$$$               atm8_chap(i) = 2.d0*atm8_chap_asy(
+c$$$     &              X(i)*sin((chi0(i)/rad)),chi90)- atm8_chap(i)
+c$$$            end if
+
+C     NEW THING AS OF 20191224
             if( X(i) .lt. 36 ) then
-               atm8_chap(i) = 2.d0*atm8_chap_deq(X(i),chi90)
+               atm8_chap(i) = 2.d0*exp(X(i)-X(i)*sin(chi0(i)/rad))*
+     &              atm8_chap_deq(X(i)*sin((chi0(i)/rad)),chi90)
      &              - atm8_chap(i)
             else
-               atm8_chap(i) = 2.d0*atm8_chap_asy(X(i),chi90)
+               atm8_chap(i) = 2.d0*exp(X(i)-X(i)*sin(chi0(i)/rad))*
+     &              atm8_chap_asy(X(i)*sin((chi0(i)/rad)),chi90)
      &              - atm8_chap(i)
             end if
 
