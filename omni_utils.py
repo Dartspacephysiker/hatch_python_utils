@@ -223,5 +223,7 @@ def NewellCF_calc(v, bz, by):
     #   tc[neg_tc] = tc[neg_tc] + np.pi
 
     sintc = np.abs(np.sin(tc/2.))
-    NCF = (v**1.33333)*(sintc**2.66667)*(bt**0.66667)
+    # NCF = (v**1.33333)*(sintc**2.66667)*(bt**0.66667)
+    NCF = (v**(4./3.))*(sintc**(8./3.))*(bt**(2./3.))
+
     return NCF
