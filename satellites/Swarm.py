@@ -54,6 +54,7 @@ def get_Swarm_combo(dates,
                     dtype__add_Apex=[],
                     apex__geodetic2apexOpts=dict(min_time_resolution__sec=1,
                                                  max_N_months_twixt_apexRefTime_and_obs=3),
+                    localSaveDir='/media/spencerh/data/Swarm/',
                     only_list=False):
 
     try:
@@ -105,7 +106,8 @@ def get_Swarm_combo(dates,
 
         gotFiles = getFunc(sat=sat,
                            dates=dateStrs,
-                           only_list=only_list)
+                           only_list=only_list,
+                           localSaveDir=localSaveDir)
 
         if only_list:
             outList.append(gotFiles)

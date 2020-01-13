@@ -10,6 +10,7 @@ from hatch_python_utils import arrays as hArr
 from hatch_python_utils.pandas_utils import interp_over_nans
 from dateutil.relativedelta import relativedelta
 from hatch_python_utils.date_time import toYearFraction
+from pyamps.mlt_utils import mlon_to_mlt
 
 
 def babyFunc2(a, mlon, datime):
@@ -141,9 +142,11 @@ def geodetic2apex(*args,
 
         if max_N_months_twixt_apexRefTime_and_obs == 0:
 
-            mlt = np.array([babyFunc2(a, mlonna, datime)
-                            for mlonna, datime in zip(mlon,
-                                                      times)])
+            mlt = mlon_to_mlt(mlon, times, times[0].year)
+
+            # mlt = np.array([babyFunc2(a, mlonna, datime)
+            #                 for mlonna, datime in zip(mlon,
+            #                                           times)])
 
         else:
 
@@ -206,16 +209,23 @@ def geodetic2apex(*args,
 
                         tmpUseInds = np.where(ind_timesHere)[
                             0][startIndInd:stopIndInd]
-                        mlt[tmpUseInds] = np.array([babyFunc2(a, mlonna, datime)
-                                                    for mlonna, datime in zip(mlon[tmpUseInds],
-                                                                              times[tmpUseInds])])
+                        mlt[tmpUseInds] = mlon_to_mlt(mlon[tmpUseInds],
+                                                      times[tmpUseInds],
+                                                      times[tmpUseInds][0].year)
+
+                        # mlt[tmpUseInds] = np.array([babyFunc2(a, mlonna, datime)
+                        #                             for mlonna, datime in zip(mlon[tmpUseInds],
+                        #                                                       times[tmpUseInds])])
 
                         nIndsConverted += nToConvert
 
                 else:
-                    mlt[ind_timesHere] = np.array([babyFunc2(a, mlonna, datime)
-                                                   for mlonna, datime in zip(mlon[ind_timesHere],
-                                                                             times[ind_timesHere])])
+                    # mlt[ind_timesHere] = np.array([babyFunc2(a, mlonna, datime)
+                    #                                for mlonna, datime in zip(mlon[ind_timesHere],
+                    #                                                          times[ind_timesHere])])
+                    mlt[ind_timesHere] = mlon_to_mlt(mlon[ind_timesHere],
+                                                     times[ind_timesHere],
+                                                     times[ind_timesHere][0].year)
 
                 # Increment apexRefTime by relDelta
                 apexRefTime += relDelta

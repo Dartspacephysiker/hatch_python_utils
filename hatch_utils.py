@@ -1,8 +1,18 @@
 # 2017/02/22
 import numpy as np
 import scipy.io as sio
-import ipdb
+# import ipdb
 
+def get_basedir():
+    import os
+    thisIsColtrane = os.path.isdir("/Data/ift/ift_romfys1/Q1/folk/spencer/")
+    if thisIsColtrane:
+        print("This is Coltrane!")
+        baseDir = '/Data/ift/ift_romfys1/Q1/folk/spencer/Coltrane/home/Research/'
+    else:
+        baseDir = '/SPENCEdata/Research/'
+
+    return baseDir
 
 def print_dict(d):
     if isinstance(d, dict):
