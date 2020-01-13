@@ -13,12 +13,12 @@ from hatch_python_utils.date_time import toYearFraction
 from pyamps.mlt_utils import mlon_to_mlt
 
 
-def babyFunc2(a, mlon, datime):
-    if np.isnan(mlon):
-        mlt = np.nan
-    else:
-        mlt = a.mlon2mlt(mlon, datime)
-    return mlt
+# def babyFunc2(a, mlon, datime):
+#     if np.isnan(mlon):
+#         mlt = np.nan
+#     else:
+#         mlt = a.mlon2mlt(mlon, datime)
+#     return mlt
 
 
 def ECEFtoENUMatrix(lon, gdlat):
@@ -133,8 +133,6 @@ def geodetic2apex(*args,
 
     mlat, mlon = a.geo2apex(
         dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
-    # This can be replaced with PyAMPS code
-    # /SPENCEdata/Research/Satellites/Swarm/pyAMPS/pyamps/mlt_utils.py
 
     if canDoMLT:
 
@@ -142,11 +140,12 @@ def geodetic2apex(*args,
 
         if max_N_months_twixt_apexRefTime_and_obs == 0:
 
-            mlt = mlon_to_mlt(mlon, times, times[0].year)
-
+            # This can be replaced with PyAMPS code
+            # /SPENCEdata/Research/Satellites/Swarm/pyAMPS/pyamps/mlt_utils.py
             # mlt = np.array([babyFunc2(a, mlonna, datime)
             #                 for mlonna, datime in zip(mlon,
             #                                           times)])
+            mlt = mlon_to_mlt(mlon, times, times[0].year)
 
         else:
 
