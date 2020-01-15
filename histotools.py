@@ -8,6 +8,8 @@ def bin_median_getter(X, Y, binlines=None, statfunc=np.median):
     """
     if binlines is None:
         binlines = np.arange(0, 70.1, 2.5)
+    elif isinstance(binlines,int):
+        binlines = np.linspace(np.min(X),np.max(X),binlines)
 
     binmid = np.diff(binlines)/2.+binlines[0:-1]
     vals = np.zeros(binmid.shape)*np.nan
