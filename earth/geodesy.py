@@ -1,13 +1,38 @@
 import numpy as np
 
-
-def get_max_sza(z, R=6371.):
+def get_max_sza(z,
+                R=6371.):
     """
     z is altitude in km
+    # R = 6371. # Earth radius (default)
     """
-    # R = 6371.                   # Earth radius
+
+    # assert not hasattr(R,'__iter__')
+    zIsArray = hasattr(z,'size')
+
+    if not zIsArray:
+        z = np.array([z])
+
     h = z + R
-    return 180.-np.rad2deg(np.arctan2(np.sqrt(1-(R/h)**2.), (h/R-R/h)))
+    max_sza = 180.-np.rad2deg(np.arctan2(np.sqrt(1-(R/h)**2.), (h/R-R/h)))
+
+    # if zIsArray:
+        
+    max_sza[np.isclose(z,0)] = 90.
+        
+    max_sza[z < 0] = np.nan
+        
+    # else:
+        
+    #     if np.isclose(z,0):
+    #         max_sza = 90.
+    #     elif (z < 0):
+    #         max_sza = np.nan
+
+    if zIsArray:
+        return max_sza
+    else:
+        return max_sza[0]
 
 def get_h2d_bin_areas(minlats, maxlats, minlons, maxlons, haversine=True,
                       rearth=6.370949e3,
