@@ -334,13 +334,31 @@ def get_noon_longitude(dts,verbose=False):
 
     return 180 - fracHour 
 
-def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
+def get_tdarkness(alt,glat,glon,dates,
+                  tol_deg=0.15,
+                  dodiagnostic=False):
+
+    # 1. Get sza
+    origsza = sza(glat,glon,dates)
 
     # 2. Get thresh SZA for each altitude, latitude, longitude
     maxsza = get_max_sza(alt)
     
+    alreadylit = origsza <= (maxsza+np.abs(tol_deg))
+    origDark = origsza > maxsza
+    nOrigDarkPts = np.sum(origDark)
+
+    print("{:d} pts in darkness ({:d} in light)!".
+          format(np.sum(~alreadylit),
+                 np.sum(alreadylit)))
+
+    if nOrigDarkPts == 0:
+        return np.zeros(glat.size)
+
     # 3. Get SZA for each altitude, latitude, and NOON longitude to see if each point is/may have been in sunlight
-    noonsza = sza(glat,get_noon_longitude(dates),dates)
+    noonsza = sza(glat,
+                  get_noon_longitude(dates),
+                  dates)
     
     tHadSun = dates.copy()
     
@@ -348,13 +366,14 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
     fixed = noonsza <= maxsza       # Keep track of which points need updating
     nStillDarkPts = stillDark.sum()
     
-    print("{:d} pts in darkness at noon ({:d} in light)!".format(nStillDarkPts,fixed.sum()))
-    
+    print("{:d} pts in darkness at noon ({:d} in light)!".
+          format(nStillDarkPts,fixed.sum()))
     
     # 4. For each point, shift tHadSun back by one day until we find that there is sunshine at noon.
     # After this step, tHadSun will be an array of days for which the sun is visible at the latitude, altitude, and noon longitude of the timestamp
     
     daysback = 1
+    totalNoonAdjusted = 0
     while nStillDarkPts > 0:
     
         thistdelta = timedelta(days=daysback)
@@ -367,13 +386,14 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
                                  get_noon_longitude(tHadSun[stillDark]),
                                  tHadSun[stillDark]- thistdelta)
     
-        # Calculate who is stil in darkness, N stilldark points
+        # Calculate who is still in darkness, N stilldark points
         stillDark = noonsza > maxsza
-        fixme = ~(stillDark) & ~(fixed)
+        fixme = ~(stillDark) & ~(fixed) & ~(alreadylit)
         nFixme = np.sum(fixme)
     
         if nFixme > 0:
             
+            totalNoonAdjusted += nFixme
             if dodiagnostic:
                 print("Fixing {:d} points!".format(nFixme))
     
@@ -384,42 +404,73 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
         nStillDarkPts = stillDark.sum()
         daysback += 1
     
+    print("Moved {:d} points back".format(totalNoonAdjusted))
+
     # 5. A check – all noonszas should be less than their corresponding maxsza
     noonsza = sza(glat,get_noon_longitude(tHadSun),tHadSun)
-    assert all(noonsza < maxsza)
-    maxsza,noonsza
+    assert all(noonsza[~alreadylit] <= maxsza[~alreadylit])
     
     # 6. Compare actual current sza with max sza; må vi justere?
-    cursza = sza(glat,glon,dates)
-    origDark = cursza > maxsza
-    fixed = cursza <= maxsza       # Keep track of which points need updating
-    nOrigDarkPts = np.sum(origDark)
-    
-    if dodiagnostic:
-        print("{:d} pts in darkness for given timestamp ({:d} in light)!".format(nOrigDarkPts,fixed.sum()))
+    # fixed = origsza <= maxsza       # Keep track of which points need updating
+    # if dodiagnostic:
+    #     print("{:d} pts in darkness for given timestamp ({:d} in light)!".
+    #           format(nOrigDarkPts,
+    #                  fixed.sum()))
     
     
     # 7. If any need to be adjusted, first rotate clock back to local noon
     # if nOrigDarkPts == 0:
     #     return
     
-    shiftHours = cheap_LT_calc(tHadSun,glon,return_dts_too=False,verbose=True)
+    shiftHours = cheap_LT_calc(tHadSun,
+                               glon,
+                               return_dts_too=False,
+                               verbose=True)
+
     shiftHours = shiftHours - 12
     shiftHours[shiftHours < 0] += 24
-    timedeltas = pd.TimedeltaIndex(data=shiftHours*3600,unit='s').to_pytimedelta()
+
+    shiftHours[alreadylit] = 0
+
+    timedeltas = pd.TimedeltaIndex(
+        data=shiftHours*3600,
+        unit='s').to_pytimedelta()
     
-    testsza = cursza.copy()
-    nStillDarkPts = np.sum(origDark)
+    # timedeltas[alreadylit] = 0.
+
+    # Don't believe this is noon for these guys? Try it:
+    # print((cheap_LT_calc(tHadSun-timedeltas,
+    #                      glon,
+    #                      return_dts_too=False,
+    #                      verbose=True)).describe())
+
+    # RESET STILLDARK TO ACTUALDARKS
+    testsza = origsza.copy()
     stillDark = origDark.copy()
-    
+    nStillDarkPts = np.sum(origDark)
     
     testsza[stillDark] = sza(glat[stillDark],
                              glon[stillDark],
                              tHadSun[stillDark]-timedeltas[stillDark])
     
-    
-    assert all(testsza[stillDark] < maxsza[stillDark])
-    tHadSun[stillDark] = tHadSun[stillDark]-timedeltas[stillDark]
+    # assert all(testsza[stillDark] < maxsza[stillDark])
+    if not all(testsza[stillDark] <= maxsza[stillDark]):
+
+        diff = (testsza[stillDark] - maxsza[stillDark])
+
+        if diff.max() > tol_deg:
+            print("Warning! error of more than 0.25 deg in darknesscalc!")
+            breakpoint()
+
+        badHeads = np.where(diff > 0)[0]
+        badHeads = np.where(stillDark)[0][badHeads]
+
+        maxsza[badHeads] += diff[diff > 0]
+        #     print("N badheads: {:d}. Rotate 'em back a day".format(badHeads.size))
+        #     tHadSun[badHeads] -= timedelta(days=1)
+
+    dodat = stillDark & ~alreadylit
+    tHadSun[dodat] = tHadSun[dodat]-timedeltas[dodat]
     
     #7. If some need to be fixed, go back each minute until we're where we need to be 
     # No er det berre å trylle tiden framover for å finne tidspunktet hvor mørket slår
@@ -432,35 +483,54 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
     stepcount = 0
     
     omgangtype = 'hours'
+    thistdelta = timedelta(days=daystep,hours=hourstep,minutes=minutestep,seconds=secondstep)
     
     haveSteppedDays = True
     haveSteppedHours = False
     haveSteppedMinutes = False
     haveSteppedSeconds = False
     
-    testsza = cursza.copy()
+    testsza = origsza.copy()
     nStillLightPts = np.sum(origDark)
     stillLight = origDark.copy()
     
     while (nStillLightPts > 0) and (not haveSteppedSeconds):
     
-        # Get current timedelta
-        thistdelta = timedelta(days=daystep,hours=hourstep,minutes=minutestep,seconds=secondstep)
-    
+        oldtestsza = testsza.copy()
+
         # Get sza for darkpoints given this timedelta
         testsza[stillLight] = sza(glat[stillLight],
                                  glon[stillLight],
                                  tHadSun[stillLight]+thistdelta)
     
         # Calculate who is still in light, N stillLight points
-        stillLight = testsza < maxsza
+        # stillLight = (testsza < (maxsza-tol_deg)) & ~alreadylit
+        stillLight = (testsza <= maxsza) & ~alreadylit
         nStillLightPts = stillLight.sum()
+
+        if (omgangtype == 'hours') & (stepcount >= 24):
+            print("Bogusness")
+            breakpoint()
+
+        if stepcount > 0:
+            if np.where(testsza[stillLight] < oldtestsza[stillLight])[0].size > 0:
+                print("BAD!")
+
         if dodiagnostic:
             print("Adjusting tstamp for {:d} points!".format(np.sum(stillLight)))
     
         # Update timestamps for those that are still light, even with this time adjustment
         tHadSun[stillLight] += thistdelta
     
+        if np.where(tHadSun > dates)[0].size > 0:
+            print("Bogus!")
+            breakpoint()
+
+        print("nStillLight: ",nStillLightPts)
+
+        # if nStillLightPts == 1:
+        #     breakpoint()
+
         if nStillLightPts == 0:
             if dodiagnostic:
                 print("No more lights for {:s} omgang!".format(omgangtype))
@@ -473,9 +543,13 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
                 minutestep = 0
                 secondstep = 0
                 stepcount = 0
+                thistdelta = timedelta(days=daystep,
+                                       hours=hourstep,
+                                       minutes=minutestep,
+                                       seconds=secondstep)
                 omgangtype = 'hours'
     
-                testsza = cursza.copy()
+                testsza = origsza.copy()
                 nStillLightPts = np.sum(origDark)
                 stillLight = origDark.copy()
     
@@ -487,9 +561,13 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
                 minutestep = 1
                 secondstep = 0
                 stepcount = 0
+                thistdelta = timedelta(days=daystep,
+                                       hours=hourstep,
+                                       minutes=minutestep,
+                                       seconds=secondstep)
                 omgangtype = 'minutes'
     
-                testsza = cursza.copy()
+                testsza = origsza.copy()
                 nStillLightPts = np.sum(origDark)
                 stillLight = origDark.copy()
     
@@ -501,9 +579,13 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
                 minutestep = 0
                 secondstep = 1
                 stepcount = 0
+                thistdelta = timedelta(days=daystep,
+                                       hours=hourstep,
+                                       minutes=minutestep,
+                                       seconds=secondstep)
                 omgangtype = 'seconds'
     
-                testsza = cursza.copy()
+                testsza = origsza.copy()
                 nStillLightPts = np.sum(origDark)
                 stillLight = origDark.copy()
     
@@ -511,11 +593,17 @@ def get_tdarkness(alt,glat,glon,dates,dodiagnostic=False):
                 haveSteppedSeconds = True
     
         stepcount += 1
-        if dodiagnostic:
-            print("{:4d} {:s} steps".format(stepcount,omgangtype))
+        # if dodiagnostic:
+        print("{:4d} {:s} steps".format(stepcount,omgangtype))
     
     # sza(glat,
     #     glon,
     #     tHadSun)
+
+    # finalcheck
+    if not all(sza(glat,
+                   glon,
+                   tHadSun) <= maxsza):
+        breakpoint()
 
     return pd.TimedeltaIndex(dates-tHadSun).total_seconds()
