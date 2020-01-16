@@ -1,6 +1,14 @@
 import numpy as np
 
 
+def get_max_sza(z, R=6371.):
+    """
+    z is altitude in km
+    """
+    # R = 6371.                   # Earth radius
+    h = z + R
+    return 180.-np.rad2deg(np.arctan2(np.sqrt(1-(R/h)**2.), (h/R-R/h)))
+
 def get_h2d_bin_areas(minlats, maxlats, minlons, maxlons, haversine=True,
                       rearth=6.370949e3,
                       altitude=0,
