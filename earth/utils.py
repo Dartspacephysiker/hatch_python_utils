@@ -334,9 +334,9 @@ def get_noon_longitude(dts,verbose=False):
 
     return 180 - fracHour 
 
-def get_tdarkness(alt,glat,glon,dates,
-                  tol_deg=0.15,
-                  dodiagnostic=False):
+def get_t_in_darkness(alt,glat,glon,dates,
+                      tol_deg=0.15,
+                      dodiagnostic=False):
 
     # 1. Get sza
     origsza = sza(glat,glon,dates)
