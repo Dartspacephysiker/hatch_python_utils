@@ -55,6 +55,7 @@ def get_Swarm_combo(dates,
                     apex__geodetic2apexOpts=dict(min_time_resolution__sec=1,
                                                  max_N_months_twixt_apexRefTime_and_obs=3),
                     localSaveDir='/media/spencerh/data/Swarm/',
+                    removeDownloadedZipAfterProcessing=False,
                     only_list=False):
 
     try:
@@ -158,6 +159,26 @@ def get_Swarm_combo(dates,
             dfList = pd.DataFrame()
 
         outList.append(dfList)
+
+        if removeDownloadedZipAfterProcessing:
+            if len(gotFiles) > 0:
+
+                if dtyper.upper() == 'MAG':
+                    lilsuff = 'MAGx_HR/Swarm_'+sat+'/'
+
+                elif dtyper.upper() == 'LP':
+                    lilsuff = '/EFI_LP/Swarm_'+sat+'/'
+                elif dtyper.upper() == 'FP':
+                    lilsuff = 'EFI_Faceplate_dens/Swarm_'+sat+'/'
+                elif dtyper.upper() == 'CT2HZ':
+                    lilsuff = '2Hz_TII_Cross-track/Swarm_'+sat+'/'
+
+                tmplocaldir = localSaveDir+lilsuff
+
+                for gotFile in gotFiles:
+                    if os.path.isfile(tmplocaldir+gotFile) and (gotFile[-4:].lower() == '.zip'):
+                        print("Removing {:s}".format(gotFile))
+                        os.remove(tmplocaldir+gotFile)
 
     return outList
 
