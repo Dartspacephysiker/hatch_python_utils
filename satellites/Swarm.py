@@ -56,6 +56,7 @@ def get_Swarm_combo(dates,
                                                  max_N_months_twixt_apexRefTime_and_obs=3),
                     localSaveDir='/media/spencerh/data/Swarm/',
                     removeDownloadedZipAfterProcessing=False,
+                    useKallesHardDrive=False,
                     only_list=False):
 
     try:
@@ -115,6 +116,9 @@ def get_Swarm_combo(dates,
             continue
 
         for ranDate in dates:
+
+            # breakpoint() 
+
             df = sPH.hurtigLast(sat=sat,
                                 doProcessMag=dtyper.upper() == 'MAG',
                                 doProcessLP=dtyper.upper() == 'LP',
@@ -124,7 +128,7 @@ def get_Swarm_combo(dates,
                                 FP__doCorrectTimestamps=False,
                                 FP__doResample=False,
                                 ranDate=ranDate,
-                                useKallesHardDrive=True,
+                                useKallesHardDrive=useKallesHardDrive,
                                 dontInterp__justMag=False,
                                 doDebug=False,
                                 overwrite_existing=False,
@@ -161,6 +165,9 @@ def get_Swarm_combo(dates,
         outList.append(dfList)
 
         if removeDownloadedZipAfterProcessing:
+
+            # breakpoint()
+            
             if len(gotFiles) > 0:
 
                 if dtyper.upper() == 'MAG':
@@ -328,8 +335,16 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir,
     # ftpNotHavers = [ftpFile in ftpFiles if not os.path.isfile(localSaveDir + ftpFile)]
     ftpNotHavers = []
     for ftpFile in ftpFiles:
-        if not os.path.isfile(localSaveDir + ftpFile):
+        fileExists = os.path.isfile(localSaveDir + ftpFile)
+
+        if fileExists:
+            if os.stat(localSaveDir+ftpFile).st_size == 0:
+                print("{:s}:  File size is zero! Trying to get på nytt".
+                      format(ftpFile))
+                os.remove(localSaveDir+ftpFile)
+        elif not fileExists:
             ftpNotHavers.append(ftpFile)
+
 
     if len(ftpNotHavers) == 0:
         print("Already have all {:d} files for {:d} date(s) provided! Exiting ...".format(
