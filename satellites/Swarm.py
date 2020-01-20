@@ -57,7 +57,9 @@ def get_Swarm_combo(dates,
                     localSaveDir='/media/spencerh/data/Swarm/',
                     removeDownloadedZipAfterProcessing=False,
                     useKallesHardDrive=False,
-                    only_list=False):
+                    only_download_zips=False,
+                    only_list=False,
+                    only_remove_zips=False):
 
     try:
         _ = dates[0]
@@ -97,7 +99,12 @@ def get_Swarm_combo(dates,
 
     if only_list:
         print("Showing what I WOULD do")
+    elif only_remove_zips:
+        print("Only removing zips")
+    elif only_download_zips:
+        print("Only downloading zips")
 
+    getFunc__onlylist = only_list or only_remove_zips
     outList = []
     for dtyper in get_dtypes:
 
@@ -108,16 +115,18 @@ def get_Swarm_combo(dates,
 
         gotFiles = getFunc(sat=sat,
                            dates=dateStrs,
-                           only_list=only_list,
-                           localSaveDir=localSaveDir)
+                           only_list=getFunc__onlylist,
+                           localSaveDir=localSaveDir,
+                           append_dir=only_remove_zips or removeDownloadedZipAfterProcessing)
 
-        if only_list:
+        if only_list or only_download_zips:
             outList.append(gotFiles)
+            continue
+        elif (only_remove_zips or removeDownloadedZipAfterProcessing):
+            outList = outList + gotFiles
             continue
 
         for ranDate in dates:
-
-            # breakpoint() 
 
             df = sPH.hurtigLast(sat=sat,
                                 doProcessMag=dtyper.upper() == 'MAG',
@@ -164,28 +173,42 @@ def get_Swarm_combo(dates,
 
         outList.append(dfList)
 
-        if removeDownloadedZipAfterProcessing:
+    if removeDownloadedZipAfterProcessing or only_remove_zips:
 
-            # breakpoint()
+        # breakpoint()
             
-            if len(gotFiles) > 0:
+        if len(outList) > 0:
 
-                if dtyper.upper() == 'MAG':
-                    lilsuff = 'MAGx_HR/Swarm_'+sat+'/'
+            # if dtyper.upper() == 'MAG':
+            #     lilsuff = 'MAGx_HR/Swarm_'+sat+'/'
 
-                elif dtyper.upper() == 'LP':
-                    lilsuff = '/EFI_LP/Swarm_'+sat+'/'
-                elif dtyper.upper() == 'FP':
-                    lilsuff = 'EFI_Faceplate_dens/Swarm_'+sat+'/'
-                elif dtyper.upper() == 'CT2HZ':
-                    lilsuff = '2Hz_TII_Cross-track/Swarm_'+sat+'/'
+            # elif dtyper.upper() == 'LP':
+            #     lilsuff = '/EFI_LP/Swarm_'+sat+'/'
+            # elif dtyper.upper() == 'FP':
+            #     lilsuff = 'EFI_Faceplate_dens/Swarm_'+sat+'/'
+            # elif dtyper.upper() == 'CT2HZ':
+            #     lilsuff = '2Hz_TII_Cross-track/Swarm_'+sat+'/'
 
-                tmplocaldir = localSaveDir+lilsuff
+            # tmplocaldir = localSaveDir+lilsuff
 
-                for gotFile in gotFiles:
-                    if os.path.isfile(tmplocaldir+gotFile) and (gotFile[-4:].lower() == '.zip'):
-                        print("Removing {:s}".format(gotFile))
-                        os.remove(tmplocaldir+gotFile)
+            # for gotFile in gotFiles:
+            #     if os.path.isfile(tmplocaldir+gotFile) and (gotFile[-4:].lower() == '.zip'):
+            #         print("Removing {:s}".format(gotFile))
+            #         os.remove(tmplocaldir+gotFile)
+
+            for gotFile in outList:
+                if isinstance(gotFile,list):
+                    assert len(gotFile) == 1,"Not set up to handle multiple files this way! make gotFile single file!"
+                    gotFil = gotFile[0]
+                else:
+                    gotFil = gotFile
+                    # gotFile = gotFile[0]
+
+                if os.path.isfile(gotFil) and (gotFil[-4:].lower() == '.zip'):
+                    print("Removing {:s}".format(gotFil))
+                    os.remove(gotFil)
+                else:
+                    print("Want to remove but don't find {:s}!".format(gotFil))
 
     return outList
 
@@ -194,7 +217,8 @@ def getMagFTP(sat='A',
               dates=None,
               # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/MAG_HR/'):
               localSaveDir='/media/spencerh/data/Swarm/',
-              only_list=False):
+              only_list=False,
+              append_dir=False):
     # Swarm_A/SW_OPER_MAGA_
 
     localSaveDir += 'MAGx_HR/Swarm_'+sat+'/'
@@ -209,6 +233,9 @@ def getMagFTP(sat='A',
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
 
+    if append_dir:
+        gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
+
     return gotFiles
 
 
@@ -216,7 +243,8 @@ def getLPFTP(sat='A',
              dates=None,
              # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'):
              localSaveDir='/media/spencerh/data/Swarm/',
-             only_list=False):
+             only_list=False,
+             append_dir=False):
 
     localSaveDir += '/EFI_LP/Swarm_'+sat+'/'
 
@@ -228,13 +256,17 @@ def getLPFTP(sat='A',
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
 
+    if append_dir:
+        gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
+
     return gotFiles
 
 
 def getFPFTP(sat='A',
              dates=None,
              localSaveDir='/media/spencerh/data/Swarm/',
-             only_list=False):
+             only_list=False,
+             append_dir=False):
     """
     Get a faceplate file
     """
@@ -252,13 +284,17 @@ def getFPFTP(sat='A',
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
 
+    if append_dir:
+        gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
+
     return gotFiles
 
 
 def getCT2HzFTP(sat='A',
                 dates=None,
                 localSaveDir='/media/spencerh/data/Swarm/',
-                only_list=False):
+                only_list=False,
+                append_dir=False):
     """
     Get a cross-track 2-Hz file
     """
@@ -275,6 +311,9 @@ def getCT2HzFTP(sat='A',
 
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
+
+    if append_dir:
+        gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
 
     return gotFiles
 
