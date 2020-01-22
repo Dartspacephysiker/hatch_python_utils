@@ -3,6 +3,7 @@
 # AXI1  (20190611): Forandre fargene til sekundær axis
 # AXI2  (20190711): Gridspec!
 # AXI3  (20190823): Sekundær akse med forskjellige tick-merker
+# AXI4  (20200122): Change tick labels
 ########################################
 # BOXPLOTS
 # BP1   (20190904): Multi boxplots, change colors, etc.
@@ -84,6 +85,25 @@ for X in ax1Xs:
 ax2.set_xticks(ax1Xs)
 ax2.set_xbound(ax1.get_xbound())
 ax2.set_xticklabels(ax2Xs)
+
+# AXI4  (20200122): Change tick labels
+
+# V1
+axnewticks = [0,10,20]
+axnewticklabels = ['Its','WildN','Happy']
+
+ax.set_xticks(axnewticks)
+ax.set_xbound((axnewticks[0],axnewticks[1]))
+ax.set_xticklabels(axnewticklabels)
+
+# V2
+axcurticks = ax.get_xticks()
+
+axnewticklabels = []
+for X in axcurticks:
+    axnewticklabels.append(X * 2)
+ax.set_xticklabels(axnewticklabels)
+
 
 ########################################
 # BOXPLOTS

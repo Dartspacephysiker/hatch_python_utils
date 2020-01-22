@@ -777,7 +777,7 @@ def get_UiO_ASC_image_from_net(site='lyr5',
     #                    date[0:4],date,'ut'+UTCHHMMSS[0:2],
     #                    fName))
 
-    breakpoint()
+    # breakpoint()
 
     availFiles = [filer for filer in get_url_paths(
         remoteDir) if filer.endswith('.png')]

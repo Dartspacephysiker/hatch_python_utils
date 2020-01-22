@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import igrf12
 from datetime import datetime,timedelta
 from .geodesy import get_max_sza
 from pytt.earth.sunlight import sza
@@ -81,22 +80,6 @@ def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
 #     mlt2R = np.deg2rad(mlt2*15.)
 
 #     return np.rad2deg(np.arccos(np.sin(lat1R)*np.sin(lat2R)+np.cos(lat1R)*np.cos(lat2R)*np.cos(np.abs(mlt1R-mlt2R))))
-
-# def get_igrf_field(datetimes,geolat,geolon,gdalt_km):
-
-#     quiet = False
-#     isv = 0
-#     itype = 1
-#     if not quiet:
-#         print("Getting IGRF ...")
-
-#     # glat, glon: geographic Latitude, Longitude
-#     # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
-#     igrf = igrf12.gridigrf12(datetimes,
-#                              # glat=dfMInterp.gdlat,
-#                              glat=geolat,
-#                              glon=geolon,
-#                              alt_km=gdalt_km, isv=isv, itype=itype)
 
 # # geodeticheight2geocentricR(lat, height)
 
@@ -336,21 +319,80 @@ def get_noon_longitude(dts,verbose=False):
 
 def get_t_in_darkness(alt,glat,glon,dates,
                       tol_deg=0.15,
-                      dodiagnostic=False):
+                      verbose=True,
+                      dodiagnosticprint=False):
+    """
+    For a given timestamp, altitude and GEOGRAPHIC (or is it geodetic??? Ask Kalle what sza uses!) lat and lon, calculate how many seconds
+    this point has been in darkness assuming no refraction of light and a perfectly spherical earth.
+    
+    alt           : Geodetic altitude       (km)
+    glat          : Geographic(?) latitude  (degrees)
+    glon          : Geographic(?) longitude (degrees)
+    dates         : Timestamps              (datetime, pandas DatetimeIndex, etc.)
+    tol_deg       : Fudge factor            (degrees).
+                    I find that a fraction of a degree (specifically 0.15) seems to do the job
+    """
 
+    #So how do we do this?
+    #
+    ##########
+    # 1. Get solar zenith angle (sza)
+    #
+    ##########
+    # 2. Get maximum sza at which sun is visible for given altitude (assumes spherical Earth!)
+    #    During this step we find out which points lie in darkness (taking stock of 'tol_deg' fudge factor).
+    #    We mark points that are already sunlit as such, and give them t_in_darkness = 0.
+    #
+    ##########
+    # 3. Get SZA for each altitude, latitude, and NOON longitude; see if each latitude is CURRENTLY sunlit
+    #    at the local-noon longitude.
+    #
+    ##########
+    # 4. For those alt/tstamp/lat point for which the local-noon longitude is NOT sunlit, iteratively shift
+    #    tHadSun back by one day until we find that there is sunshine at local-noon longitude.
+    #
+    #    After this step, tHadSun will be an array of timestamps for which the sun is visible at the given 
+    #    alt/lat and calculated NOON-longitude
+    #
+    # 4a. A check – all noonszas must be less than their corresponding maximum sza (i.e., all noon-szas must 
+    #     now be sunlit) before step 5.
+    #
+    ##########
+    # 5. Calculate the time shift (which, as a result of step 4, is at most 23.9999 hours) needed to put each 
+    #    alt/lat/lon pair at noon. Subtract this time shift from tHadSun so that tHadSun corresponds to the
+    #    last day on which this alt/lat/lon pair was in sunlight at local noon.
+    #
+    # 5a. Do some fudging here.  This fudging is necessary because, for a given latitude, the minimum sza
+    # obtained over the course of a day changes.
+    #
+    # FREE EXAMPLE TO EXPLAIN WHY WE HAVE TO FUDGE: 
+    # Consider an alt/lat/lon that is in darkness at, say, 03:00 local time. Now imagine following this point
+    # along a line of constant altitude and latitude for the given timestamp (i.e. vary longitude ONLY and
+    # hold all else constant) until we reach the longitude corresponding to local noon. Suppose that this
+    # alt/lat is sunlit at local noon. Now, because the point we are actually interested currently lies at
+    # 03:00 local time, we have to subtract 15 hours from the current time stamp to put our alt/lat/lon at
+    # local noon. But this particular alt/lat pair may not have been sunlit at local noon 15 hours before the
+    # present time! The necessary fudge factor appears to be of order 0.1 degrees.
+    #
+    ##########
+    # 6. After shifting timestamps to put this longitude at local noon, all alt/lat/lon pairs are now sunlit
+    # (up to the fudge factor 'tol_deg'). Now we just increment each timestamp until the alt/lat/lon pair
+    # falls in darkness. The stepping in time goes by hours, then minutes, then seconds. 
+    
     # 1. Get sza
     origsza = sza(glat,glon,dates)
 
-    # 2. Get thresh SZA for each altitude, latitude, longitude
+    # 2. Get thresh SZA for given altitude
     maxsza = get_max_sza(alt)
     
-    alreadylit = origsza <= (maxsza+np.abs(tol_deg))
+    alreadysunlit = origsza <= (maxsza+np.abs(tol_deg))
     origDark = origsza > maxsza
     nOrigDarkPts = np.sum(origDark)
 
-    print("{:d} pts in darkness ({:d} in light)!".
-          format(np.sum(~alreadylit),
-                 np.sum(alreadylit)))
+    if verbose:
+        print("{:d} location/time pairs in darkness ({:d} in light)!".
+              format(np.sum(~alreadysunlit),
+                     np.sum(alreadysunlit)))
 
     if nOrigDarkPts == 0:
         return np.zeros(glat.size)
@@ -366,11 +408,13 @@ def get_t_in_darkness(alt,glat,glon,dates,
     fixed = noonsza <= maxsza       # Keep track of which points need updating
     nStillDarkPts = stillDark.sum()
     
-    print("{:d} pts in darkness at noon ({:d} in light)!".
-          format(nStillDarkPts,fixed.sum()))
+    if verbose:
+        print("{:d} of these latitudes are in darkness at local-noon longitude ({:d} in light)!".
+              format(nStillDarkPts,fixed.sum()))
     
-    # 4. For each point, shift tHadSun back by one day until we find that there is sunshine at noon.
-    # After this step, tHadSun will be an array of days for which the sun is visible at the latitude, altitude, and noon longitude of the timestamp
+    # 4. For each point, shift tHadSun back by one day until we find that there is sunshine at local-noon longitude.
+    # After this step, tHadSun will be an array of timestamps for which the sun is visible for the given latitude
+    # and altitude, and calculated NOON-longitude 
     
     daysback = 1
     totalNoonAdjusted = 0
@@ -379,7 +423,7 @@ def get_t_in_darkness(alt,glat,glon,dates,
         thistdelta = timedelta(days=daysback)
     
         # DIAG
-        if dodiagnostic:
+        if dodiagnosticprint:
             print(tHadSun[stillDark]-thistdelta)
     
         noonsza[stillDark] = sza(glat[stillDark],
@@ -388,14 +432,14 @@ def get_t_in_darkness(alt,glat,glon,dates,
     
         # Calculate who is still in darkness, N stilldark points
         stillDark = noonsza > maxsza
-        fixme = ~(stillDark) & ~(fixed) & ~(alreadylit)
+        fixme = ~(stillDark) & ~(fixed) & ~(alreadysunlit)
         nFixme = np.sum(fixme)
     
         if nFixme > 0:
             
             totalNoonAdjusted += nFixme
-            if dodiagnostic:
-                print("Fixing {:d} points!".format(nFixme))
+            if dodiagnosticprint:
+                print("Moving {:d} timestamps !".format(nFixme))
     
             tHadSun[fixme] = tHadSun[fixme]-thistdelta
     
@@ -404,24 +448,15 @@ def get_t_in_darkness(alt,glat,glon,dates,
         nStillDarkPts = stillDark.sum()
         daysback += 1
     
-    print("Moved {:d} points back".format(totalNoonAdjusted))
+    if verbose:
+        print("Moved {:d} timestamps back".format(totalNoonAdjusted))
 
-    # 5. A check – all noonszas should be less than their corresponding maxsza
+    # 4a. A check – all noonszas should be less than their corresponding maxsza
     noonsza = sza(glat,get_noon_longitude(tHadSun),tHadSun)
-    assert all(noonsza[~alreadylit] <= maxsza[~alreadylit])
+    assert all(noonsza[~alreadysunlit] <= maxsza[~alreadysunlit])
     
-    # 6. Compare actual current sza with max sza; må vi justere?
-    # fixed = origsza <= maxsza       # Keep track of which points need updating
-    # if dodiagnostic:
-    #     print("{:d} pts in darkness for given timestamp ({:d} in light)!".
-    #           format(nOrigDarkPts,
-    #                  fixed.sum()))
-    
-    
-    # 7. If any need to be adjusted, first rotate clock back to local noon
-    # if nOrigDarkPts == 0:
-    #     return
-    
+    # 5. Calculate the time shift (which, as a result of step 4, is at most 23.9999 hours) needed to put each alt/lat/lon pair at noon.
+    #    Subtract this time shift from tHadSun so that tHadSun corresponds to the last day on which this alt/lat/lon pair was in sunlight at local noon.
     shiftHours = cheap_LT_calc(tHadSun,
                                glon,
                                return_dts_too=False,
@@ -430,14 +465,12 @@ def get_t_in_darkness(alt,glat,glon,dates,
     shiftHours = shiftHours - 12
     shiftHours[shiftHours < 0] += 24
 
-    shiftHours[alreadylit] = 0
+    shiftHours[alreadysunlit] = 0
 
     timedeltas = pd.TimedeltaIndex(
         data=shiftHours*3600,
         unit='s').to_pytimedelta()
     
-    # timedeltas[alreadylit] = 0.
-
     # Don't believe this is noon for these guys? Try it:
     # print((cheap_LT_calc(tHadSun-timedeltas,
     #                      glon,
@@ -454,12 +487,16 @@ def get_t_in_darkness(alt,glat,glon,dates,
                              tHadSun[stillDark]-timedeltas[stillDark])
     
     # assert all(testsza[stillDark] < maxsza[stillDark])
+
+    # 5a. Do some fudging here.  This fudging is necessary because, for a given latitude, the minimum sza obtained over the course of a
+    # day changes.
+    # 
     if not all(testsza[stillDark] <= maxsza[stillDark]):
 
         diff = (testsza[stillDark] - maxsza[stillDark])
 
         if diff.max() > tol_deg:
-            print("Warning! error of more than 0.25 deg in darknesscalc!")
+            print("Warning! error of more than {:.2f} deg in darknesscalc!".format(tol_deg))
             breakpoint()
 
         badHeads = np.where(diff > 0)[0]
@@ -469,9 +506,13 @@ def get_t_in_darkness(alt,glat,glon,dates,
         #     print("N badheads: {:d}. Rotate 'em back a day".format(badHeads.size))
         #     tHadSun[badHeads] -= timedelta(days=1)
 
-    dodat = stillDark & ~alreadylit
+    dodat = stillDark & ~alreadysunlit
     tHadSun[dodat] = tHadSun[dodat]-timedeltas[dodat]
     
+    # 6. After shifting timestamps to put this longitude at local noon, all alt/lat/lon pairs are now sunlit
+    # (up to the fudge factor 'tol_deg'). Now we just increment each timestamp until the alt/lat/lon pair falls in darkness.
+    # The stepping in time goes by hours, then minutes, then seconds. 
+
     #7. If some need to be fixed, go back each minute until we're where we need to be 
     # No er det berre å trylle tiden framover for å finne tidspunktet hvor mørket slår
     # tHadSun[stillDark] is filled with points that are now LIGHT
@@ -504,8 +545,8 @@ def get_t_in_darkness(alt,glat,glon,dates,
                                  tHadSun[stillLight]+thistdelta)
     
         # Calculate who is still in light, N stillLight points
-        # stillLight = (testsza < (maxsza-tol_deg)) & ~alreadylit
-        stillLight = (testsza <= maxsza) & ~alreadylit
+        # stillLight = (testsza < (maxsza-tol_deg)) & ~alreadysunlit
+        stillLight = (testsza <= maxsza) & ~alreadysunlit
         nStillLightPts = stillLight.sum()
 
         if (omgangtype == 'hours') & (stepcount >= 24):
@@ -516,7 +557,7 @@ def get_t_in_darkness(alt,glat,glon,dates,
             if np.where(testsza[stillLight] < oldtestsza[stillLight])[0].size > 0:
                 print("BAD!")
 
-        if dodiagnostic:
+        if dodiagnosticprint:
             print("Adjusting tstamp for {:d} points!".format(np.sum(stillLight)))
     
         # Update timestamps for those that are still light, even with this time adjustment
@@ -532,7 +573,7 @@ def get_t_in_darkness(alt,glat,glon,dates,
         #     breakpoint()
 
         if nStillLightPts == 0:
-            if dodiagnostic:
+            if dodiagnosticprint:
                 print("No more lights for {:s} omgang!".format(omgangtype))
     
             if not haveSteppedDays:
@@ -593,7 +634,7 @@ def get_t_in_darkness(alt,glat,glon,dates,
                 haveSteppedSeconds = True
     
         stepcount += 1
-        # if dodiagnostic:
+        # if dodiagnosticprint:
         print("{:4d} {:s} steps".format(stepcount,omgangtype))
     
     # sza(glat,
