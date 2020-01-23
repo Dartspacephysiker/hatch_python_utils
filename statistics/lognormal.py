@@ -10,26 +10,26 @@ def Sigma(x):
     """
     Maximum-likelihood estimator of sigma parameter of log-normal distribution
     """
-    return np.std(np.log(x)))
+    return np.std(np.log(x))
 
 def Variance(x):
     """
     Maximum-likelihood estimator of variance of log-normal distribution
     """
-    sigmaSq = sigma(x)**2
-    return (np.exp(sigmaSq)-1)*np.exp(2*mu(x)+sigmaSq)
+    sigmaSq = Sigma(x)**2
+    return (np.exp(sigmaSq)-1)*np.exp(2*Mu(x)+sigmaSq)
 
 def Std(x):
     """
     Maximum-likelihood estimator of std deviation of log-normal distribution
     """
-    return np.sqrt(variance(x))
+    return np.sqrt(Variance(x))
 
 def Median(x):
     """
     Maximum-likelihood estimator of median of log-normal distribution
     """
-    return np.exp(mu(x))
+    return np.exp(Mu(x))
 
 def Mean(x):
-    return np.exp(mu(x)+sigma(x)**2./2)
+    return np.exp(Mu(x)+Sigma(x)**2./2)
