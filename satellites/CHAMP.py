@@ -8,7 +8,7 @@ def load_CHAMP(*args,
                all_years=False,
                add_tParm=False,
                useColtrane=False,
-               load_fixed_MLT=True,
+               # load_fixed_MLT=True,
                quiet=False):
     """
     load_CHAMP(years)
@@ -70,10 +70,10 @@ def load_CHAMP(*args,
             else:
                 tmpdir = baselocalDir+'/'
 
-        if load_fixed_MLT:
-            infile = basename+year+'_FIXEDMLT.pd'
-        else:
-            infile = basename+year+'.pd'
+        # if load_fixed_MLT:
+        #     infile = basename+year+'_FIXEDMLT.pd'
+        # else:
+        infile = basename+year+'.pd'
             
         if not quiet:
             print("Loading {:s} ...".format(infile))

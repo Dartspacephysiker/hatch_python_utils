@@ -3,7 +3,7 @@ import numpy as np
 import scipy.io as sio
 # import ipdb
 
-def get_basedir():
+def get_basedir(return_bool=True):
     import os
     thisIsColtrane = os.path.isdir("/Data/ift/ift_romfys1/Q1/folk/spencer/")
     if thisIsColtrane:
@@ -12,7 +12,10 @@ def get_basedir():
     else:
         baseDir = '/SPENCEdata/Research/'
 
-    return baseDir
+    if return_bool:
+        return baseDir, thisIsColtrane
+    else:
+        return baseDir
 
 def print_dict(d):
     if isinstance(d, dict):
