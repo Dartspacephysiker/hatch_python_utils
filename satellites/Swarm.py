@@ -71,6 +71,9 @@ def get_Swarm_combo(dates,
         if isinstance(dates, str):
             dates = [dates]
             dateStrs = dates
+        else:
+            dates = [dates]
+            dateStrs = [dates.strftime("%Y%m%d")]
 
     getFuncDict = dict(MAG=getMagFTP,
                        LP=getLPFTP,
@@ -78,7 +81,6 @@ def get_Swarm_combo(dates,
                        CT2HZ=getCT2HzFTP)
 
     # Make sure want dtypes are in getFuncDict
-
     if not isinstance(get_dtypes, list):
         if not isinstance(get_dtypes, str):
             print("Must provide a string or list of strings from among these: {:s}".format(
@@ -106,6 +108,7 @@ def get_Swarm_combo(dates,
 
     getFunc__onlylist = only_list or only_remove_zips
     outList = []
+    deleteList = []
     for dtyper in get_dtypes:
 
         print("Getting {:s} ...".format(dtyper.upper()))
@@ -119,12 +122,19 @@ def get_Swarm_combo(dates,
                            localSaveDir=localSaveDir,
                            append_dir=only_remove_zips or removeDownloadedZipAfterProcessing)
 
+        if gotFiles is None:
+            print("No files for {:s}!".format(",".join(dateStrs)))
+            continue
+
         if only_list or only_download_zips:
             outList.append(gotFiles)
             continue
         elif (only_remove_zips or removeDownloadedZipAfterProcessing):
-            outList = outList + gotFiles
-            continue
+            # outList = outList + gotFiles
+            deleteList = deleteList + gotFiles
+            if only_remove_zips:
+                continue
+            # continue
 
         for ranDate in dates:
 
@@ -177,7 +187,7 @@ def get_Swarm_combo(dates,
 
         # breakpoint()
             
-        if len(outList) > 0:
+        if len(deleteList) > 0:
 
             # if dtyper.upper() == 'MAG':
             #     lilsuff = 'MAGx_HR/Swarm_'+sat+'/'
@@ -196,7 +206,7 @@ def get_Swarm_combo(dates,
             #         print("Removing {:s}".format(gotFile))
             #         os.remove(tmplocaldir+gotFile)
 
-            for gotFile in outList:
+            for gotFile in deleteList:
                 if isinstance(gotFile,list):
                     assert len(gotFile) == 1,"Not set up to handle multiple files this way! make gotFile single file!"
                     gotFil = gotFile[0]
@@ -256,7 +266,7 @@ def getLPFTP(sat='A',
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
 
-    if append_dir:
+    if append_dir and (gotFiles is not None):
         gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
 
     return gotFiles
