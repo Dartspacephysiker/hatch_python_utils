@@ -21,7 +21,8 @@ def load_CHAMP(*args,
                  '2005', '2006', '2007',
                  '2008', '2009']
 
-    if len(args) == 0:
+    # if len(args) == 0:
+    if args[0] is None:
         if all_years:
             years = haveYears
         else:
