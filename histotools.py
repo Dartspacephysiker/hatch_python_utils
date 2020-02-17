@@ -61,8 +61,11 @@ def CI_95_quantile(a,q):
     return np.sort(a)[CI_95_quantile_rankvalue(a.size,q)]
 
 
-def bin_ind_getter(X, binlines=None,
-                   reference_inds=None):
+def bin_ind_getter(X,
+                   binlines=None,
+                   reference_inds=None,
+                   treat_as_periodic=False,
+                   periodic_Xbounds=None):
     
     """
     binned_indices = bin_ind_getter(X, binlines)
@@ -88,15 +91,75 @@ def bin_ind_getter(X, binlines=None,
         assert reference_inds.size == X.size
 
     inds = []
-    for i in range(len(binlines)-1):
-        tmpbinedges = binlines[i], binlines[i+1]
-        this = np.where((X >= tmpbinedges[0]) & (
-            X <= tmpbinedges[1]))[0]
+
+    binlines_are_Nx2 = len(binlines.shape) == 2
+    if binlines_are_Nx2:
+        nBins = binlines.shape[0]
+    else:
+        nBins = len(binlines)-1
+
+    for i in range(nBins):
+        if binlines_are_Nx2:
+            tmpbinedges = binlines[i,:]
+        else:
+            tmpbinedges = binlines[i], binlines[i+1]
+
+        # PRE-20200217 OLD
+        # this = np.where((X >= tmpbinedges[0]) & (
+        #     X <= tmpbinedges[1]))[0]
+        # 20200217 NYE
+        this = get_periodic_bin_edge_indices(X,tmpbinedges,
+                                             treat_as_periodic=treat_as_periodic,
+                                             periodic_Xbounds=periodic_Xbounds)
+
         inds.append(reference_inds[this])
 
     return inds
 
-def bin_median_getter(X, Y, binlines=None, statfunc=np.median,include_CI95=False):
+def get_periodic_bin_edge_indices(X,binedges,treat_as_periodic=False,
+                                  periodic_Xbounds=None):
+    """
+    indices = get_periodic_bin_edge_indices(X,binedges,Xbounds)
+    Given two binedges and an array X, get the indices of X that fall within the two binedges
+    """
+
+
+    if treat_as_periodic:
+        assert binedges[0] < binedges[1]
+        assert periodic_Xbounds[0] < periodic_Xbounds[1]
+
+        extends_below = binedges[0] < periodic_Xbounds[0]
+        extends_above = binedges[1] > periodic_Xbounds[1]
+        extends_both_ways = extends_below and extends_above
+        if extends_both_ways:
+            print("PERIODIC BOTH SIDES")
+            assert ~extends_both_ways,"NOT IMPLEMENTED"
+        elif extends_below:
+            extension_below = periodic_Xbounds[0]-binedges[0]  # Guaranteed a positive quantity
+            assert extension_below >= 0,"This quantity skal være positiv!"
+
+            indlets = X < binedges[1]
+            indlets = np.where(indlets | (X >= (periodic_Xbounds[1] - extension_below)))[0]
+
+        elif extends_above:
+            extension_above = binedges[1]-periodic_Xbounds[1]  # Guaranteed a positive quantity
+            assert extension_above >= 0,"This quantity skal være positiv!"
+
+            indlets = X >= binedges[0]
+            indlets = np.where(indlets | (X < (periodic_Xbounds[0] + extension_above)))[0]
+
+        else:
+            indlets = np.where((X >= binedges[0]) & (X <= binedges[1]))[0]
+
+    else:
+        indlets = np.where((X >= binedges[0]) & (X <= binedges[1]))[0]
+
+    return indlets
+
+def bin_median_getter(X, Y, binlines=None, statfunc=np.median,
+                      include_CI95=False,
+                      treat_as_periodic=False,
+                      periodic_Xbounds=None):
     """
     binmid, vals[, CI95_LOW, CI95_HIGH] = bin_median_getter(X, Y, binlines=None, statfunc=np.median[,include_CI95=True])
     """
@@ -105,17 +168,33 @@ def bin_median_getter(X, Y, binlines=None, statfunc=np.median,include_CI95=False
     elif isinstance(binlines,int):
         binlines = np.linspace(np.min(X),np.max(X),binlines)
 
-    binmid = np.diff(binlines)/2.+binlines[0:-1]
+    binlines_are_Nx2 = len(binlines.shape) == 2
+    if binlines_are_Nx2:
+        nBins = binlines.shape[0]
+        binmid = np.mean(binlines,axis=1)
+    else:
+        nBins = len(binlines)-1
+        binmid = np.diff(binlines)/2.+binlines[0:-1]
+
     vals = np.zeros(binmid.shape)*np.nan
 
     if include_CI95:
         CI95_LOW = np.zeros(binmid.shape)*np.nan
         CI95_HIGH = np.zeros(binmid.shape)*np.nan
 
-    for i in range(len(binlines)-1):
-        tmpbinedges = binlines[i], binlines[i+1]
-        this = np.where((X >= tmpbinedges[0]) & (
-            X <= tmpbinedges[1]))[0]
+    # for i in range(len(binlines)-1):
+    for i in range(nBins):
+        if binlines_are_Nx2:
+            tmpbinedges = binlines[i,:]
+        else:
+            tmpbinedges = binlines[i], binlines[i+1]
+
+        # this = np.where((X >= tmpbinedges[0]) & (
+        #     X <= tmpbinedges[1]))[0]
+        this = get_periodic_bin_edge_indices(X,tmpbinedges,
+                                             treat_as_periodic=treat_as_periodic,
+                                             periodic_Xbounds=periodic_Xbounds)
+
         if len(this) > 0:
             vals[i] = statfunc(Y[this])
 
@@ -130,15 +209,21 @@ def bin_median_getter(X, Y, binlines=None, statfunc=np.median,include_CI95=False
     else:
         return binmid, vals
 
-def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True):
+def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True,
+                           treat_as_periodic=False,
+                           periodic_Xbounds=None):
     """
     binmidpts, median, CI95_LOW, CI95_HIGH[, bincounts] = bin_median_CI95_getter(X, Y, binlines=None, statfunc=np.median[,include_bincounts=True])
     """
 
-    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,statfunc=np.median,include_CI95=True)
+    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,statfunc=np.median,include_CI95=True,
+                                                                   treat_as_periodic=treat_as_periodic,
+                                                                   periodic_Xbounds=periodic_Xbounds)
 
     if include_bincounts:
-        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size)
+        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
 
         return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH, bincounts
 
@@ -146,7 +231,9 @@ def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True):
         return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH
 
 
-def bin_median_Q1_Q3_getter(X, Y, binlines=None,include_bincounts=True):
+def bin_median_Q1_Q3_getter(X, Y, binlines=None,include_bincounts=True,
+                            treat_as_periodic=False,
+                            periodic_Xbounds=None):
     """
     binmidpts, median, Q1, Q3 = bin_median_Q1_Q3_getter(X, Y, binlines=None, statfunc=np.median)
     """
@@ -154,12 +241,20 @@ def bin_median_Q1_Q3_getter(X, Y, binlines=None,include_bincounts=True):
     Q1func = lambda x :np.quantile(x,0.25)
     Q3func = lambda x :np.quantile(x,0.75)
 
-    midtpunkter, binVerdi = bin_median_getter(X, Y, binlines=binlines,statfunc=np.median)
-    midtpunkter, Q1 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q1func)
-    midtpunkter, Q3 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q3func)
+    midtpunkter, binVerdi = bin_median_getter(X, Y, binlines=binlines,statfunc=np.median,
+                                              treat_as_periodic=treat_as_periodic,
+                                              periodic_Xbounds=periodic_Xbounds)
+    midtpunkter, Q1 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q1func,
+                                        treat_as_periodic=treat_as_periodic,
+                                        periodic_Xbounds=periodic_Xbounds)
+    midtpunkter, Q3 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q3func,
+                                        treat_as_periodic=treat_as_periodic,
+                                        periodic_Xbounds=periodic_Xbounds)
 
     if include_bincounts:
-        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size)
+        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
 
         return midtpunkter, binVerdi, Q1, Q3, bincounts
 
@@ -167,13 +262,19 @@ def bin_median_Q1_Q3_getter(X, Y, binlines=None,include_bincounts=True):
         return midtpunkter, binVerdi, Q1, Q3
 
 
-def bin_mean_pmstddev_getter(X, Y, binlines=None,include_bincounts=True):
+def bin_mean_pmstddev_getter(X, Y, binlines=None,include_bincounts=True,
+                             treat_as_periodic=False,
+                             periodic_Xbounds=None):
     """
     binmidpts, mean, mean-1stddev, mean+1stddev = bin_mean_pmstddev_getter(X, Y, binlines=None, include_bincounts=True)
     """
 
-    midtpunkter, binVerdi = bin_median_getter(X, Y, binlines=binlines,statfunc=np.mean)
-    midtpunkter, stdDev = bin_median_getter(X, Y, binlines=binlines,statfunc=np.std)
+    midtpunkter, binVerdi = bin_median_getter(X, Y, binlines=binlines,statfunc=np.mean,
+                                              treat_as_periodic=treat_as_periodic,
+                                              periodic_Xbounds=periodic_Xbounds)
+    midtpunkter, stdDev = bin_median_getter(X, Y, binlines=binlines,statfunc=np.std,
+                                            treat_as_periodic=treat_as_periodic,
+                                            periodic_Xbounds=periodic_Xbounds)
 
     Q1 = binVerdi - stdDev
     Q3 = binVerdi + stdDev
@@ -181,7 +282,9 @@ def bin_mean_pmstddev_getter(X, Y, binlines=None,include_bincounts=True):
     # midtpunkter, Q3 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q3func)
 
     if include_bincounts:
-        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size)
+        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
 
         return midtpunkter, binVerdi, Q1, Q3, bincounts
 
