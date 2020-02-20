@@ -243,6 +243,91 @@ def load_season_dict(load_extended=False):
 
     return seasonDict
 
+
+def get_scaled_season_parameter(timestamps,
+                                verbose=False):
+    """
+    tau = get_scaled_season_parameter(timestamps)
+
+    Scales timestamps such that 
+    tau = 0: March equinox
+    tau = 1: June solstice
+    tau = 2: September equinox
+    tau = 3: December solstice
+
+    Parameter
+    =========
+
+    timestamps : pandas.DatetimeIndex (or perhaps numpy.datetime64 array?)
+    """
+    
+    # Need pd.DatetimeIndex
+    if not isinstance(timestamps,pd.DatetimeIndex):
+        timestamps = pd.DatetimeIndex(timestamps)
+
+    reversesesongdict = dict(Mar='Jun',
+                             Jun='Sep',
+                             Sep='Dec',
+                             Dec='Mar')
+    
+    y0 = timestamps.year.min()
+    y1 = timestamps.year.max()+1
+
+    seasonDict = load_fancy_season_dict(y0=y0,
+                                        y1=y1,
+                                        return_doyDict=False,
+                                        drop_timezone_info=True)
+
+    # Scale season thing
+    sesongting = dict(zip(list(seasonDict.keys()),np.arange(0,4)))
+    
+    tau = np.zeros(timestamps.size,dtype=np.float64)*np.nan
+    
+    checkyears = list(seasonDict['Mar'].keys())
+    
+    count = 0
+    for chkyr in checkyears:
+        for sesong,offset in sesongting.items():
+    
+            sesongtid = seasonDict[sesong][chkyr]
+            if sesong == 'Dec':
+                nestesesongtid = seasonDict['Mar'][np.clip(chkyr+1,np.min(checkyears),np.max(checkyears))]
+            else:
+                nestesesongtid = seasonDict[reversesesongdict[sesong]][chkyr]
+    
+            dtsesong = nestesesongtid-sesongtid
+            if verbose:
+                print(count,chkyr,sesong,offset,
+                      sesongtid.strftime("%Y-%m-%d %H:%M:%S"),
+                      nestesesongtid.strftime("%Y-%m-%d %H:%M:%S"),
+                      dtsesong)
+    
+            haveinds = (timestamps >= sesongtid) & (timestamps < nestesesongtid)
+            nHaveInds = haveinds.sum()
+    
+            if nHaveInds == 0:
+                if verbose:
+                    print("None here!")
+                continue
+    
+            if verbose:
+                print("Got {:d} inds".format(nHaveInds))
+    
+            tau[haveinds] = (timestamps[haveinds]-sesongtid).total_seconds().values/dtsesong.total_seconds()+offset
+
+            count += 1
+
+        #     if count >= 10:
+        #         break
+    
+        # if count >= 10:
+        #     break
+        #     break
+        # break
+
+    return tau
+
+
 def cheap_LT_calc(dts,gclons,
                   return_dts_too=False,
                   verbose=False):
