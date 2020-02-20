@@ -52,6 +52,45 @@ def CI_95_median(a):
     return np.sort(a)[CI_95_median_rankvalue(a.size)]
 
 
+def CI_alpha_var(a, alpha,ddof=1):
+    """
+    # Get confidence intervals for population variance
+    Based on https://www.thoughtco.com/interval-for-a-population-variance-3126221
+    """
+    from scipy.stats import chi2 as chi2Dist
+    assert len(a.shape) == 1,"Support for multi-dim arrays not implemented!"
+
+    n = a.size
+    # df = n-1                    # degrees of freedom to use for chiSq dist
+    sSq = np.var(a,ddof=ddof)
+    
+    A = chi2Dist.ppf(alpha/2,n-1)
+    B = chi2Dist.ppf(1-alpha/2,n-1)
+
+    return np.array([(n-1)*sSq/B,(n-1)*sSq/A])
+    
+
+def CI_95_var(a,ddof=1):
+    """
+    # Get confidence intervals for population variance
+    Based on https://www.thoughtco.com/interval-for-a-population-variance-3126221
+    """
+
+    return CI_alpha_var(a, 0.05,ddof=1)
+
+    # from scipy.stats import chi2 as chi2Dist
+    # assert len(a.shape) == 1,"Support for multi-dim arrays not implemented!"
+
+    # n = a.size
+    # # df = n-1                    # degrees of freedom to use for chiSq dist
+    # sSq = np.var(a)
+    
+    # A = chi2Dist.ppf(alpha/2,n-1)
+    # B = chi2Dist.ppf(1-alpha/2,n-1)
+
+    # return np.array([(n-1)*sSq/B,(n-1)*sSq/A])
+
+
 def CI_95_quantile(a,q):
     """
     Refs
@@ -122,7 +161,7 @@ def get_periodic_bin_edge_indices(X,binedges,treat_as_periodic=False,
     indices = get_periodic_bin_edge_indices(X,binedges,Xbounds)
     Given two binedges and an array X, get the indices of X that fall within the two binedges
     """
-
+    DEBUG = False
 
     if treat_as_periodic:
         assert binedges[0] < binedges[1]
@@ -135,34 +174,74 @@ def get_periodic_bin_edge_indices(X,binedges,treat_as_periodic=False,
             print("PERIODIC BOTH SIDES")
             assert ~extends_both_ways,"NOT IMPLEMENTED"
         elif extends_below:
+
             extension_below = periodic_Xbounds[0]-binedges[0]  # Guaranteed a positive quantity
             assert extension_below >= 0,"This quantity skal være positiv!"
 
-            indlets = X < binedges[1]
-            indlets = np.where(indlets | (X >= (periodic_Xbounds[1] - extension_below)))[0]
+            both_extend_below = binedges[1] < periodic_Xbounds[0]
+
+            if both_extend_below:
+                binedges = binedges + (periodic_Xbounds[1]-periodic_Xbounds[0])
+
+                indlets = np.where((X >= binedges[0]) & (X < binedges[1]))[0]
+
+            else:
+                indlets = X < binedges[1]
+                indlets = np.where(indlets | (X >= (periodic_Xbounds[1] - extension_below)))[0]
+
+                if DEBUG:
+                    print("EXTENDS BELOW: {:.2f} - {:.2f}".format(periodic_Xbounds[1] - extension_below,binedges[1]))
 
         elif extends_above:
+
             extension_above = binedges[1]-periodic_Xbounds[1]  # Guaranteed a positive quantity
             assert extension_above >= 0,"This quantity skal være positiv!"
 
-            indlets = X >= binedges[0]
-            indlets = np.where(indlets | (X < (periodic_Xbounds[0] + extension_above)))[0]
+            both_extend_above = binedges[0] > periodic_Xbounds[1]
+
+            if both_extend_above:
+                binedges = binedges - (periodic_Xbounds[1]-periodic_Xbounds[0])
+                indlets = np.where((X >= binedges[0]) & (X < binedges[1]))[0]
+            else:
+                indlets = X >= binedges[0]
+                indlets = np.where(indlets | (X < (periodic_Xbounds[0] + extension_above)))[0]
+
+                if DEBUG:
+                    print("EXTENDS ABOVE: {:.2f} - {:.2f}".format(binedges[0],periodic_Xbounds[0] + extension_above))
 
         else:
-            indlets = np.where((X >= binedges[0]) & (X <= binedges[1]))[0]
+            indlets = np.where((X >= binedges[0]) & (X < binedges[1]))[0]
 
     else:
-        indlets = np.where((X >= binedges[0]) & (X <= binedges[1]))[0]
+        indlets = np.where((X >= binedges[0]) & (X < binedges[1]))[0]
 
     return indlets
 
-def bin_median_getter(X, Y, binlines=None, statfunc=np.median,
+def bin_median_getter(X, Y, binlines=None,
+                      statfunc=np.median,
                       include_CI95=False,
+                      variance__estimate_population_variance=False,
                       treat_as_periodic=False,
                       periodic_Xbounds=None):
     """
     binmid, vals[, CI95_LOW, CI95_HIGH] = bin_median_getter(X, Y, binlines=None, statfunc=np.median[,include_CI95=True])
     """
+
+    if include_CI95:
+        if statfunc == np.median:
+            print("95% CI for median") 
+            CI_95_func = CI_95_median
+        elif statfunc == np.var:
+            print("95% CI for variance") 
+            CI_95_func = CI_95_var
+
+    # Are we doing sample variance or population variance?
+    if statfunc == np.var:
+        if variance__estimate_population_variance:
+            print("Assuming you want an estimate of the population variance, not sample variance")
+            statfunc = lambda x: np.var(x,ddof=1)  # ddof causes us to divide by N-1 instead of N
+
+
     if binlines is None:
         binlines = np.arange(0, 70.1, 2.5)
     elif isinstance(binlines,int):
@@ -199,7 +278,7 @@ def bin_median_getter(X, Y, binlines=None, statfunc=np.median,
             vals[i] = statfunc(Y[this])
 
             if include_CI95:
-                CI95 = CI_95_median(Y[this])
+                CI95 = CI_95_func(Y[this])
                 CI95_LOW[i] = CI95[0]
                 CI95_HIGH[i] = CI95[1]
 
@@ -213,10 +292,12 @@ def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True,
                            treat_as_periodic=False,
                            periodic_Xbounds=None):
     """
-    binmidpts, median, CI95_LOW, CI95_HIGH[, bincounts] = bin_median_CI95_getter(X, Y, binlines=None, statfunc=np.median[,include_bincounts=True])
+    binmidpts, median, CI95_LOW, CI95_HIGH[, bincounts] = bin_median_CI95_getter(X, Y, binlines=None[, include_bincounts=True])
     """
 
-    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,statfunc=np.median,include_CI95=True,
+    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,
+                                                                   statfunc=np.median,
+                                                                   include_CI95=True,
                                                                    treat_as_periodic=treat_as_periodic,
                                                                    periodic_Xbounds=periodic_Xbounds)
 
@@ -235,7 +316,7 @@ def bin_median_Q1_Q3_getter(X, Y, binlines=None,include_bincounts=True,
                             treat_as_periodic=False,
                             periodic_Xbounds=None):
     """
-    binmidpts, median, Q1, Q3 = bin_median_Q1_Q3_getter(X, Y, binlines=None, statfunc=np.median)
+    binmidpts, median, Q1, Q3 = bin_median_Q1_Q3_getter(X, Y, binlines=None)
     """
 
     Q1func = lambda x :np.quantile(x,0.25)
@@ -291,3 +372,34 @@ def bin_mean_pmstddev_getter(X, Y, binlines=None,include_bincounts=True,
     else:
         
         return midtpunkter, binVerdi, Q1, Q3
+
+def bin_variance_CI95_getter(X, Y,
+                             binlines=None,
+                             include_bincounts=True,
+                             treat_as_periodic=False,
+                             periodic_Xbounds=None):
+    """
+    binmidpts, variance, CI95_LOW, CI95_HIGH[, bincounts] = bin_variance_CI95_getter(X, Y, binlines=None[, include_bincounts=True])
+    """
+
+    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y,
+                                                                   binlines=binlines,
+                                                                   statfunc=np.var,
+                                                                   include_CI95=True,
+                                                                   variance__estimate_population_variance=True,
+                                                                   treat_as_periodic=treat_as_periodic,
+                                                                   periodic_Xbounds=periodic_Xbounds)
+
+    if include_bincounts:
+        midtpunkter, bincounts = bin_median_getter(X, Y,
+                                                   binlines=binlines,
+                                                   statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
+
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH, bincounts
+
+    else:
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH
+
+
