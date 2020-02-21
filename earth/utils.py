@@ -270,7 +270,7 @@ def get_scaled_season_parameter(timestamps,
                              Sep='Dec',
                              Dec='Mar')
     
-    y0 = timestamps.year.min()
+    y0 = timestamps.year.min()-1
     y1 = timestamps.year.max()+1
 
     seasonDict = load_fancy_season_dict(y0=y0,
