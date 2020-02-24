@@ -18,6 +18,11 @@
 # SPACING
 # SPA1  (20190723): fig.suptitle with plt.tight_layout()
 ########################################
+# SUBPLOTS
+# SUB1  (20200222): Adjust subplots
+# SUB2  (20200222): Preserve x scale for subplots of different size
+# SUB3  (20200222): Preserve y scale for subplots of different size
+########################################
 # TEXT
 # TEX1  (20190904): Text annotation example
 
@@ -165,6 +170,77 @@ for lh in leg.legendHandles:
 fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
 ########################################
+# SUBPLOTS
+########################################
+
+# SUB1  (20200222): Adjust subplots
+
+# plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
+# left = 0.125  # the left side of the subplots of the figure
+# right = 0.9   # the right side of the subplots of the figure
+# bottom = 0.1  # the bottom of the subplots of the figure
+# top = 0.9     # the top of the subplots of the figure
+# wspace = 0.2  # the amount of width reserved for space between subplots,
+#               # expressed as a fraction of the average axis width
+# hspace = 0.2  # the amount of height reserved for space between subplots,
+#               # expressed as a fraction of the average axis height
+
+# SUB2  (20200222): Preserve x scale for subplots of different size
+short_ax_lim = 4.
+f, (top_ax, bottom_ax) = plt.subplots(2,1,figsize=[9,5])
+bottom_ax.set_xlim(0,5)
+top_ax.set_xlim(0,short_ax_lim)
+
+# first find the pixel where the bottom x-axis equals the desired limit.
+short_ax_stop_pix = bottom_ax.transData.transform((short_ax_lim,0))  # (x,y) in pixels at data point (4,0)
+
+
+pix_to_fig = f.transFigure.inverted() # Transformation to figure coordinates from display coordinates
+short_ax_stop_fig = pix_to_fig.transform(short_ax_stop_pix)  # (x,y) in figure space (0,1)
+
+top_orig_position_px = top_ax.bbox.corners()  # (ll, ul, lr, ur)
+top_orig_anchor_px = top_orig_position_px[0]  # this is lower left corner.
+top_orig_anchor_fig = pix_to_fig.transform(top_orig_anchor_px)  #convert to figure space
+top_x_anchor, top_y_anchor = top_orig_anchor_fig
+
+top_width = short_ax_stop_fig[0] - top_x_anchor
+new_pos = (top_x_anchor, top_y_anchor,  top_width, top_ax.get_position().height)
+
+top_ax.set_position(new_pos)
+
+# SUB3  (20200222): Preserve y scale for subplots of different size
+# PRESERVE Y SCALE
+ref_ax_lim = (0,5.)
+short_ax_lim = (0,4.)
+f, (short_ax, ref_ax) = plt.subplots(2,1,figsize=[9,5])
+ref_ax.set_ylim(ref_ax_lim)
+short_ax.set_ylim(short_ax_lim)
+
+# first find the pixel where the "tall" (reference) y-axis equals the desired limit.
+# short_ax_stop_pix = ref_ax.transData.transform(short_ax_lim)  # (x,y) in pixels at data point
+ref_ax_stop_pix = ref_ax.transData.transform(short_ax_lim)  # (x,y) in pixels at data point
+
+pix_to_fig = f.transFigure.inverted() # Transformation to figure coordinates from display coordinates
+# short_ax_stop_fig = pix_to_fig.transform(short_ax_stop_pix)  # (x,y) in figure space (0,1)
+ref_ax_stop_fig = pix_to_fig.transform(ref_ax_stop_pix)  # (x,y) in figure space (0,1)
+
+short_orig_position_px = short_ax.bbox.corners()  # (ll, ul, lr, ur)
+short_orig_ll_px = short_orig_position_px[0]  # this is lower left corner.
+short_orig_ll_fig = pix_to_fig.transform(short_orig_ll_px)  #convert to figure space
+short_x_ll, short_y_ll = short_orig_ll_fig
+
+# Use to regne ut short_height
+ref_orig_position_px = ref_ax.bbox.corners()  # (ll, ul, lr, ur)
+ref_orig_ll_px = ref_orig_position_px[0]  # this is lower left corner.
+ref_orig_ll_fig = pix_to_fig.transform(ref_orig_ll_px)  #convert to figure space
+ref_x_ll, ref_y_ll = ref_orig_ll_fig
+
+short_height = ref_ax_stop_fig[1] - ref_y_ll
+
+new_pos = (short_x_ll, short_y_ll,  short_ax.get_position().width, short_height)
+
+short_ax.set_position(new_pos)
+########################################
 # TEXT
 ########################################
 
@@ -172,5 +248,8 @@ fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 fontsize = 35
 normtextpos = (0.02, 0.86)       # Normalized axis coordinates
 junkera = ax.text(*normtextpos, 'a',
+                  horizontalalignment='center', #  ['center' | 'right' | 'left' ]
+                  verticalalignment='top',  # 	[ 'center' | 'top' | 'bottom' | 'baseline' ]
+                  weight='bold', #[ 'normal' | 'bold' | 'heavy' | 'light' | 'ultrabold' | 'ultralight']
                   transform=ax.transAxes,
                   fontsize=fontsize)
