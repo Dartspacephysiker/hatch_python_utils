@@ -75,6 +75,7 @@ def omni_getter(*args,
                 get_time_history=False,
                 interp_to_input_times=False,
                 interpolateArgs={'method': 'time'},
+                include_AL_AU=False,
                 verbose=False):
     """
     omni_getter(t_start OR time_array[,t_end])
@@ -154,6 +155,9 @@ def omni_getter(*args,
 
     AE, SymH = omniInt['AE_INDEX'], omniInt['SYM_H']
 
+    if include_AL_AU:
+        AL, AU = omniInt['AL_INDEX'], omniInt['AU_INDEX']
+
     vsw, psw = omniInt['flow_speed'], omniInt['Pressure']
     borovsky_reader = omnireader.borovsky(omniInt)
     borovsky = borovsky_reader()
@@ -166,6 +170,12 @@ def omni_getter(*args,
     SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell)),
                          index=epochs,
                          columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell'])
+
+    if include_AL_AU:
+        print("Adding AL, AU indices")
+        SW_df['AL'] = AL
+        SW_df['AU'] = AU
+
     SW_df_1hr = pd.DataFrame(data=np.column_stack((F107, Kp, DST)),
                              index=epochs_1hr,
                              columns=['F107', 'Kp', 'Dst'])
