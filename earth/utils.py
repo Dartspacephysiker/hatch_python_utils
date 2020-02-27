@@ -99,8 +99,23 @@ def load_fancy_season_dict(y0=1900,
     """
     seasonDict = load_fancy_season_dict(y0=1990,y1=2020)
     Get a dictionary of March and September equinox times + June and December solstice times
+
+    Based on: https://rhodesmill.org/skyfield/almanac.html
     """
-    # Basert på dette: https://rhodesmill.org/skyfield/almanac.html
+
+    ########################################
+    # COMPARE WITH load_season_dict:
+    ########################################
+    # seasonDict = load_season_dict(load_extended=bigMode)
+    # seasonDict2 = load_fancy_season_dict(y0=2010,
+    #                                      y1=2020,
+    #                                      return_doyDict=False,
+    #                                      drop_timezone_info=True)
+    #
+    # checkseason = 'Sep'
+    # for yr in range(2010,2020+1):
+    #     print(yr,seasonDict2[checkseason][yr],np.abs(seasonDict2[checkseason][yr]-seasonDict[checkseason][str(yr)]))
+
 
     from skyfield import api
     from skyfield import almanac
@@ -114,7 +129,7 @@ def load_fancy_season_dict(y0=1900,
     # Note that almanac computation can be slow and expensive. To determine the moment of sunrise, for example, Skyfield has to search back and forth through time asking for the altitude of the Sun over and over until it finally works out the moment at which it crests the horizon.
 
     # Create a start time and an end time to ask for all of the equinoxes and solstices that fall in between.
-    years = [year for year in range(y0, y1)]
+    years = [year for year in range(y0, y1+1)]
     seasonDict = dict(Mar={}, Jun={}, Sep={}, Dec={})
 
     if return_doyDict:
@@ -235,11 +250,17 @@ def load_season_dict(load_extended=False):
                  ['20200320 03:50', '20200620 21:44',
                   '20200922 13:31', '20201221 10:02']]
 
-    seasonDict = dict(spring={}, summer={}, fall={}, winter={})
+    seasonDict = dict(Mar={}, Jun={}, Sep={}, Dec={})
     for i, key in enumerate(seasonDict.keys()):
         for tide in tides:
             tmpdate = datetime.strptime(tide[i], "%Y%m%d %H:%M")
             seasonDict[key][str(tmpdate.year)] = tmpdate
+
+    print("Adding 'spring', 'summer', 'fall', and 'winter' keys for backwards-compatibility")
+    seasonDict['spring'] = seasonDict['Mar']
+    seasonDict['summer'] = seasonDict['Jun']
+    seasonDict['fall'] = seasonDict['Sep']
+    seasonDict['winter'] = seasonDict['Dec']
 
     return seasonDict
 

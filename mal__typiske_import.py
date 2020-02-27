@@ -15,6 +15,10 @@ mpl.rcParams.update({'axes.labelcolor': 'k'})
 mpl.rcParams.update({'xtick.color': 'k'})
 mpl.rcParams.update({'ytick.color': 'k'})
 mpl.rcParams.update({'font.size': 15})
+mpl.rcParams.update({'font.family': 'sans-serif'})
+mpl.rcParams.update({'font.sans-serif': 'Arial'})
+mpl.rcParams.update({'text.usetext': False})
+
 mpl.rcParams.update({'figure.figsize': [10.0, 8.0]})
 # mpl.rcParams.update({'savefig.directory': '/home/spencerh/Research/sandbox_and_journals/plots/Swarm/201909__Steinstudie/IRI__detaljert/'})
 

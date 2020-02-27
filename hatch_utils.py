@@ -3,13 +3,17 @@ import numpy as np
 import scipy.io as sio
 # import ipdb
 
-def get_basedir(return_bool=True):
+def get_basedir(return_bool=True,verbose=True):
+
     import os
     thisIsColtrane = os.path.isdir("/Data/ift/ift_romfys1/Q1/folk/spencer/")
     if thisIsColtrane:
-        print("This is Coltrane!")
+        if verbose:
+            print("This is Coltrane!")
         baseDir = '/Data/ift/ift_romfys1/Q1/folk/spencer/Coltrane/home/Research/'
     else:
+        if verbose:
+            print("This ain't Coltrane!")
         baseDir = '/SPENCEdata/Research/'
 
     if return_bool:

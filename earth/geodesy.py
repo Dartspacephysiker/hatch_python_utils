@@ -116,7 +116,8 @@ def latlong_pair_area(lon1, lat1,
 
         # width = np.max([width1, width2])
 
-        width = np.mean([width1, width2])
+        # width = np.mean([width1, width2])
+        width = np.mean(np.vstack([width1,width2]),axis=0)
     else:
         width = geo_dist(lon1, lat1,
                          lon2, lat1,
@@ -157,6 +158,8 @@ def geo_dist(lon1, lat1,
     # Difference coordinates
     dlon = lon2 - lon1
     dlat = lat2 - lat1
+
+    # breakpoint()
 
     if haversine:
 

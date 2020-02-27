@@ -391,9 +391,28 @@ def geodetic2apex(*args,
         return returnDict
 
 
+def get_ea_binsize_sqkm(ea):
+
+    from hatch_python_utils.earth.geodesy import get_h2d_bin_areas
+    haversine=True
+    spherical_rectangle=True
+    do_extra_width_calc=True
+    altitude=100
+    binareaopts = dict(haversine=haversine,spherical_rectangle=spherical_rectangle,do_extra_width_calc=do_extra_width_calc,altitude=altitude)
+    
+    EA_binarea_sqkm = get_h2d_bin_areas(ea.ea.mini, ea.ea.maxi, ea.ea.minm*15., ea.ea.maxm*15,**binareaopts)[0]
+    
+    #See journal__2019116__equalarea_binsize.ipynb for more info
+    assert np.isclose(100187.38,EA_binarea_sqkm,rtol=1e-2),"bin size should match joinal!"
+
+    return EA_binarea_sqkm
+
+
 class EqualAreaBins(object):
     """
     See example usage in journal__20190815__lek_med_Swarm_crosstrack.ipynb
+
+    Binsize at 0 altitude is 100187.38 sq. km
     """
 
     def __init__(self, hemi='north'):
@@ -658,61 +677,32 @@ def bin_into_equal_area(lats, mlts, data,
         return statlist
 
 
-def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj, polcaplowlat=70.,
+def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj,
+                                              polcaplowlat=70.,
                                               ea_altitude=0,
+                                              nboxes=9,
                                               mirror_SH=False,
                                               verbose=False):
 
-    isSH = ea.hemi.lower() == 'south'
-    if isSH and not mirror_SH:
-        if polcaplowlat > 0:
-            polcaplowlat *= -1.
-        # print("Is southern, wif polcaplowlat {:.2f}".format(polcaplowlat))
+    assert nboxes == 9, "Only nboxes==9 is supported!"
 
-        def tmpcompfunc(ea_mlat, polcaplowlat):
-            return ea_mlat <= polcaplowlat
-    else:
-        def tmpcompfunc(ea_mlat, polcaplowlat):
-            return ea_mlat >= polcaplowlat
+    # This function tells us how to compare based on which hemisphere the ea object is set up for
+    # it looks redundant to give polcaplowlat as an arg and get it back, but yes, it's intentional
+    tmpcompfunc,polcaplowlat = _polcap__get_compfunc(ea,
+                                                     polcaplowlat,
+                                                     mirror_SH=mirror_SH)
 
-    nboxes = 9
-    ea_alts = np.array([ea_altitude]*len(ea.maxi))
+    ea_alts = np.array([ea_altitude]*len(ea.ea.maxi))
 
     # weights = np.zeros((ea.maxi.size,nboxes))
-    weights = np.zeros(ea.maxi.size, dtype=np.float64)
+    weights = np.zeros(ea.ea.maxi.size, dtype=np.float64)
 
-    # Divide each into 9 boxes, count up how many
-    # LON positions: LEFT, LEFT-CENTER, CENTER, CENTER-RIGHT, RIGHT [L, LC, C, CR, R]
-    # LAT positions: BOTTOM, BOTTOM-MID, MID, MID-TOP, TOP          [B, BM, M, MT, T]
-
-    # 'ea_9sq' = "Equal-area divided into nine squares"
-    ea_9sq = pd.DataFrame(dict(latbm=(ea.mini+ea.centeri)/2,
-                               latm=ea.centeri,
-                               latmt=(ea.maxi+ea.centeri)/2,
-                               mltlc=(ea.minm+ea.centerm)/2,
-                               mltc=ea.centerm,
-                               mltcr=(ea.maxm+ea.centerm)/2))
-
-    # Top row
-    box0 = [ea_9sq['mltlc'].values*15., ea_9sq['latmt'].values]
-    box1 = [ea_9sq['mltc'].values*15., ea_9sq['latmt'].values]
-    box2 = [ea_9sq['mltcr'].values*15., ea_9sq['latmt'].values]
-
-    # Mid row
-    box3 = [ea_9sq['mltlc'].values*15., ea_9sq['latm'].values]
-    box4 = [ea_9sq['mltc'].values*15., ea_9sq['latm'].values]
-    box5 = [ea_9sq['mltcr'].values*15., ea_9sq['latm'].values]
-
-    # Bottom row
-    box6 = [ea_9sq['mltlc'].values*15., ea_9sq['latbm'].values]
-    box7 = [ea_9sq['mltc'].values*15., ea_9sq['latbm'].values]
-    box8 = [ea_9sq['mltcr'].values*15., ea_9sq['latbm'].values]
+    if nboxes == 9:
+        ea_9sq, boxes = _get_equalarea_9square_dataframe(ea.ea)
 
     # breakpoint()
 
-    for ibox, box in enumerate([box0, box1, box2,
-                                box3, box4, box5,
-                                box6, box7, box8]):
+    for ibox, box in enumerate(boxes):
         if verbose:
             print("Box #{:d}".format(ibox))
 
@@ -724,3 +714,131 @@ def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj, polcaplowlat=70.,
     weights = weights/nboxes
 
     return weights
+
+
+def get_geographic_polcap_equalarea_bin_weights(ea, polcaplowlat=70.,
+                                                nboxes=9,
+                                                mirror_SH=False,
+                                                verbose=False):
+
+    assert nboxes == 9, "Only nboxes==9 is supported!"
+
+    # This function tells us how to compare based on which hemisphere the ea object is set up for
+    # it looks redundant to give polcaplowlat as an arg and get it back, but yes, it's intentional
+    tmpcompfunc,polcaplowlat = _polcap__get_compfunc(ea,
+                                                     polcaplowlat,
+                                                     mirror_SH=mirror_SH)
+
+    # weights = np.zeros((ea.maxi.size,nboxes))
+    weights = np.zeros(ea.ea.maxi.size, dtype=np.float64)
+
+    if nboxes == 9:
+        ea_9sq, boxes = _get_equalarea_9square_dataframe(ea.ea)
+
+    # breakpoint()
+
+    for ibox, box in enumerate(boxes):
+        if verbose:
+            print("Box #{:d}".format(ibox))
+
+        ea_glat, ea_glon = box[1], box[0]
+        incap_inds = tmpcompfunc(ea_glat, polcaplowlat)
+        weights[incap_inds] += 1.
+
+    weights = weights/nboxes
+
+    return weights
+
+
+def get_magnetic_polcap_equalflux_bin_weights(ea, 
+                                              polcaplowlat=70.,
+                                              nboxes=9,
+                                              mirror_SH=False,
+                                              verbose=False):
+
+    assert nboxes == 9, "Only nboxes==9 is supported!"
+
+    # This function tells us how to compare based on which hemisphere the ea object is set up for
+    # it looks redundant to give polcaplowlat as an arg and get it back, but yes, it's intentional
+    tmpcompfunc,polcaplowlat = _polcap__get_compfunc(ea,
+                                                     polcaplowlat,
+                                                     mirror_SH=mirror_SH)
+
+    weights = np.zeros(ea.ea.maxi.size, dtype=np.float64)
+
+    if nboxes == 9:
+        # longitude_mode = False because we want mlts, vet du
+        ea_9sq, boxes = _get_equalarea_9square_dataframe(ea.ea,
+                                                         longitude_mode=False)
+
+    for ibox, box in enumerate(boxes):
+        if verbose:
+            print("Box #{:d}".format(ibox))
+
+        # ea_mlat = box[1]
+        incap_inds = tmpcompfunc(box[1], polcaplowlat)
+        weights[incap_inds] += 1.
+
+    weights = weights/nboxes
+
+    return weights
+
+
+def _get_equalarea_9square_dataframe(ea,
+                                     longitude_mode=True):
+
+    # Divide each into 9 boxes, count up how many
+    # LON positions: LEFT, LEFT-CENTER, CENTER, CENTER-RIGHT, RIGHT [L, LC, C, CR, R]
+    # LAT positions: BOTTOM, BOTTOM-MID, MID, MID-TOP, TOP          [B, BM, M, MT, T]
+
+    # 'ea_9sq' = "Equal-area divided into nine squares"
+    ea_9sq = pd.DataFrame(dict(latbm=(ea.mini+ea.centeri)/2,  
+                               latm=ea.centeri,               
+                               latmt=(ea.maxi+ea.centeri)/2,
+                               mltlc=(ea.minm+ea.centerm)/2,
+                               mltc=ea.centerm,
+                               mltcr=(ea.maxm+ea.centerm)/2))
+
+    if longitude_mode:
+        ea_9sq.loc[:,'mltlc'] = ea_9sq.loc[:,'mltlc']*15.
+        ea_9sq.loc[:,'mltc'] = ea_9sq.loc[:,'mltc']*15.
+        ea_9sq.loc[:,'mltcr'] = ea_9sq.loc[:,'mltcr']*15.
+
+    # Top row
+    box0 = [ea_9sq['mltlc'].values, ea_9sq['latmt'].values]
+    box1 = [ea_9sq['mltc'].values, ea_9sq['latmt'].values]
+    box2 = [ea_9sq['mltcr'].values, ea_9sq['latmt'].values]
+
+    # Mid row
+    box3 = [ea_9sq['mltlc'].values, ea_9sq['latm'].values]
+    box4 = [ea_9sq['mltc'].values, ea_9sq['latm'].values]
+    box5 = [ea_9sq['mltcr'].values, ea_9sq['latm'].values]
+
+    # Bottom row
+    box6 = [ea_9sq['mltlc'].values, ea_9sq['latbm'].values]
+    box7 = [ea_9sq['mltc'].values, ea_9sq['latbm'].values]
+    box8 = [ea_9sq['mltcr'].values, ea_9sq['latbm'].values]
+
+    return ea_9sq, [box0, box1, box2,
+                   box3, box4, box5,
+                   box6, box7, box8]
+
+
+def _polcap__get_compfunc(ea,
+                          polcaplowlat,
+                          mirror_SH=False):
+
+    isSH = ea.hemi.lower() == 'south'
+    if isSH and not mirror_SH:
+        if polcaplowlat > 0:
+            polcaplowlat *= -1.
+            # print("Is southern, wif polcaplowlat {:.2f}".format(polcaplowlat))
+    
+        def tmpcompfunc(ea_mlat, polcaplowlat):
+            return ea_mlat <= polcaplowlat
+    else:
+        def tmpcompfunc(ea_mlat, polcaplowlat):
+            return ea_mlat >= polcaplowlat
+
+    return tmpcompfunc,polcaplowlat
+
