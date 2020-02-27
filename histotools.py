@@ -1,6 +1,7 @@
 # 2019/10/28
 import numpy as np
 from scipy.stats import binom as binomDist
+from scipy.stats import median_absolute_deviation as MAD
 
 # THIS ARTICLE PROB DOES IT ALL
 #Confidence interval for quantiles and percentiles (doi: 10.11613/BM.2019.010101) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6294150/
@@ -234,6 +235,9 @@ def bin_median_getter(X, Y, binlines=None,
         elif statfunc == np.var:
             print("95% CI for variance") 
             CI_95_func = CI_95_var
+        elif statfunc == MAD:
+            print("Can't do CI for MAD!")
+            CI_95_func = CI_95_var
 
     # Are we doing sample variance or population variance?
     if statfunc == np.var:
@@ -297,6 +301,30 @@ def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True,
 
     midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,
                                                                    statfunc=np.median,
+                                                                   include_CI95=True,
+                                                                   treat_as_periodic=treat_as_periodic,
+                                                                   periodic_Xbounds=periodic_Xbounds)
+
+    if include_bincounts:
+        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
+
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH, bincounts
+
+    else:
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH
+
+
+def bin_MAD_getter(X, Y, binlines=None,include_bincounts=True,
+                   treat_as_periodic=False,
+                   periodic_Xbounds=None):
+    """
+    binmidpts, MAD, CI95_LOWBOGUS, CI95_HIGHBOGUS[, bincounts] = bin_MAD_getter(X, Y, binlines=None[, include_bincounts=True])
+    """
+
+    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,
+                                                                   statfunc=MAD,
                                                                    include_CI95=True,
                                                                    treat_as_periodic=treat_as_periodic,
                                                                    periodic_Xbounds=periodic_Xbounds)
