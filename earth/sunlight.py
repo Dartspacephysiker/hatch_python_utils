@@ -43,12 +43,19 @@ def get_max_sza(z,
         return max_sza[0]
 
 
-def get_daily_sza_stats(gdlat,gdlon,date,freq='15min',
+def get_daily_sza_stats(gdlat,gdlon,date,
+                        freq='15min',
                         degrees=True,
+                        weights=None,
                         statfunctiondict=None,
                         return_dataframe=True,
                         add_sunlit_darkness_stats=True,
-                        sunlit_darkness__alt=500):
+                        add_Chapman_things=True,
+                        Chapman_scaleH=50,
+                        sunlit_darkness__alt=110):
+
+    if add_Chapman_things:
+        from hatch_python_utils.models.Chapman.chapman import atm8_chapman_arr 
 
     assert (date.hour + date.minute/60. + date.second/3600.) == 0
 
@@ -68,6 +75,10 @@ def get_daily_sza_stats(gdlat,gdlon,date,freq='15min',
 
     Nlatlon = gdlat.size
 
+    if weights is None:
+        weights = np.ones(Nlatlon)
+    weightTot = np.sum(weights)
+
     if add_sunlit_darkness_stats:
         max_sza = get_max_sza(sunlit_darkness__alt,
                               R=6371.)
@@ -79,21 +90,54 @@ def get_daily_sza_stats(gdlat,gdlon,date,freq='15min',
 
     szas = np.zeros((tmpdates.size,Nlatlon))
 
+    if add_Chapman_things:
+        chaps = np.zeros((tmpdates.size,Nlatlon))
+
+        RE = np.asfortranarray([6371]*Nlatlon)
+        X = (RE+sunlit_darkness__alt)/Chapman_scaleH
+        X = np.asfortranarray(X)
+
+
     for idate,tmpdate in enumerate(tmpdates):
         szas[idate,:] = sza(gdlat, gdlon, tmpdate, 
                             degrees=degrees)
+
+    if add_Chapman_things:
+        for idate,tmpdate in enumerate(tmpdates):
+            chaps[idate,:] = atm8_chapman_arr(X,szas[idate,:])
+
+        chaps[szas >= max_sza] = 1e9
+        chaps = np.exp(1-chaps)
+
+        cosmodel = np.exp(1-1./np.cos(np.deg2rad(szas)))
+        cosmodel[szas > 90] = 0
 
     szastats = dict()    
 
     for key,func in stats.items():
         # print(key,func)
-        szastats[key] = func(szas)
+        if key == 'mean':
+            szastats[key] = np.sum(szas*weights)/(weightTot*tmpdates.size)
+        else:
+            szastats[key] = func(szas)
+
+    if add_Chapman_things:
+        for key,func in stats.items():
+            # print(key,func)
+            if key == 'mean':
+                szastats['chap'+key] = np.sum(chaps*weights)/(weightTot*tmpdates.size)
+                szastats['cosmodel'+key] = np.sum(cosmodel*weights)/(weightTot*tmpdates.size)
+            else:
+                szastats['chap'+key] = func(chaps)
+                szastats['cosmodel'+key] = func(cosmodel)
 
     if add_sunlit_darkness_stats:
         
         sunlit = szas < max_sza
 
-        sunlitfracs = np.sum(sunlit,axis=1)/Nlatlon
+        # sunlitfracs = np.sum(sunlit,axis=1)/Nlatlon
+        sunlitfracs = np.sum(sunlit*weights,axis=1)/weightTot
+
         szastats['sunlit_maxfrac'] = np.max(sunlitfracs)
         szastats['sunlit_minfrac'] = np.min(sunlitfracs)
         szastats['sunlit_meanfrac'] = np.mean(sunlitfracs)
