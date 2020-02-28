@@ -1,38 +1,25 @@
 import numpy as np
 
-def get_max_sza(z,
-                R=6371.):
+
+def sph_rect_area(lowlat,highlat,dlon,deg=True):
     """
-    z is altitude in km
-    # R = 6371. # Earth radius (default)
+    In km
     """
+    R = 6371
+    # The area between two lines of latitude is the difference between the area north of one latitude and the area north of the other latitude:
 
-    # assert not hasattr(R,'__iter__')
-    zIsArray = hasattr(z,'size')
+    if deg:
+        lowlat,highlat = np.deg2rad(lowlat),np.deg2rad(highlat)
 
-    if not zIsArray:
-        z = np.array([z])
+        dlon = np.deg2rad(dlon)
 
-    h = z + R
-    max_sza = 180.-np.rad2deg(np.arctan2(np.sqrt(1-(R/h)**2.), (h/R-R/h)))
+    # The area of a lat-long rectangle is proportional to the difference in the longitudes. The area I just calculated is the area between longitude lines differing by 360 degrees. Therefore the area we seek is
 
-    # if zIsArray:
-        
-    max_sza[np.isclose(z,0)] = 90.
-        
-    max_sza[z < 0] = np.nan
-        
-    # else:
-        
-    #     if np.isclose(z,0):
-    #         max_sza = 90.
-    #     elif (z < 0):
-    #         max_sza = np.nan
+    # print(dlon/(2*np.pi))
+    A = 2*np.pi* R**2 * np.abs(np.sin(highlat)-np.sin(lowlat))*(dlon/(2*np.pi))
 
-    if zIsArray:
-        return max_sza
-    else:
-        return max_sza[0]
+    return A
+
 
 def get_h2d_bin_areas(minlats, maxlats, minlons, maxlons, haversine=True,
                       rearth=6.370949e3,

@@ -682,7 +682,8 @@ def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj,
                                               ea_altitude=0,
                                               nboxes=9,
                                               mirror_SH=False,
-                                              verbose=False):
+                                              verbose=False,
+                                              debug=False):
 
     assert nboxes == 9, "Only nboxes==9 is supported!"
 
@@ -703,7 +704,7 @@ def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj,
     # breakpoint()
 
     for ibox, box in enumerate(boxes):
-        if verbose:
+        if debug:
             print("Box #{:d}".format(ibox))
 
         ea_mlat, ea_mlon = apexObj.geo2apex(box[1], box[0], ea_alts)
@@ -719,7 +720,8 @@ def get_magnetic_polcap_equalarea_bin_weights(ea, apexObj,
 def get_geographic_polcap_equalarea_bin_weights(ea, polcaplowlat=70.,
                                                 nboxes=9,
                                                 mirror_SH=False,
-                                                verbose=False):
+                                                verbose=False,
+                                                debug=False):
 
     assert nboxes == 9, "Only nboxes==9 is supported!"
 
@@ -738,7 +740,7 @@ def get_geographic_polcap_equalarea_bin_weights(ea, polcaplowlat=70.,
     # breakpoint()
 
     for ibox, box in enumerate(boxes):
-        if verbose:
+        if debug:
             print("Box #{:d}".format(ibox))
 
         ea_glat, ea_glon = box[1], box[0]
@@ -754,7 +756,8 @@ def get_magnetic_polcap_equalflux_bin_weights(ea,
                                               polcaplowlat=70.,
                                               nboxes=9,
                                               mirror_SH=False,
-                                              verbose=False):
+                                              verbose=False,
+                                              debug=False):
 
     assert nboxes == 9, "Only nboxes==9 is supported!"
 
@@ -772,7 +775,7 @@ def get_magnetic_polcap_equalflux_bin_weights(ea,
                                                          longitude_mode=False)
 
     for ibox, box in enumerate(boxes):
-        if verbose:
+        if debug:
             print("Box #{:d}".format(ibox))
 
         # ea_mlat = box[1]
