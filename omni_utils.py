@@ -237,3 +237,23 @@ def NewellCF_calc(v, bz, by):
     NCF = (v**(4./3.))*(sintc**(8./3.))*(bt**(2./3.))
 
     return NCF
+
+
+def get_good_newell_inds(df):
+    """
+    inds = get_good_newell_inds(df)
+    Get OMNI indices for which Newell function is OK
+    Requires that df have columns 'By','Bz','vsw', and 'newell'
+    """
+
+    limdict = dict(Bz=10**2.64,
+                   By=10**2.32,
+                   vsw=10**3.2)
+
+    OKinds = df.index >= df.index.min()
+    OKinds = OKinds & (~df['newell'].isna()) & (df['newell'] > 0)
+
+    for key in limdict.keys():
+        OKinds = OKinds & (df[key] <= limdict[key])
+
+    return OKinds
