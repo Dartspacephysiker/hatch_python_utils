@@ -7,7 +7,11 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-from mpl_toolkits.basemap import Basemap, cm
+try:
+    from mpl_toolkits.basemap import Basemap, cm
+except:
+    print("Can't load basemap in hatch_python_utils.plot.equal_area.py!")
+
 from matplotlib.patches import Polygon
 
 
