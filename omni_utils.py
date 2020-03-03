@@ -4,7 +4,6 @@ from scipy.io import readsav
 from pathlib import Path
 
 from hatch_python_utils import time_hist2
-from geospacepy import omnireader
 import pandas as pd
 import numpy as np
 
@@ -80,6 +79,8 @@ def omni_getter(*args,
     """
     omni_getter(t_start OR time_array[,t_end])
     """
+
+    from geospacepy import omnireader
 
     input_is_arr = False
     if len(args) == 0:

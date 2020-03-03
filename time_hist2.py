@@ -1,15 +1,9 @@
 # From Tèo Bloch 20190403
 # coding: utf-8
 
-# In[1]:
-
-
 import numpy as np
 import pandas as pd
 from datetime import timedelta, datetime
-
-
-# In[2]:
 
 
 class t_hist():
