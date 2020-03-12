@@ -3,6 +3,123 @@ import numpy as np
 from scipy.stats import binom as binomDist
 from scipy.stats import median_absolute_deviation as MAD
 
+def calc_binned_stats_dict(xvals,yvals,sjekkBins,
+                           xlabel='',
+                           doWeightedSum=False,
+                           weights=None,
+                           doMedian=True,
+                           doMedian_CI95=True,
+                           doMean=False,
+                           dolog10=False,
+                           doVariance=False,
+                           doVariance_CI95=False,
+                           doVariance__showStdDev=False,
+                           treat_as_periodic=False,
+                           periodic_Xbounds=None):
+    """
+    For use with a particular set of indices, xlabel, and ylabel, I have done sånt:
+    xvals = dfUse[baseinds][xlabel]
+    yvals = dfUse[baseinds][ylabel]
+    """
+
+    assert not doWeightedSum,"doWeightedSum kw not implemented!"
+
+    if xlabel == 'scaledtidoffset':
+        treat_as_periodic = True
+        periodic_Xbounds = np.array([0,4])
+    else:
+        treat_as_periodic = False
+        periodic_Xbounds = None
+    
+    if doWeightedSum:
+
+        midAll, medAll, Q1All, Q3All, bincounts = bin_weighted_sum_getter(xvals,yvals,weights,
+                                                                          binlines=sjekkBins,
+                                                                          include_bincounts=True,
+                                                                          treat_as_periodic=treat_as_periodic,
+                                                                          periodic_Xbounds=periodic_Xbounds)
+
+    elif doMedian:
+        if doMedian_CI95:
+            print("CI95")
+            # midAll, medAll, CI95_LOW, CI95_HIGH, bincounts = bin_median_CI95_getter(xvals,
+            midAll, medAll, Q1All, Q3All, bincounts = bin_median_CI95_getter(xvals,
+                                                                             yvals,
+                                                                             binlines=sjekkBins,
+                                                                             include_bincounts=True,
+                                                                             treat_as_periodic=treat_as_periodic,
+                                                                             periodic_Xbounds=periodic_Xbounds)
+        else:
+            midAll, medAll, Q1All, Q3All, bincounts = bin_median_Q1_Q3_getter(xvals,
+                                                                              yvals,
+                                                                              binlines=sjekkBins,
+                                                                              include_bincounts=True,
+                                                                              treat_as_periodic=treat_as_periodic,
+                                                                              periodic_Xbounds=periodic_Xbounds)
+    elif doVariance:
+        print("VARIANCE (maybelog10)")
+        if doVariance_CI95:
+            print("CI95")
+            
+            midAll, medAll, Q1All, Q3All, bincounts = bin_variance_CI95_getter(xvals,
+                                                                               yvals,
+                                                                               binlines=sjekkBins,
+                                                                               include_bincounts=True,
+                                                                               treat_as_periodic=treat_as_periodic,
+                                                                               periodic_Xbounds=periodic_Xbounds)
+        if doVariance__showStdDev:
+            print("Convert to stdDev")
+            statname = 'stddev'
+    
+            medAll = np.sqrt(medAll)
+    
+            Q1All = np.sqrt(Q1All)
+            Q3All = np.sqrt(Q3All)
+    
+    elif doMean:
+        print("Real Lindis")
+        if dolog10:
+            midAll, medAll, Q1All, Q3All,bincounts = bin_mean_pmstddev_getter(xvals,
+                                                                              np.log10(yvals),
+                                                                              binlines=sjekkBins,
+                                                                              include_bincounts=True,
+                                                                              treat_as_periodic=treat_as_periodic,
+                                                                              periodic_Xbounds=periodic_Xbounds)
+    
+        else:
+            midAll, medAll, Q1All, Q3All,bincounts = bin_mean_pmstddev_getter(xvals,
+                                                                              yvals,
+                                                                              binlines=sjekkBins,
+                                                                              include_bincounts=True,
+                                                                              treat_as_periodic=treat_as_periodic,
+                                                                              periodic_Xbounds=periodic_Xbounds)
+    elif doMAD:
+        print("MAD")
+
+        midAll, medAll, Q1All, Q3All, bincounts = bin_MAD_getter(xvals,
+                                                                 yvals,
+                                                                 binlines=sjekkBins,
+                                                                 include_bincounts=True,
+                                                                 treat_as_periodic=treat_as_periodic,
+                                                                 periodic_Xbounds=periodic_Xbounds)
+    curmean = np.mean(medAll)
+    curstd = np.std(medAll)
+    
+    if doMean:
+        errbars = np.vstack([(medAll-Q1All)/np.sqrt(bincounts),
+                             (Q3All-medAll)/np.sqrt(bincounts)])
+    else:
+        errbars = np.vstack([(medAll-Q1All),
+                             (Q3All-medAll)])
+    
+    return {'binCtr'                  :midAll,
+            xlabel+'means'            :medAll,
+            xlabel+'errbars'          :errbars,
+            'meanOf'+xlabel+'means'   :curmean,
+            'stddevOf'+xlabel+'means' :curstd,
+            'count'                   :bincounts}
+
+
 # THIS ARTICLE PROB DOES IT ALL
 #Confidence interval for quantiles and percentiles (doi: 10.11613/BM.2019.010101) https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6294150/
 
@@ -70,6 +187,19 @@ def CI_alpha_var(a, alpha,ddof=1):
 
     return np.array([(n-1)*sSq/B,(n-1)*sSq/A])
     
+
+# def CI_95_weightedsum(a,weights=None):
+
+# SEE https://stats.stackexchange.com/questions/25895/computing-standard-error-in-weighted-mean-estimation
+# Apparently no standard definition of standard error of weighted mean
+#     wgtsum = np.sum(weights)
+#     wgtmean = np.sum(a*weights)/wgtsum
+
+#     # Get variance assuming "frequency weights" and not "reliability weights" (see https://en.wikipedia.org/wiki/Weighted_arithmetic_mean#Weighted_sample_variance)
+#     stddev = np.sqrt(np.sum(weights*(a-wgtmean)**2)/(wgtsum-1))
+    
+#     return wgtmean,wgtmean
+
 
 def CI_95_var(a,ddof=1):
     """
@@ -220,7 +350,9 @@ def get_periodic_bin_edge_indices(X,binedges,treat_as_periodic=False,
 
 def bin_median_getter(X, Y, binlines=None,
                       statfunc=np.median,
+                      statfunc_kws=dict(),
                       include_CI95=False,
+                      CI95func_kws=dict(),
                       variance__estimate_population_variance=False,
                       treat_as_periodic=False,
                       periodic_Xbounds=None):
@@ -228,16 +360,34 @@ def bin_median_getter(X, Y, binlines=None,
     binmid, vals[, CI95_LOW, CI95_HIGH] = bin_median_getter(X, Y, binlines=None, statfunc=np.median[,include_CI95=True])
     """
 
+    isWeightedMean = False
+
     if include_CI95:
+
         if statfunc == np.median:
             print("95% CI for median") 
             CI_95_func = CI_95_median
+
         elif statfunc == np.var:
             print("95% CI for variance") 
             CI_95_func = CI_95_var
+
         elif statfunc == MAD:
             print("Can't do CI for MAD!")
             CI_95_func = CI_95_var
+
+        elif statfunc == np.sum:
+
+            assert 'weights' in CI95func_kws.keys(),"must provide weights!"
+
+            isWeightedMean = True
+            weights = CI95func_kws['weights'].copy()
+
+            def weightedmean(Y,weights=None):
+                return np.sum(Y*weights)/np.sum(weights)
+            statfunc = weightedmean
+
+            CI_95_func = CI_95_weightedsum
 
     # Are we doing sample variance or population variance?
     if statfunc == np.var:
@@ -279,10 +429,15 @@ def bin_median_getter(X, Y, binlines=None,
                                              periodic_Xbounds=periodic_Xbounds)
 
         if len(this) > 0:
-            vals[i] = statfunc(Y[this])
+
+            if isWeightedMean:
+                statfunc_kws['weights'] = weights[this]
+                CI95func_kws['weights'] = weights[this]
+
+            vals[i] = statfunc(Y[this],**statfunc_kws)
 
             if include_CI95:
-                CI95 = CI_95_func(Y[this])
+                CI95 = CI_95_func(Y[this],**CI95func_kws)
                 CI95_LOW[i] = CI95[0]
                 CI95_HIGH[i] = CI95[1]
 
@@ -307,6 +462,36 @@ def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True,
 
     if include_bincounts:
         midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
+
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH, bincounts
+
+    else:
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH
+
+
+def bin_weighted_sum_getter(X, Y, weights,
+                            binlines=None,
+                            include_bincounts=True,
+                            treat_as_periodic=False,
+                            periodic_Xbounds=None):
+    """
+    binmidpts, wgtedsum, NOTKNOW_LOW, NOTKNOW_HIGH[, bincounts] = bin_weighted_sum_getter(X, Y, weights, binlines=None[, include_bincounts=True])
+    """
+
+    midtpunkter, binVerdi, = bin_median_getter(X, Y,
+                                               binlines=binlines,
+                                               statfunc=np.sum,
+                                               CI95func_kws=dict(weights=weights),
+                                               include_CI95=False,
+                                               treat_as_periodic=treat_as_periodic,
+                                               periodic_Xbounds=periodic_Xbounds)
+
+    if include_bincounts:
+        midtpunkter, bincounts = bin_median_getter(X, Y,
+                                                   binlines=binlines,
+                                                   statfunc=np.size,
                                                    treat_as_periodic=treat_as_periodic,
                                                    periodic_Xbounds=periodic_Xbounds)
 
