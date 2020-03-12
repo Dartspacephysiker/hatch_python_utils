@@ -8,36 +8,41 @@ from datetime import datetime,timedelta
 from pytt.earth.sunlight import sza
 
 
-def get_max_sza(z,
+def get_max_sza__jone(h,
+                      R=6371.):
+
+    return np.rad2deg(np.pi/2+np.arccos(R/(R+h)))
+
+def get_max_sza(h,
                 R=6371.):
     """
-    z is altitude in km
+    h is altitude in km
     # R = 6371. # Earth radius (default)
     """
 
     # assert not hasattr(R,'__iter__')
-    zIsArray = hasattr(z,'size')
+    hIsArray = hasattr(h,'size')
 
-    if not zIsArray:
-        z = np.array([z])
+    if not hIsArray:
+        h = np.array([h])
 
-    h = z + R
-    max_sza = 180.-np.rad2deg(np.arctan2(np.sqrt(1-(R/h)**2.), (h/R-R/h)))
+    z = h + R
+    max_sza = 180.-np.rad2deg(np.arctan2(np.sqrt(1-(R/z)**2.), (z/R-R/z)))
 
-    # if zIsArray:
+    # if hIsArray:
         
-    max_sza[np.isclose(z,0)] = 90.
+    max_sza[np.isclose(h,0)] = 90.
         
-    max_sza[z < 0] = np.nan
+    max_sza[h < 0] = np.nan
         
     # else:
         
-    #     if np.isclose(z,0):
+    #     if np.isclose(h,0):
     #         max_sza = 90.
-    #     elif (z < 0):
+    #     elif (h < 0):
     #         max_sza = np.nan
 
-    if zIsArray:
+    if hIsArray:
         return max_sza
     else:
         return max_sza[0]
@@ -50,9 +55,9 @@ def get_daily_sza_stats(gdlat,gdlon,date,
                         statfunctiondict=None,
                         return_dataframe=True,
                         add_sunlit_darkness_stats=True,
+                        sunlit_darkness__alt=110,
                         add_Chapman_things=True,
-                        Chapman_scaleH=50,
-                        sunlit_darkness__alt=110):
+                        Chapman_scaleH=50):
 
     if add_Chapman_things:
         from hatch_python_utils.models.Chapman.chapman import atm8_chapman_arr 

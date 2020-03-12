@@ -10,20 +10,7 @@ import matplotlib as mpl
 import tkinter
 mplBkgrnd = 'TkAgg'
 mpl.use(mplBkgrnd)
-mpl.rcParams.update({'text.color': 'k'})
-mpl.rcParams.update({'axes.labelcolor': 'k'})
-mpl.rcParams.update({'xtick.color': 'k'})
-mpl.rcParams.update({'ytick.color': 'k'})
-mpl.rcParams.update({'font.size': 15})
-mpl.rcParams.update({'font.family': 'sans-serif'})
-mpl.rcParams.update({'font.sans-serif': 'Arial'})
-mpl.rcParams.update({'text.usetex': False})
 
-mpl.rcParams.update({'figure.figsize': [10.0, 8.0]})
-# mpl.rcParams.update({'savefig.directory': '/home/spencerh/Research/sandbox_and_journals/plots/Swarm/201909__Steinstudie/IRI__detaljert/'})
-
-import matplotlib.pyplot as plt
-plt.ion()
 from hatch_python_utils.plot import colormaps as hCM
 # import colorcet as cc           # Perceptually uniform spacing
 # cmap = cc.cm.colorwheel
@@ -63,3 +50,19 @@ plotDir = '/SPENCEdata/Research/sandbox_and_journals/plots/Rockets/CAPER2/'
 #junk = importlib.reload(CAPER2_tools)
 #from CAPER2_tools import get_ELF_file, load_ELF_file, barplot_uniq_sRates, load_GPS_data,load_attitude_solution, despin_meas_using_Wallops_attitude, get_vXB_ENU, interp_measAB_to_common_tSeries, get_sun_spikes,load_magnetometer_file, get_magnetometer_file, get_interped_DCM_matrix
 #
+
+mpl.rcParams.update({'text.color': 'k'})
+mpl.rcParams.update({'axes.labelcolor': 'k'})
+mpl.rcParams.update({'xtick.color': 'k'})
+mpl.rcParams.update({'ytick.color': 'k'})
+mpl.rcParams.update({'font.size': 15})
+mpl.rcParams.update({'font.family': 'sans-serif'})
+mpl.rcParams.update({'font.sans-serif': 'Arial'})
+mpl.rcParams.update({'text.usetex': False})
+
+mpl.rcParams.update({'figure.figsize': [10.0, 8.0]})
+# mpl.rcParams.update({'savefig.directory': '/home/spencerh/Research/sandbox_and_journals/plots/Swarm/201909__Steinstudie/IRI__detaljert/'})
+
+import matplotlib.pyplot as plt
+plt.ion()
+
