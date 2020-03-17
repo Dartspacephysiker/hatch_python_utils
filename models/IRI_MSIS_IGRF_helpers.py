@@ -58,6 +58,7 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                                   set_neg_vals_to_zero=False,
                                   iri_use_F107=False,
                                   msis_use_F107=False,
+                                  msis__const_F107_value=None,
                                   do_scale_dens_to_mneg3=False,
                                   extrapolate_model_above_max_valid_height=True,
                                   extrapolate_model_below_min_valid_height=True,
@@ -71,6 +72,12 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
     Else return list with members [IGRF,IRI,MSIS] any of which could be blank
     """
     global IRIspecies, IRIKeepSpecies__density, MSISKeepSpecies__density
+
+    msis__have_const_F107_value = msis__const_F107_value is not None
+    if msis__have_const_F107_value:
+        msis__const_F107_value = np.float64(msis__const_F107_value)
+        if verbose:
+            print("Constant F10.7 value: {:.2f}".format(msis__const_F107_value))
 
     igrf_isv = 0
     igrf_itype = 1
@@ -232,6 +239,9 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
             if msis_use_F107:
                 ptMSIS.f107 = f107
                 ptMSIS.f107a = f107a
+            elif msis__have_const_F107_value:
+                ptMSIS.f107 = msis__const_F107_value
+                ptMSIS.f107a = msis__const_F107_value
 
             # MSIS-2000
             yM = ptMSIS.run_msis()

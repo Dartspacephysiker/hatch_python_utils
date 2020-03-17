@@ -1,7 +1,6 @@
 # 2019/10/28
 import numpy as np
 from scipy.stats import binom as binomDist
-from scipy.stats import median_absolute_deviation as MAD
 from hatch_python_utils.statistics.CI import ( \
                                                CI_95_median_rankvalue, 
                                                CI_95_quantile_rankvalue, 
@@ -11,6 +10,41 @@ from hatch_python_utils.statistics.CI import ( \
                                                CI_95_var, 
                                                CI_95_quantile, 
                                                CI_95_weightedsum)
+try:
+    from scipy.stats import median_absolute_deviation as MAD
+except:
+    print("Couldn't get median_absolute_deviation from scipy.stats! Trying statsmodels.robust")
+    try:
+        from statsmodels.robust import mad as MAD
+    except:
+        print("Couldn't get MAD i det hele tatt!")
+
+def make_periodic_tau_bins(taumin=0,taumax=4,nbins=21,
+                           addNBinsBefore=2,
+                           addNBinsAfter=2):
+
+    sjekkBins = np.linspace(taumin,taumax,nbins)
+    # addNBinsBefore = 2
+    # addNBinsAfter = 2
+    binCount = 0
+    while binCount < addNBinsBefore:
+        sjekkBins = np.insert(sjekkBins,
+                              0,
+                              sjekkBins[0] - (sjekkBins[1]-sjekkBins[0]))
+        binCount += 1
+
+    binCount = 0
+    while binCount < addNBinsAfter:
+        sjekkBins = np.insert(sjekkBins,
+                              sjekkBins.size,
+                              sjekkBins[-1] + (sjekkBins[1]-sjekkBins[0]))
+        binCount += 1
+
+    sjekkBins = np.insert(sjekkBins + (sjekkBins[1]-sjekkBins[0])/2.,
+                          0,
+                          sjekkBins[0] - (sjekkBins[1]-sjekkBins[0])/2.)
+
+    return sjekkBins
 
 def calc_binned_stats_dict(xvals,yvals,sjekkBins,
                            xlabel='',
@@ -24,7 +58,8 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
                            doVariance_CI95=False,
                            doVariance__showStdDev=False,
                            treat_as_periodic=False,
-                           periodic_Xbounds=None):
+                           periodic_Xbounds=None,
+                           verbose=False):
     """
     For use with a particular set of indices, xlabel, and ylabel, I have done sånt:
     xvals = dfUse[baseinds][xlabel]
@@ -33,7 +68,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
 
     assert not doWeightedSum,"doWeightedSum kw not implemented!"
 
-    if xlabel == 'scaledtidoffset':
+    if (xlabel == 'scaledtidoffset') or (xlabel == 'tau'):
         treat_as_periodic = True
         periodic_Xbounds = np.array([0,4])
     else:
@@ -50,7 +85,8 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
 
     elif doMedian:
         if doMedian_CI95:
-            print("CI95")
+            if verbose:
+                print("CI95")
             # midAll, medAll, CI95_LOW, CI95_HIGH, bincounts = bin_median_CI95_getter(xvals,
             midAll, medAll, Q1All, Q3All, bincounts = bin_median_CI95_getter(xvals,
                                                                              yvals,
@@ -66,9 +102,12 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
     elif doVariance:
-        print("VARIANCE (maybelog10)")
+        if verbose:
+            print("VARIANCE (maybelog10)")
+
         if doVariance_CI95:
-            print("CI95")
+            if verbose:
+                print("CI95")
             
             midAll, medAll, Q1All, Q3All, bincounts = bin_variance_CI95_getter(xvals,
                                                                                yvals,
@@ -77,7 +116,8 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
                                                                                treat_as_periodic=treat_as_periodic,
                                                                                periodic_Xbounds=periodic_Xbounds)
         if doVariance__showStdDev:
-            print("Convert to stdDev")
+            if verbose:
+                print("Convert to stdDev")
             statname = 'stddev'
     
             medAll = np.sqrt(medAll)
@@ -86,8 +126,9 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
             Q3All = np.sqrt(Q3All)
     
     elif doMean:
-        print("Real Lindis")
-        if dolog10mean:
+        if verbose:
+            print("Real Lindis")
+        if dolog10:
             midAll, medAll, Q1All, Q3All,bincounts = bin_mean_pmstddev_getter(xvals,
                                                                               np.log10(yvals),
                                                                               binlines=sjekkBins,
@@ -103,7 +144,8 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
     elif doMAD:
-        print("MAD")
+        if verbose:
+            print("MAD")
 
         midAll, medAll, Q1All, Q3All, bincounts = bin_MAD_getter(xvals,
                                                                  yvals,
@@ -253,7 +295,8 @@ def bin_median_getter(X, Y, binlines=None,
                       CI95func_kws=dict(),
                       variance__estimate_population_variance=False,
                       treat_as_periodic=False,
-                      periodic_Xbounds=None):
+                      periodic_Xbounds=None,
+                      verbose=False):
     """
     binmid, vals[, CI95_LOW, CI95_HIGH] = bin_median_getter(X, Y, binlines=None, statfunc=np.median[,include_CI95=True])
     """
@@ -263,15 +306,18 @@ def bin_median_getter(X, Y, binlines=None,
     if include_CI95:
 
         if statfunc == np.median:
-            print("95% CI for median") 
+            if verbose:
+                print("95% CI for median") 
             CI_95_func = CI_95_median
 
         elif statfunc == np.var:
-            print("95% CI for variance") 
+            if verbose:
+                print("95% CI for variance") 
             CI_95_func = CI_95_var
 
         elif statfunc == MAD:
-            print("Can't do CI for MAD!")
+            if verbose:
+                print("Can't do CI for MAD!")
             CI_95_func = CI_95_var
 
         elif statfunc == np.sum:
