@@ -58,6 +58,7 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
                                   set_neg_vals_to_zero=False,
                                   iri_use_F107=False,
                                   msis_use_F107=False,
+                                  iri__const_F107_value=None,
                                   msis__const_F107_value=None,
                                   do_scale_dens_to_mneg3=False,
                                   extrapolate_model_above_max_valid_height=True,
@@ -73,11 +74,17 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
     """
     global IRIspecies, IRIKeepSpecies__density, MSISKeepSpecies__density
 
+    iri__have_const_F107_value = iri__const_F107_value is not None
+    if iri__have_const_F107_value:
+        iri__const_F107_value = np.float64(iri__const_F107_value)
+        if verbose:
+            print("IRI  constant F10.7 value: {:.2f}".format(iri__const_F107_value))
+
     msis__have_const_F107_value = msis__const_F107_value is not None
     if msis__have_const_F107_value:
         msis__const_F107_value = np.float64(msis__const_F107_value)
         if verbose:
-            print("Constant F10.7 value: {:.2f}".format(msis__const_F107_value))
+            print("MSIS constant F10.7 value: {:.2f}".format(msis__const_F107_value))
 
     igrf_isv = 0
     igrf_itype = 1
@@ -169,6 +176,9 @@ def get_IGRF_IRI2016_MSIS_profile(picktime, z_km, glats, glons,
             if iri_use_F107:
                 pt.f107 = f107
                 pt.f107a = f107a
+            elif iri__have_const_F107_value:
+                pt.f107 = iri__const_F107_value
+                pt.f107a = iri__const_F107_value
 
             # IRI-2016
             yunk = pt.run_iri()  # default year is 2016

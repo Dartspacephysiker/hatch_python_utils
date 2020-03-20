@@ -1,5 +1,3 @@
-import swarmProcHelper as sPH
-import conjunctions as swarmC
 import ftplib
 import os.path
 import fnmatch
@@ -8,12 +6,133 @@ import numpy as np
 import pandas as pd
 from hatch_python_utils import omni_utils as hOMNI
 from hatch_python_utils.earth import coordinates as hCoord
-
+from hatch_python_utils.earth.bearing import mlt_bearing
 
 import sys
 needdir = '/SPENCEdata/Research/sandbox_and_journals/journals/Swarm/'
 if needdir not in sys.path:
     sys.path.insert(0, needdir)
+import swarmProcHelper as sPH
+import conjunctions as swarmC
+
+def load_Swarm_ephemeris(*args,**kws):
+    """
+    df = load_Swarm_ephemeris([sat,yr0,yr1])
+
+    KWS
+    ====
+    dotiming (default False)  : Show timing stats for loading stuff
+    """
+
+    defaultArgs = dict(sat='A',yr0=2013,yr1=2019)
+    defaultKWs = dict(dotiming=False)
+
+    sat = args[0] if (len(args) >= 1) else defaultArgs['sat']
+    yr0 = args[1] if (len(args) >= 2) else defaultArgs['yr0']
+    yr1 = args[2] if (len(args) >= 3) else defaultArgs['yr1']
+
+    dotiming = kws['dotiming'] if ('dotiming' in kws.keys()) else defaultKWs['dotiming']
+
+    from hatch_python_utils.hatch_utils import get_basedir 
+
+    basedir, isColtrane = get_basedir()
+    outdir = basedir+'database/Swarm/ephemeris/'
+    sampling_step = "PT1S"
+    smoothWindowStr = '5s'
+    strideval = int(smoothWindowStr[:-1])//int(sampling_step.replace('PT','')[:-1])
+    
+    collection = 'SW_OPER_EFI'+sat+'_LP_1B'
+    parquetsuff = '_'+smoothWindowStr+'median_ephem_v1.parquet'           # nyeste
+    
+    # Get timestrs
+    strftimefmt="%Y%m%d"
+    timestrs = []
+    iteryrs = range(yr0,yr1+1)
+    if (2013 in iteryrs) or (2014 in iteryrs):
+        start_time = datetime(2013, 12, 10)
+        end_time = datetime(2014, 12, 31)
+    
+        timestrs.append("_{:s}-{:s}".format(
+            start_time.strftime(strftimefmt),
+            end_time.strftime(strftimefmt)))
+    
+    for yr in range(yr0,yr1+1):
+        if yr in [2013,2014]:
+            continue
+    
+        start_time = datetime(yr, 1, 1)
+        end_time = datetime(yr, 12, 31)
+    
+        timestrs.append("_{:s}-{:s}".format(
+            start_time.strftime(strftimefmt),
+            end_time.strftime(strftimefmt)))
+    
+    fmtstr = "{:30s} : {:s}"
+    print(fmtstr.format("outdir",outdir))
+    print(fmtstr.format("sampling_step",sampling_step))
+    print(fmtstr.format("smoothWindowStr",smoothWindowStr))
+    print(fmtstr.format("Stride val",str(strideval)))
+    print(fmtstr.format("years",",".join([str(yr) for yr in iteryrs])))
+    print(fmtstr.format("satellite",sat))
+    print(fmtstr.format("parquetinfo",sampling_step+timestrs[0]+parquetsuff))
+
+    if dotiming:
+        import time
+        start_time = time.time()
+    
+    df = []
+
+    for timestr in timestrs:
+        parquetfile = collection+'_'+sampling_step+timestr+parquetsuff
+    
+        if not os.path.exists(outdir+parquetfile):
+            print("No Existe: {:s}\nSkipping!".format(parquetfile))
+            continue
+    
+        if dotiming:
+            start_load_time = time.time()
+
+        tmpdf = pd.read_parquet(outdir+parquetfile)
+
+        if dotiming:
+            stop_load_time = time.time()
+            print("--- LOAD {:s}: {:.2f} seconds ---".format(parquetfile,stop_load_time-start_load_time))
+    
+        df.append(tmpdf)
+    
+
+    if dotiming:
+        start_load_time = time.time()
+
+    df = pd.concat(df)
+
+    if dotiming:
+        stop_load_time = time.time()
+        print("--- CONCAT: {:.2f} seconds ---".format(stop_load_time-start_load_time))
+        print("--- {:.2f} seconds total ---".format(time.time()-start_time))
+
+    # Why on Earth did all QDLat values get divided by 1000?
+    if dotiming:
+        start_load_time = time.time()
+
+    df.loc[:,'QDLat'] = df.loc[:,'QDLat']*1000
+
+    df.loc[:,'mltbearing'] = mlt_bearing(df['QDLat'].values,
+                                       df['MLT'].values,
+                                       shift_to_90deg=False)
+    df['mltbearingShift'] = df['mltbearing']
+    more90ers = df['mltbearingShift'] > 90
+    df.loc[more90ers,'mltbearingShift'] = df.loc[more90ers,'mltbearingShift'] -180
+    df['mltbearingShift'] = np.abs(df['mltbearingShift'])
+
+    if dotiming:
+        stop_load_time = time.time()
+        print("--- Fix QDLat, mltbearing: {:.2f} seconds ---".format(stop_load_time-start_load_time))
+
+    if dotiming:
+        print("--- {:.2f} seconds total ---".format(time.time()-start_time))
+
+    return df
 
 
 def load_2015_corr_db(date=None):
