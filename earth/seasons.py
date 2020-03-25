@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime,timedelta
+import os
 
 
 def get_season_inds(df,seasonStr='Sep',dt_days=5,
@@ -89,6 +90,30 @@ def load_fancy_season_dict(y0=1900,
     # for yr in range(2010,2020+1):
     #     print(yr,seasonDict2[checkseason][yr],np.abs(seasonDict2[checkseason][yr]-seasonDict[checkseason][str(yr)]))
 
+    doOldWay = not drop_timezone_info
+
+    if return_doyDict:
+        typeStr = 'doy'
+    else:
+        typeStr = 'datetime'
+
+    print("Getting {:s}Dict for {:d}-{:d} ...".format(typeStr, y0, y1))
+
+
+    seasonDict = load_season_dict_local(y0=y0,
+                                        y1=y1,
+                                        return_doyDict=return_doyDict)
+
+    if not doOldWay:
+        return seasonDict
+
+    # OLDSTUFF
+
+    # OLD SKYFIELD LOADER
+    # ts = api.load.timescale()
+    # e = api.load('de421.bsp')
+
+    # NEW SKYFIELD LOADER
 
     from skyfield import api
     from skyfield import almanac
@@ -99,12 +124,6 @@ def load_fancy_season_dict(y0=1900,
     from hatch_python_utils.hatch_utils import get_basedir
     basedir, isColtrane = get_basedir(verbose=True)
     
-    # OLD SKYFIELD LOADER
-    # ts = api.load.timescale()
-    # e = api.load('de421.bsp')
-
-    # NEW SKYFIELD LOADER
-    # if isColtrane:
     skyfielddir = basedir + 'database/skyfield/'
     load = api.Loader(skyfielddir)
     ts = load.timescale()
@@ -123,45 +142,94 @@ def load_fancy_season_dict(y0=1900,
 
     print("Getting {:s}Dict for {:d}-{:d} ...".format(typeStr, y0, y1))
 
-    for year in years:
+    # for year in years:
 
-        # print(year)
+    #     # print(year)
 
-        t0 = ts.utc(year, 1, 1)
-        t1 = ts.utc(year, 12, 31)
-        t, y = almanac.find_discrete(t0, t1, almanac.seasons(e))
+    #     t0 = ts.utc(year, 1, 1)
+    #     t1 = ts.utc(year, 12, 31)
+    #     t, y = almanac.find_discrete(t0, t1, almanac.seasons(e))
 
-        # for yi, ti in zip(y, t):
-        #     print(yi, almanac.SEASON_EVENTS[yi], ti.utc_iso(' '))
+    #     # for yi, ti in zip(y, t):
+    #     #     print(yi, almanac.SEASON_EVENTS[yi], ti.utc_iso(' '))
 
-        if return_doyDict:
-            doys = datetime_to_doy([t[0].utc_datetime(),
-                                    t[1].utc_datetime(),
-                                    t[2].utc_datetime(),
-                                    t[3].utc_datetime()])
+    #     if return_doyDict:
+    #         doys = datetime_to_doy([t[0].utc_datetime(),
+    #                                 t[1].utc_datetime(),
+    #                                 t[2].utc_datetime(),
+    #                                 t[3].utc_datetime()])
 
-            seasonDict['Mar'][year] = doys[0]
-            seasonDict['Jun'][year] = doys[1]
-            seasonDict['Sep'][year] = doys[2]
-            seasonDict['Dec'][year] = doys[3]
+    #         seasonDict['Mar'][year] = doys[0]
+    #         seasonDict['Jun'][year] = doys[1]
+    #         seasonDict['Sep'][year] = doys[2]
+    #         seasonDict['Dec'][year] = doys[3]
 
-        else:
-            if drop_timezone_info:
-                seasonDict['Mar'][year] = t[0].utc_datetime().replace(
-                    tzinfo=None)
-                seasonDict['Jun'][year] = t[1].utc_datetime().replace(
-                    tzinfo=None)
-                seasonDict['Sep'][year] = t[2].utc_datetime().replace(
-                    tzinfo=None)
-                seasonDict['Dec'][year] = t[3].utc_datetime().replace(
-                    tzinfo=None)
-            else:
-                seasonDict['Mar'][year] = t[0].utc_datetime()
-                seasonDict['Jun'][year] = t[1].utc_datetime()
-                seasonDict['Sep'][year] = t[2].utc_datetime()
-                seasonDict['Dec'][year] = t[3].utc_datetime()
+    #     else:
+    #         if drop_timezone_info:
+    #             seasonDict['Mar'][year] = t[0].utc_datetime().replace(
+    #                 tzinfo=None)
+    #             seasonDict['Jun'][year] = t[1].utc_datetime().replace(
+    #                 tzinfo=None)
+    #             seasonDict['Sep'][year] = t[2].utc_datetime().replace(
+    #                 tzinfo=None)
+    #             seasonDict['Dec'][year] = t[3].utc_datetime().replace(
+    #                 tzinfo=None)
+    #         else:
+    #             seasonDict['Mar'][year] = t[0].utc_datetime()
+    #             seasonDict['Jun'][year] = t[1].utc_datetime()
+    #             seasonDict['Sep'][year] = t[2].utc_datetime()
+    #             seasonDict['Dec'][year] = t[3].utc_datetime()
 
     return seasonDict
+
+
+def load_season_dict_local(y0=1900,
+                           y1=2051,
+                           return_doyDict=False):
+
+    assert (y0 >= 1900) & (y1 <= 2051)
+
+    if return_doyDict:
+        from hatch_python_utils.time_tools import datetime_to_doy
+
+    TEST_FILENAME = os.path.join(os.path.dirname(__file__), '../dataz/earth_seasons_1900-2051.csv')
+
+    file1 = open(TEST_FILENAME, 'r') 
+    Lines = file1.readlines() 
+
+    strftimefmt = "%Y-%m-%d %H:%M:%S.%f"
+    seasonDict2 = dict(Mar=dict(),Jun=dict(),Sep=dict(),Dec=dict())
+    for line in Lines:
+
+        yr = int(line[0:4])
+
+        if yr < y0:
+            continue
+
+        if yr > y1:
+            continue
+
+        seps = line.split(",")
+        # print(yr)
+
+        seasonDict2['Mar'][yr] = datetime.strptime(seps[0],strftimefmt)
+        seasonDict2['Jun'][yr] = datetime.strptime(seps[1],strftimefmt)
+        seasonDict2['Sep'][yr] = datetime.strptime(seps[2],strftimefmt)
+        seasonDict2['Dec'][yr] = datetime.strptime(seps[3].replace('\n',''),strftimefmt)
+    
+
+        if return_doyDict:
+            doys = datetime_to_doy([seasonDict2['Mar'][yr],
+                                    seasonDict2['Jun'][yr],
+                                    seasonDict2['Sep'][yr],
+                                    seasonDict2['Dec'][yr]])
+
+            seasonDict2['Mar'][yr] = doys[0]
+            seasonDict2['Jun'][yr] = doys[1]
+            seasonDict2['Sep'][yr] = doys[2]
+            seasonDict2['Dec'][yr] = doys[3]
+
+    return seasonDict2
 
 
 def load_season_dict(load_extended=False):

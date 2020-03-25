@@ -6,6 +6,7 @@ import numpy as np
 from datetime import datetime,timedelta
 
 from pytt.earth.sunlight import sza
+from statsmodels.stats.weightstats import DescrStatsW
 
 
 def get_max_sza__jone(h,
@@ -49,6 +50,7 @@ def get_max_sza(h,
 
 
 def get_daily_sza_stats(gdlat,gdlon,date,
+                        tau0=1,
                         freq='15min',
                         degrees=True,
                         weights=None,
@@ -71,12 +73,13 @@ def get_daily_sza_stats(gdlat,gdlon,date,
     else:
 
         stats = dict(mean=np.mean,
-                 median=np.median,
-                 std=np.std,
-                 min=np.min,
-                 max=np.max,
-                 Q1=lambda x: np.quantile(x,0.25),
-                 Q3=lambda x: np.quantile(x,0.75))
+                     median=np.median,
+                     std=np.std,
+                     min=np.min,
+                     max=np.max,
+                     Q1=lambda x: np.quantile(x,0.25),
+                     Q3=lambda x: np.quantile(x,0.75),
+                     count=lambda x: np.size(x))
 
     Nlatlon = gdlat.size
 
@@ -94,7 +97,7 @@ def get_daily_sza_stats(gdlat,gdlon,date,
                              closed='left')
 
     szas = np.zeros((tmpdates.size,Nlatlon))
-
+    
     if add_Chapman_things:
         chaps = np.zeros((tmpdates.size,Nlatlon))
 
@@ -112,26 +115,74 @@ def get_daily_sza_stats(gdlat,gdlon,date,
             chaps[idate,:] = atm8_chapman_arr(X,szas[idate,:])
 
         chaps[szas >= max_sza] = 1e9
-        chaps = np.exp(1-chaps)
+        chaps = np.exp(tau0*(1.-chaps))
 
-        cosmodel = np.exp(1-1./np.cos(np.deg2rad(szas)))
+        cosmodel = np.exp(tau0*(1-1./np.cos(np.deg2rad(szas))))
         cosmodel[szas > 90] = 0
 
     szastats = dict()    
 
+    bigweights = np.broadcast_to(weights,(tmpdates.size,Nlatlon)).flatten()
+    weighted_szastats = DescrStatsW(szas.flatten(),
+                                    weights=bigweights,
+                                    ddof=0)
+
     for key,func in stats.items():
         # print(key,func)
         if key == 'mean':
-            szastats[key] = np.sum(szas*weights)/(weightTot*tmpdates.size)
+            # szastats[key] = np.sum(szas*weights)/(weightTot*tmpdates.size)
+            szastats[key] = weighted_szastats.mean
+        elif key == 'std':
+            szastats[key] = weighted_szastats.std
+        elif key == 'std_error':
+            szastats[key] = weighted_szastats.std_mean
+        elif key == 'Q1':
+            szastats[key] = weighted_szastats.quantile(0.25)
+        elif key == 'Q3':
+            szastats[key] = weighted_szastats.quantile(0.75)
         else:
             szastats[key] = func(szas)
 
     if add_Chapman_things:
+        # weighted_chapstats = DescrStatsW(chaps, weights=weights, ddof=0)
+        # weighted_cosstats = DescrStatsW(cosmodel, weights=weights, ddof=0)
+        weighted_chapstats = DescrStatsW(chaps.flatten(),
+                                         weights=bigweights,
+                                         ddof=0)
+        weighted_cosstats = DescrStatsW(cosmodel.flatten(),
+                                        weights=bigweights,
+                                        ddof=0)
+
+        ##############################
+        # OLD
+        # for key,func in stats.items():
+        #     # print(key,func)
+        #     if key == 'mean':
+        #         szastats['chap'+key] = np.sum(chaps*weights)/(weightTot*tmpdates.size)
+        #         szastats['cosmodel'+key] = np.sum(cosmodel*weights)/(weightTot*tmpdates.size)
+        #     else:
+        #         szastats['chap'+key] = func(chaps)
+        #         szastats['cosmodel'+key] = func(cosmodel)
+
+        ##############################
+        # NY
         for key,func in stats.items():
             # print(key,func)
             if key == 'mean':
-                szastats['chap'+key] = np.sum(chaps*weights)/(weightTot*tmpdates.size)
-                szastats['cosmodel'+key] = np.sum(cosmodel*weights)/(weightTot*tmpdates.size)
+                szastats['chap'+key] = weighted_chapstats.mean
+                szastats['cosmodel'+key] = weighted_cosstats.mean
+            elif key == 'std':
+                szastats['chap'+key] = weighted_chapstats.std
+                szastats['cosmodel'+key] = weighted_cosstats.std
+            elif key == 'std_error':
+                szastats['chap'+key] = weighted_chapstats.std_mean
+                szastats['cosmodel'+key] = weighted_cosstats.std_mean
+            elif key == 'Q1':
+                szastats['chap'+key] = weighted_chapstats.quantile(0.25)
+                szastats['cosmodel'+key] = weighted_cosstats.quantile(0.25)
+            elif key == 'Q3':
+                szastats['chap'+key] = weighted_chapstats.quantile(0.75)
+                szastats['cosmodel'+key] = weighted_cosstats.quantile(0.75)
             else:
                 szastats['chap'+key] = func(chaps)
                 szastats['cosmodel'+key] = func(cosmodel)
