@@ -59,7 +59,8 @@ def get_daily_sza_stats(gdlat,gdlon,date,
                         add_sunlit_darkness_stats=True,
                         sunlit_darkness__alt=110,
                         add_Chapman_things=True,
-                        Chapman_scaleH=50):
+                        Chapman_scaleH=50,
+                        kill_above_maxsza=False):
 
     if add_Chapman_things:
         from hatch_python_utils.models.Chapman.chapman import atm8_chapman_arr 
@@ -114,11 +115,13 @@ def get_daily_sza_stats(gdlat,gdlon,date,
         for idate,tmpdate in enumerate(tmpdates):
             chaps[idate,:] = atm8_chapman_arr(X,szas[idate,:])
 
-        chaps[szas >= max_sza] = 1e9
+        if kill_above_maxsza:
+            chaps[szas >= max_sza] = 1e9
         chaps = np.exp(tau0*(1.-chaps))
 
         cosmodel = np.exp(tau0*(1-1./np.cos(np.deg2rad(szas))))
-        cosmodel[szas > 90] = 0
+        if kill_above_maxsza:
+            cosmodel[szas > 90] = 0
 
     szastats = dict()    
 
@@ -126,7 +129,7 @@ def get_daily_sza_stats(gdlat,gdlon,date,
     weighted_szastats = DescrStatsW(szas.flatten(),
                                     weights=bigweights,
                                     ddof=0)
-
+    wgtsza_Q1medianQ3 = weighted_szastats.quantile([0.25,0.5,0.75]).values
     for key,func in stats.items():
         # print(key,func)
         if key == 'mean':
@@ -136,10 +139,15 @@ def get_daily_sza_stats(gdlat,gdlon,date,
             szastats[key] = weighted_szastats.std
         elif key == 'std_error':
             szastats[key] = weighted_szastats.std_mean
+        elif key == 'median':
+            # szastats[key] = weighted_szastats.quantile(0.5).values[0]
+            szastats[key] = wgtsza_Q1medianQ3[1]
         elif key == 'Q1':
-            szastats[key] = weighted_szastats.quantile(0.25)
+            # szastats[key] = weighted_szastats.quantile(0.25).values[0]
+            szastats[key] = wgtsza_Q1medianQ3[0]
         elif key == 'Q3':
-            szastats[key] = weighted_szastats.quantile(0.75)
+            # szastats[key] = weighted_szastats.quantile(0.75).values[0]
+            szastats[key] = wgtsza_Q1medianQ3[2]
         else:
             szastats[key] = func(szas)
 
@@ -152,7 +160,8 @@ def get_daily_sza_stats(gdlat,gdlon,date,
         weighted_cosstats = DescrStatsW(cosmodel.flatten(),
                                         weights=bigweights,
                                         ddof=0)
-
+        wgtchap_Q1medianQ3 = weighted_chapstats.quantile([0.25,0.5,0.75]).values
+        wgtcos_Q1medianQ3 = weighted_cosstats.quantile([0.25,0.5,0.75]).values
         ##############################
         # OLD
         # for key,func in stats.items():
@@ -177,12 +186,21 @@ def get_daily_sza_stats(gdlat,gdlon,date,
             elif key == 'std_error':
                 szastats['chap'+key] = weighted_chapstats.std_mean
                 szastats['cosmodel'+key] = weighted_cosstats.std_mean
+            elif key == 'median':
+                # szastats['chap'+key] = weighted_chapstats.quantile(0.5).values[0]
+                # szastats['cosmodel'+key] = weighted_cosstats.quantile(0.5).values[0]
+                szastats['chap'+key] = wgtchap_Q1medianQ3[1]
+                szastats['cosmodel'+key] = wgtcos_Q1medianQ3[1]
             elif key == 'Q1':
-                szastats['chap'+key] = weighted_chapstats.quantile(0.25)
-                szastats['cosmodel'+key] = weighted_cosstats.quantile(0.25)
+                # szastats['chap'+key] = weighted_chapstats.quantile(0.25).values[0]
+                # szastats['cosmodel'+key] = weighted_cosstats.quantile(0.25).values[0]
+                szastats['chap'+key] = wgtchap_Q1medianQ3[0]
+                szastats['cosmodel'+key] = wgtcos_Q1medianQ3[0]
             elif key == 'Q3':
-                szastats['chap'+key] = weighted_chapstats.quantile(0.75)
-                szastats['cosmodel'+key] = weighted_cosstats.quantile(0.75)
+                # szastats['chap'+key] = weighted_chapstats.quantile(0.75).values
+                # szastats['cosmodel'+key] = weighted_cosstats.quantile(0.75).values
+                szastats['chap'+key] = wgtchap_Q1medianQ3[2]
+                szastats['cosmodel'+key] = wgtcos_Q1medianQ3[2]
             else:
                 szastats['chap'+key] = func(chaps)
                 szastats['cosmodel'+key] = func(cosmodel)
