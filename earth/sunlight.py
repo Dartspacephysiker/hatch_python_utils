@@ -60,7 +60,7 @@ def get_daily_sza_stats(gdlat,gdlon,date,
                         sunlit_darkness__alt=110,
                         add_Chapman_things=True,
                         Chapman_scaleH=50,
-                        kill_above_maxsza=False):
+                        kill_above_maxsza=True):
 
     if add_Chapman_things:
         from hatch_python_utils.models.Chapman.chapman import atm8_chapman_arr 

@@ -44,6 +44,7 @@ def geodetic2apex(*args,
                   max_N_months_twixt_apexRefTime_and_obs=3,
                   min_time_resolution__sec=1,
                   interpolateArgs={'method': 'time', 'limit': 21},
+                  do_qdcoords=False,
                   returnPandas=True,
                   return_IGRF=False,
                   return_apex_d_basevecs=False,
@@ -131,8 +132,12 @@ def geodetic2apex(*args,
 
     a = apexpy.Apex(apexRefTime, refh=apexRefHeight_km)
 
-    mlat, mlon = a.geo2apex(
-        dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
+    if do_qdcoords:
+        mlat, mlon = a.geo2qd(
+            dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
+    else:
+        mlat, mlon = a.geo2apex(
+            dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
 
     if canDoMLT:
 
