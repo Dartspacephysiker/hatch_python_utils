@@ -57,6 +57,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
                            doVariance=False,
                            doVariance_CI95=False,
                            doVariance__showStdDev=False,
+                           doMAD=False,
                            treat_as_periodic=False,
                            periodic_Xbounds=None,
                            verbose=False):
@@ -67,6 +68,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
     """
 
     assert not doWeightedSum,"doWeightedSum kw not implemented!"
+    assert doMean or doMedian or dolog10mean or doVariance or doMAD,"Pick something!"
 
     if (xlabel == 'scaledtidoffset') or (xlabel == 'tau'):
         treat_as_periodic = True
