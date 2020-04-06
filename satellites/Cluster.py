@@ -82,13 +82,19 @@ def download_process_save_cluster_lobe_file(
         outparquets.append(datadir+parquetout)
 
     if remove_txtgz_files:
-        print("Removing .txt.gz files")
+        toberemoved = []
 
         for polarcapdbfileREMOTE in polarcapdbfilesREMOTE:
             url = polarcapdbdirREMOTE+polarcapdbfileREMOTE
             filename = os.path.basename(urllib.parse.urlparse(url)[2])
+
             if os.path.exists(datadir+filename):
-                os.remove(datadir+filename)
+                toberemoved.append(datadir+filename)
+
+        if len(toberemoved) > 0:
+            print("Removing .txt.gz files")
+            for toremove in toberemoved:
+                os.remove(toremove)
 
     return outparquets
 
