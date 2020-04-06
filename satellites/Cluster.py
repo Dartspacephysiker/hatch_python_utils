@@ -31,6 +31,7 @@ def download_process_save_cluster_lobe_file(
         filetype='A',
         verbose=False,
         overwrite_existing=False,
+        only_local=True,
         remove_txtgz_files=True):
     
     if (not hasattr(years,'__len__')) or isinstance(years,str):
@@ -47,8 +48,9 @@ def download_process_save_cluster_lobe_file(
     datadir = basedir+'database/Cluster/lobe/'
     polarcapdbdirREMOTE = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/lobe_ver_2020-03-23/'
 
-    user = getpass('Username: ')
-    pw = getpass('PW: ')
+    if not only_local:
+        user = getpass('Username: ')
+        pw = getpass('PW: ')
 
     # polarcapdbfileREMOTE = 'Lobe_C1_2001_A_med1min.txt.gz'
     polarcapdbfilesREMOTE = [f"Lobe_{sat:s}_{year:d}_{filetype}_med1min.txt.gz" for year in years]
@@ -60,8 +62,14 @@ def download_process_save_cluster_lobe_file(
         parquetout = filename.replace('.txt','.parquet').replace('.gz','')
 
         if os.path.exists(datadir+parquetout) and (not overwrite_existing):
-            print(f"Already have {parquetout:s}, not overwriting!")
+            if not only_local:
+                print(f"Already have {parquetout:s}, not overwriting!")
+
             outparquets.append(datadir+parquetout)
+            continue
+
+        # Skip if only local files wanted
+        if only_local:
             continue
 
         r = requests.get(url, auth=(user,pw))
