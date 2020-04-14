@@ -4,6 +4,9 @@
 # AXI2  (20190711): Gridspec!
 # AXI3  (20190823): Sekundær akse med forskjellige tick-merker
 # AXI4  (20200122): Change tick labels
+# AXI5  (20200407): Axis label formatting with StrMethodFormatter
+# AXI6  (20200407): Convert log_10values on x axis to 10**(log_10 values)
+
 ########################################
 # BOXPLOTS
 # BP1   (20190904): Multi boxplots, change colors, etc.
@@ -109,6 +112,21 @@ for X in axcurticks:
     axnewticklabels.append(X * 2)
 ax.set_xticklabels(axnewticklabels)
 
+
+# AXI5  (20200407): Axis label formatting with StrMethodFormatter
+data = [10.**np.arange(-3,1),np.arange(-3,1)]
+
+fig,ax = plt.subplots(1,1)
+_ = ax.plot(data[0],data[1])
+ax.set_xscale('log')
+ax.xaxis.set_major_formatter(mpl.ticker.StrMethodFormatter('{x:.2g}'))
+
+# AXI6  (20200407): Convert log_10values on x axis to 10**(log_10 values)
+@mpl.ticker.FuncFormatter
+def little_formatter(x, pos):
+    return "{:.2g}".format(10**x) if np.isclose(x %1,0) else ""
+
+ax.xaxis.set_major_formatter(little_formatter)
 
 ########################################
 # BOXPLOTS

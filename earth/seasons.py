@@ -9,11 +9,21 @@ def get_season_inds(df,seasonStr='Sep',dt_days=5,
                     relative_dts_inplace=True,
                     verbose=False):
 
-    dt = timedelta(days=dt_days)
+    if not hasattr(dt_days,'__len__'):
+        dt = timedelta(days=dt_days)
+        dt_lower = dt
+        dt_upper = dt
+        dtdaystr = "+/- {:.2f} days".format(dt_days)
+    else:
+        assert len(dt_days) == 2
+        dt_lower = timedelta(dats=dt_days[0])
+        dt_upper = timedelta(dats=dt_days[1])
+        dtdaystr = "+ {:.2f} d/- {:.2f} days".format(dt_days[1],dt_days[0])
 
     if verbose:
-        print("get_season_inds: df has {:8d} inds, requested season is {:5s} +/- {:.2f} days,".
-              format(df.shape[0],seasonStr,dt_days))
+        print("get_season_inds: df has {:8d} inds, requested season is {:5s} {:s}".
+              format(df.shape[0],seasonStr,dt_days,dtdaystr))
+
 
     # Initialize all indices to FALSE
     indices = df.index < df.index.min()
@@ -37,7 +47,7 @@ def get_season_inds(df,seasonStr='Sep',dt_days=5,
     for yr,seasonDT in seasonDict[seasonStr].items():
         # print(seasonDT)
     
-        these = (df.index >= (seasonDT-dt)) & (df.index <= (seasonDT+dt))
+        these = (df.index >= (seasonDT-dt_lower)) & (df.index <= (seasonDT+dt_upper))
         
         nHere = np.where(these)[0].size
         if nHere > 0:
@@ -49,8 +59,6 @@ def get_season_inds(df,seasonStr='Sep',dt_days=5,
 
             if also_return_relative_dts:
                 if relative_dts_inplace:
-                    # tmpvals = df.loc[these,:].index - seasonDT
-                    # breakpoint()
                     
                     df.loc[these,'reldoy'] = (df[these].index - seasonDT).total_seconds().values/(24*3600.)
 
