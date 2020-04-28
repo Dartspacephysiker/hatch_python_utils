@@ -39,8 +39,26 @@ def download_process_save_cluster_file_byregion(**kws):
     elif kws['region'].lower() == 'all':
         print("All-region files ...")
         outparquets = download_process_save_cluster_all_file(**kws)
+    elif kws['region'].lower() == 'hires':
+        print("Hi-res files ...")
+        outparquets = download_process_save_cluster_hires_file(**kws)
 
     return outparquets 
+
+def download_process_save_cluster_hires_file(**kws):
+    
+    basedir, isColtrane = get_basedir()	
+    datadir = basedir+'database/Cluster/hires/'
+    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/hires_no_filter_ver_2020-03-23/'
+
+    filepref,filesuff = 'All_','_hires.txt.xz'
+    clusterfiles = get_cluster_filenames(filepref,filesuff,**kws)
+
+    outparquets = _download_process_save_cluster_file(
+        datadir,remotedir,clusterfiles,**kws)
+
+    return outparquets
+
 
 def download_process_save_cluster_lobe_file(**kws):
     
@@ -168,7 +186,7 @@ def _download_process_save_cluster_file(
     for clusterfile in clusterfiles:
         url = remotedir+clusterfile
         filename = os.path.basename(urllib.parse.urlparse(url)[2])
-        parquetout = filename.replace('.txt','.parquet').replace('.gz','')
+        parquetout = filename.replace('.txt','.parquet').replace('.gz','').replace('.xz','')
 
         if os.path.exists(datadir+parquetout) and (not overwrite_existing):
             if not only_local:
@@ -255,6 +273,11 @@ def read_cluster_txt_file(clusterfile,
         openfunc = lambda f: gzip.open(f,mode='rt')
         if verbose:
             print("Opening with gzip ...")
+    elif '.xz' in clusterfile[-4:]:
+        import lzma
+        openfunc = lambda f: lzma.open(f, mode='rt', encoding='utf-8')
+        if verbose:
+            print("Opening with lzma ...")
     else:
         openfunc = open
 
@@ -289,7 +312,27 @@ def read_cluster_txt_file(clusterfile,
 
             linecount += 1
     
-    datadict = {'Time':[datetime.strptime(dataz[i][0],dtfmt) for i in range(len(dataz))]}    
+    ####################
+    # OLD
+    # 
+    # datadict = {'Time':[datetime.strptime(dataz[i][0],dtfmt) for i in range(len(dataz))]}    
+
+    ####################
+    # NY (fordi me hadde problemer med spørsmåltegn i noen tidsstempler)
+
+    tids = []
+    jerks = []
+    for i in range(len(dataz)):
+        try:
+            tids.append(datetime.strptime(dataz[i][0],dtfmt))
+        except:
+            try:
+                tids.append(datetime.strptime(dataz[i][0][:-1],dtfmt))
+            except:
+                jerks.append(i)
+                breakpoint()
+
+    datadict = {'Time':tids}
     
     for k in range(1,len(namedict.keys())):
         if k in integerparams:

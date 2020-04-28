@@ -21,6 +21,16 @@ def datetime_to_doy(dts):
     return [doy_from_tuple(tider(dt.timetuple())) for dt in dts]
 
 
+def datetime_to_yearfrac(dts):
+    """
+    Convert list of datetime-like objects to year fractions.
+    For example, 2001-06-30 becomes 2001.4945364574537
+
+    2020-04-17    SMH 
+    """
+    return [dt.year+doy_single(dt)/doy_single(datetime.datetime(dt.year,12,31,23,59)) for dt in dts]
+
+
 def jd_to_datetime(jds):
     noonJan1200UT__JD = 2451545.
     tdeltas = jds-noonJan1200UT__JD
