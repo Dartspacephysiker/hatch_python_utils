@@ -177,16 +177,20 @@ def _download_process_save_cluster_file(
     remove_txtgz_files = kws['remove_txtgz_files'] if 'remove_txtgz_files' in kws else True
     overwrite_existing = kws['overwrite_existing'] if 'overwrite_existing' in kws else False
     verbose = kws['verbose'] if 'verbose' in kws else False
+    debug = kws['debug'] if 'debug' in kws else False
 
     if not only_local:
         user = getpass('Username: ')
         pw = getpass('PW: ')
 
     outparquets = []
-    for clusterfile in clusterfiles:
+    nfiles = len(clusterfiles)
+    for ifile,clusterfile in enumerate(clusterfiles):
         url = remotedir+clusterfile
         filename = os.path.basename(urllib.parse.urlparse(url)[2])
         parquetout = filename.replace('.txt','.parquet').replace('.gz','').replace('.xz','')
+
+        print(f"{ifile+1:2d}/{nfiles:2d}: {filename:30s}")
 
         if os.path.exists(datadir+parquetout) and (not overwrite_existing):
             if not only_local:
@@ -210,7 +214,8 @@ def _download_process_save_cluster_file(
                   _ = out.write(bits)
         
         df = read_cluster_txt_file(datadir+filename,
-                              verbose=verbose)
+                                   verbose=verbose,
+                                   debug=debug)
         
         print(f"Saving to {parquetout:s}")
         df.to_parquet(datadir+parquetout)
@@ -234,7 +239,7 @@ def _download_process_save_cluster_file(
     return outparquets
 
 
-def parse_cluster_txt_header(headerline,verbose=False):
+def parse_cluster_txt_header(headerline,debug=False):
 
     from itertools import groupby
     
@@ -247,7 +252,7 @@ def parse_cluster_txt_header(headerline,verbose=False):
     
             pos, first_item = next(g)
             name = (first_item + ''.join([x for _, x in g])).replace('#','')
-            if verbose:
+            if debug:
                 print(pos, name)
     
             namedict[positioncount] = name
@@ -259,7 +264,8 @@ def parse_cluster_txt_header(headerline,verbose=False):
 
 
 def read_cluster_txt_file(clusterfile,
-                          verbose=False):
+                          verbose=False,
+                          debug=False):
     linecount = 0
     dataz = []
     headerpos = -1
@@ -271,12 +277,12 @@ def read_cluster_txt_file(clusterfile,
 
     if '.gz' in clusterfile[-4:]:
         openfunc = lambda f: gzip.open(f,mode='rt')
-        if verbose:
+        if debug:
             print("Opening with gzip ...")
     elif '.xz' in clusterfile[-4:]:
         import lzma
         openfunc = lambda f: lzma.open(f, mode='rt', encoding='utf-8')
-        if verbose:
+        if debug:
             print("Opening with lzma ...")
     else:
         openfunc = open
@@ -287,7 +293,7 @@ def read_cluster_txt_file(clusterfile,
     
             if haveHeader:
                 if line[0] == '#':
-                    if verbose:
+                    if debug:
                         print(f"End of file at line {linecount:d}")
                     break
     
@@ -295,7 +301,7 @@ def read_cluster_txt_file(clusterfile,
     
             else:
                 if headerstr in line:
-                    if verbose:
+                    if debug:
                         print(f"Found header at line {linecount:d}")
                     headerpos = linecount
                     
@@ -307,7 +313,7 @@ def read_cluster_txt_file(clusterfile,
                     units = next(f).split()
                     
                     namedict,positiondict = parse_cluster_txt_header(headerline,
-                                                                     verbose=verbose)
+                                                                     debug=debug)
                     assert len(namedict) == 69
 
             linecount += 1
@@ -336,11 +342,11 @@ def read_cluster_txt_file(clusterfile,
     
     for k in range(1,len(namedict.keys())):
         if k in integerparams:
-            if verbose:
+            if debug:
                 print(f"INTEGER: {k:2d} {namedict[k]:s}")
             datadict[namedict[k]] = np.array([int(dataz[i][k]) for i in range(len(dataz))]).astype(np.int32)
         else:
-            if verbose:
+            if debug:
                 print(f"FLOAT  : {k:2d} {namedict[k]:s}")
     
             datadict[namedict[k]] = np.array([float(dataz[i][k]) for i in range(len(dataz))])
