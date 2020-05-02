@@ -175,9 +175,12 @@ llabs = [l.get_label() for l in lines]
 leg = ax.legend(lines, llabs, loc=0)
 
 # LEG2  (20191105): Gjør legend-alpha 1
+leg = ax.get_legend()
 for lh in leg.legendHandles:
-    lh._legmarker.set_alpha(0)
-    # lh.set_alpha(1) # IF SCATTER INSTEAD OF PLOT
+    try:
+        lh._legmarker.set_alpha(1)
+    except:
+        lh.set_alpha(1) # IF SCATTER INSTEAD OF PLOT
 
 ########################################
 # SPACING

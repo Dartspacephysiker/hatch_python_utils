@@ -326,6 +326,13 @@ def read_cluster_txt_file(clusterfile,
     ####################
     # NY (fordi me hadde problemer med spørsmåltegn i noen tidsstempler)
 
+    nkeys = len(namedict.keys())
+    if 'hires' in clusterfile:
+        dataz = [data for data in dataz if (len(data) == nkeys)]
+
+    nEntries = len(dataz)
+    print(f"{nEntries:6d} here")
+
     tids = []
     jerks = []
     for i in range(len(dataz)):
@@ -339,7 +346,7 @@ def read_cluster_txt_file(clusterfile,
                 breakpoint()
 
     datadict = {'Time':tids}
-    
+    nkeys = len(namedict.keys())
     for k in range(1,len(namedict.keys())):
         if k in integerparams:
             if debug:
