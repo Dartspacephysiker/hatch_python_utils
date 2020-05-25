@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def bearing(lat1, lat2, lon1, lon2, deg=True):
     if deg:
         lat1, lat2, lon1, lon2 = map(np.deg2rad, (lat1, lat2, lon1, lon2))

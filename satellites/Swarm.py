@@ -174,11 +174,30 @@ def get_Swarm_combo(dates,
                     apex__geodetic2apexOpts=dict(min_time_resolution__sec=1,
                                                  max_N_months_twixt_apexRefTime_and_obs=3),
                     localSaveDir='/media/spencerh/data/Swarm/',
+                    # check_for_existing_funcDict=dict(),
                     removeDownloadedZipAfterProcessing=False,
                     useKallesHardDrive=False,
                     only_download_zips=False,
                     only_list=False,
-                    only_remove_zips=False):
+                    only_remove_zips=False,
+                    opts_hurtigLast=dict()):
+
+    if (localSaveDir == '/media/spencerh/data/Swarm/') and not useKallesHardDrive:
+        localSaveDir = '/SPENCEdata/Research/database/Swarm/'
+
+    if len(opts_hurtigLast.keys()) == 0:
+        breakpoint()
+        opts_hurtigLast = dict(FP__doCorrectTimestamps=False,
+                               FP__doResample=False,
+                               dont_touch_data=False,
+                               dontInterp__justMag=False,
+                               doDebug=False,
+                               overwrite_existing=False,
+                               use_existing=True,
+                               removeCDF=True,
+                               resampleString='500ms',
+                               customSaveSuff='',
+                               make_pickles=True)
 
     try:
         _ = dates[0]
@@ -263,19 +282,9 @@ def get_Swarm_combo(dates,
                                 doProcessLowRes=False,
                                 doProcessFP=dtyper.upper() == 'FP',
                                 doProcessCT=dtyper.upper() == 'CT2HZ',
-                                FP__doCorrectTimestamps=False,
-                                FP__doResample=False,
                                 ranDate=ranDate,
                                 useKallesHardDrive=useKallesHardDrive,
-                                dontInterp__justMag=False,
-                                doDebug=False,
-                                overwrite_existing=False,
-                                use_existing=True,
-                                removeCDF=True,
-                                resampleString='500ms',
-                                customSaveSuff='',
-                                dont_touch_data=False,
-                                make_pickles=True)
+                                **opts_hurtigLast)
 
             if df is not None:
                 dfList.append(df)
@@ -347,6 +356,7 @@ def getMagFTP(sat='A',
               # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/MAG_HR/'):
               localSaveDir='/media/spencerh/data/Swarm/',
               only_list=False,
+              check_for_existing_func=None,
               append_dir=False):
     # Swarm_A/SW_OPER_MAGA_
 
@@ -373,6 +383,7 @@ def getLPFTP(sat='A',
              # localSaveDir='/SPENCEdata/Research/Satellites/Swarm/rawFTP/EFI_LP/'):
              localSaveDir='/media/spencerh/data/Swarm/',
              only_list=False,
+             check_for_existing_func=None,
              append_dir=False):
 
     localSaveDir += '/EFI_LP/Swarm_'+sat+'/'
@@ -395,6 +406,7 @@ def getFPFTP(sat='A',
              dates=None,
              localSaveDir='/media/spencerh/data/Swarm/',
              only_list=False,
+             check_for_existing_func=None,
              append_dir=False):
     """
     Get a faceplate file
@@ -422,18 +434,28 @@ def getFPFTP(sat='A',
 def getCT2HzFTP(sat='A',
                 dates=None,
                 localSaveDir='/media/spencerh/data/Swarm/',
+                calversion='0201',
                 only_list=False,
+                check_for_existing_func=None,
                 append_dir=False):
     """
     Get a cross-track 2-Hz file
     """
 
+    VALID_CAL_VERSIONS = ['0201','0101']
+
+    assert calversion in VALID_CAL_VERSIONS
+    if calversion == '0201':
+        subfolder = 'New_baseline' 
+    elif calversion == '0101':
+        subfolder = 'Old_baseline' 
+
     localSaveDir += '2Hz_TII_Cross-track/Swarm_'+sat+'/'
 
     swarmFTPAddr = "swarm-diss.eo.esa.int"
 
-    subDir = '/Advanced/Plasma_Data/2Hz_TII_Cross-track_Dataset/Sat_{:s}/'.format(
-        sat)
+    subDir = f'/Advanced/Plasma_Data/2Hz_TII_Cross-track_Dataset/{subfolder:s}/Sat_{sat:s}/'
+
 
     # EXAMPLE: SW_EXPT_EFIA_TIICT_20151101T155814_20151101T235004_0101.CDF.ZIP
     # ftpFilePref = 'SW_EXPT_EFI'+sat+'_TIICT_'
@@ -442,7 +464,8 @@ def getCT2HzFTP(sat='A',
                                 only_list=only_list)
 
     if append_dir:
-        gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
+        if gotFiles is not None:
+            gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
 
     return gotFiles
 

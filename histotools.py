@@ -23,30 +23,30 @@ def make_periodic_tau_bins(taumin=0,taumax=4,nbins=21,
                            addNBinsBefore=2,
                            addNBinsAfter=2):
 
-    sjekkBins = np.linspace(taumin,taumax,nbins)
+    binEdges = np.linspace(taumin,taumax,nbins)
     # addNBinsBefore = 2
     # addNBinsAfter = 2
     binCount = 0
     while binCount < addNBinsBefore:
-        sjekkBins = np.insert(sjekkBins,
+        binEdges = np.insert(binEdges,
                               0,
-                              sjekkBins[0] - (sjekkBins[1]-sjekkBins[0]))
+                              binEdges[0] - (binEdges[1]-binEdges[0]))
         binCount += 1
 
     binCount = 0
     while binCount < addNBinsAfter:
-        sjekkBins = np.insert(sjekkBins,
-                              sjekkBins.size,
-                              sjekkBins[-1] + (sjekkBins[1]-sjekkBins[0]))
+        binEdges = np.insert(binEdges,
+                              binEdges.size,
+                              binEdges[-1] + (binEdges[1]-binEdges[0]))
         binCount += 1
 
-    sjekkBins = np.insert(sjekkBins + (sjekkBins[1]-sjekkBins[0])/2.,
+    binEdges = np.insert(binEdges + (binEdges[1]-binEdges[0])/2.,
                           0,
-                          sjekkBins[0] - (sjekkBins[1]-sjekkBins[0])/2.)
+                          binEdges[0] - (binEdges[1]-binEdges[0])/2.)
 
-    return sjekkBins
+    return binEdges
 
-def calc_binned_stats_dict(xvals,yvals,sjekkBins,
+def calc_binned_stats_dict(xvals,yvals,binEdges,
                            xlabel='',
                            doWeightedSum=False,
                            weights=None,
@@ -80,7 +80,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
     if doWeightedSum:
 
         midAll, medAll, Q1All, Q3All, bincounts = bin_weighted_sum_getter(xvals,yvals,weights,
-                                                                          binlines=sjekkBins,
+                                                                          binlines=binEdges,
                                                                           include_bincounts=True,
                                                                           treat_as_periodic=treat_as_periodic,
                                                                           periodic_Xbounds=periodic_Xbounds)
@@ -92,14 +92,14 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
             # midAll, medAll, CI95_LOW, CI95_HIGH, bincounts = bin_median_CI95_getter(xvals,
             midAll, medAll, Q1All, Q3All, bincounts = bin_median_CI95_getter(xvals,
                                                                              yvals,
-                                                                             binlines=sjekkBins,
+                                                                             binlines=binEdges,
                                                                              include_bincounts=True,
                                                                              treat_as_periodic=treat_as_periodic,
                                                                              periodic_Xbounds=periodic_Xbounds)
         else:
             midAll, medAll, Q1All, Q3All, bincounts = bin_median_Q1_Q3_getter(xvals,
                                                                               yvals,
-                                                                              binlines=sjekkBins,
+                                                                              binlines=binEdges,
                                                                               include_bincounts=True,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
@@ -113,7 +113,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
             
             midAll, medAll, Q1All, Q3All, bincounts = bin_variance_CI95_getter(xvals,
                                                                                yvals,
-                                                                               binlines=sjekkBins,
+                                                                               binlines=binEdges,
                                                                                include_bincounts=True,
                                                                                treat_as_periodic=treat_as_periodic,
                                                                                periodic_Xbounds=periodic_Xbounds)
@@ -133,7 +133,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
         if dolog10:
             midAll, medAll, Q1All, Q3All,bincounts = bin_mean_pmstddev_getter(xvals,
                                                                               np.log10(yvals),
-                                                                              binlines=sjekkBins,
+                                                                              binlines=binEdges,
                                                                               include_bincounts=True,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
@@ -141,7 +141,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
         else:
             midAll, medAll, Q1All, Q3All,bincounts = bin_mean_pmstddev_getter(xvals,
                                                                               yvals,
-                                                                              binlines=sjekkBins,
+                                                                              binlines=binEdges,
                                                                               include_bincounts=True,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
@@ -151,7 +151,7 @@ def calc_binned_stats_dict(xvals,yvals,sjekkBins,
 
         midAll, medAll, Q1All, Q3All, bincounts = bin_MAD_getter(xvals,
                                                                  yvals,
-                                                                 binlines=sjekkBins,
+                                                                 binlines=binEdges,
                                                                  include_bincounts=True,
                                                                  treat_as_periodic=treat_as_periodic,
                                                                  periodic_Xbounds=periodic_Xbounds)
