@@ -8,8 +8,10 @@ from hatch_python_utils import omni_utils as hOMNI
 from hatch_python_utils.earth import coordinates as hCoord
 from hatch_python_utils.earth.bearing import mlt_bearing
 
+from hatch_python_utils.hatch_utils import get_basedir
+basedir,isColtrane = get_basedir()
 import sys
-needdir = '/SPENCEdata/Research/sandbox_and_journals/journals/Swarm/'
+needdir = basedir+'sandbox_and_journals/journals/Swarm/'
 if needdir not in sys.path:
     sys.path.insert(0, needdir)
 import swarmProcHelper as sPH
@@ -371,6 +373,9 @@ def getMagFTP(sat='A',
     # EXAMPLE: SW_OPER_MAGA_HR_1B_20131125T110251_20131125T235959_0505.CDF.ZIP
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
+
+    if gotFiles is None:
+        gotFiles = []
 
     if append_dir:
         gotFiles = [localSaveDir+gotFile for gotFile in gotFiles]
