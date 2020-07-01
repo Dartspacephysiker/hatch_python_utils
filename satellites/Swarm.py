@@ -188,7 +188,7 @@ def get_Swarm_combo(dates,
         localSaveDir = '/SPENCEdata/Research/database/Swarm/'
 
     if len(opts_hurtigLast.keys()) == 0:
-        breakpoint()
+        # breakpoint()
         opts_hurtigLast = dict(FP__doCorrectTimestamps=False,
                                FP__doResample=False,
                                dont_touch_data=False,
