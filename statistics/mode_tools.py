@@ -49,7 +49,7 @@ def fastrobustmode(data):
     wmin = np.max(data)-np.min(data)
     N = np.int64(np.ceil(Nsamp/2))
     for i in range(N):
-        w = data[N+i]-data[i]
+        w = data[N+i-1]-data[i]
         if w < wmin:
             wmin = w
             j = i
