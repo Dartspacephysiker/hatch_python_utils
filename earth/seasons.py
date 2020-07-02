@@ -22,7 +22,7 @@ def get_season_inds(df,seasonStr='Sep',dt_days=5,
 
     if verbose:
         print("get_season_inds: df has {:8d} inds, requested season is {:5s} {:s}".
-              format(df.shape[0],seasonStr,dt_days,dtdaystr))
+              format(df.shape[0],seasonStr,dtdaystr))
 
 
     # Initialize all indices to FALSE
