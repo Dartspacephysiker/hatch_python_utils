@@ -1,9 +1,59 @@
-# From "Modal Series #1 — How To Estimate The Global Mode From Data Sample"
-# https://towardsdatascience.com/modal-series-1-how-to-estimate-the-global-mode-from-data-sample-e3e41380bfdb
 import numpy as np
 from scipy.stats import mode, gaussian_kde
 from scipy.optimize import minimize, shgo
 import warnings
+
+def fastrobustmode(data):
+    """
+    From "On a fast, robust estimator of the mode: Comparisons to other robust estimators with applications"
+    2006, Bickel and Frühwirth
+    https://www.sciencedirect.com/science/article/pii/S0167947305001581
+    """
+    # data = np.random.normal(size=4)
+    data = np.sort(data) 
+    Nsamp = data.size
+
+    # If there is only one number in the sample(n=1), then that number is the
+    # estimate ofthe mode. Returnx1and stop.
+    if data.size == 1:
+        return data[0]
+
+    # 2.  If there are two numbers in the sample(n=2), then the estimate of the mode
+    # is themean of those numbers. Return(x1+x2)/2 and stop.
+    elif data.size == 2:
+        return np.mean(data)
+
+    # 3.  If there are three numbers in the sample(n=3), then the estimate of the
+    # mode is the meanof the two numbers that are closest together: ifx2−x1<x3−x2,
+    # then return(x1+x2)/2and stop, but ifx2−x1<x3−x2, then return(x2+x3)/2 and
+    # stop. Otherwise, ifn=3andx2−x1=x3−x2, then the mode is estimated to bex2;
+    # returnx2and stop.
+    elif data.size == 3:
+        diffs = np.diff(data)
+        if np.isclose(*diffs):
+            return data[1]
+        elif diffs[0] < diffs[1]:
+            return np.mean(data[:2])
+        elif diffs[0] > diffs[1]:
+            return np.mean(data[1:])
+
+    # 4.  If there are four or more numbers in the sample(n4), then the algorithm
+    # will berecursively applied to about half of the sample. Set the minimum interval
+    # width to therange of the sample:wmin=xn−x1. This will be replaced by the width
+    # of the smallestinterval that contains approximately half of the values of the
+    # sample. SetNequal to thesmallest integer greater than or equal ton/2. (This
+    # algorithm could be generalized bysettingNequal to the smallest integer greater
+    # than or equal to n, where 0< <1, butestimators have not been studied with
+    # =1/2.) Fori=1,2,3,...,n−N+1, do thefollowing two steps:(a) Set the
+    # widthw=xi+N−1−xi.(b) Ifw<wmin, then setwmin=wand setj=i.
+    wmin = np.max(data)-np.min(data)
+    N = np.int64(np.ceil(Nsamp/2))
+    for i in range(N):
+        w = data[N+i]-data[i]
+        if w < wmin:
+            wmin = w
+            j = i
+    return fastrobustmode(data[j:N+j])
 
 
 def kde(array,
@@ -23,6 +73,8 @@ def kde(array,
     return gaussian_kde(array, bw_method=bw_method)
 
 
+# From "Modal Series #1 — How To Estimate The Global Mode From Data Sample"
+# https://towardsdatascience.com/modal-series-1-how-to-estimate-the-global-mode-from-data-sample-e3e41380bfdb
 def mode_estimation(array, cut_down=True, bw_method='scott'):
     kernel = kde(array, cut_down=cut_down, bw_method=bw_method)
     bounds = np.array([[array.min(), array.max()]])
