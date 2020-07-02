@@ -70,7 +70,7 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
     assert not doWeightedSum,"doWeightedSum kw not implemented!"
     assert doMean or doMedian or dolog10mean or doVariance or doMAD,"Pick something!"
 
-    if (xlabel == 'scaledtidoffset') or (xlabel == 'tau'):
+    if (xlabel == 'scaledtidoffset') or (xlabel == 'localscaledtidoffset') or (xlabel == 'tau'):
         treat_as_periodic = True
         periodic_Xbounds = np.array([0,4])
     else:

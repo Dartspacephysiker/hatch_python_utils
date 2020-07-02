@@ -127,7 +127,7 @@ def mode_estimation_suite(array,
     elif len(array) <= 10000:
         nPoints = 10*len(array)
     else:
-        nPoints = 10000
+        nPoints = np.cut(10000, 0, len(array))
 
     mode_est = shgo(lambda x: -kernel(x)[0], bounds=bounds,
                     n=nPoints).x[0]
