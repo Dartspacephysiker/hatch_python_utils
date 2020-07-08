@@ -49,7 +49,8 @@ def download_process_save_cluster_hires_file(**kws):
     
     basedir, isColtrane = get_basedir()	
     datadir = basedir+'database/Cluster/hires/'
-    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/hires_no_filter_ver_2020-03-23/'
+    # remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/hires_no_filter_ver_2020-03-23/'
+    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/hires_no_filter_ver_2020-06-08/'
 
     filepref,filesuff = 'All_','_hires.txt.xz'
     clusterfiles = get_cluster_filenames(filepref,filesuff,**kws)
@@ -64,7 +65,8 @@ def download_process_save_cluster_lobe_file(**kws):
     
     basedir, isColtrane = get_basedir()	
     datadir = basedir+'database/Cluster/lobe/'
-    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/lobe_ver_2020-03-23/'
+    # remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/lobe_ver_2020-03-23/'
+    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/lobe_ver_2020-06-08/'
 
     filepref,filesuff = 'Lobe_','_med1min.txt.gz'
     clusterfiles = get_cluster_filenames(filepref,filesuff,**kws)
@@ -79,7 +81,8 @@ def download_process_save_cluster_polarcap_file(**kws):
     
     basedir, isColtrane = get_basedir()	
     datadir = basedir+'database/Cluster/polarcap/'
-    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/polar_cap_ver_2020-03-23/'
+    # remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/polar_cap_ver_2020-03-23/'
+    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/polar_cap_ver_2020-06-08/'
 
     filepref,filesuff = 'PolarCap_','_med1min.txt.gz'
     clusterfiles = get_cluster_filenames(filepref,filesuff,**kws)
@@ -94,7 +97,8 @@ def download_process_save_cluster_all_file(**kws):
     
     basedir, isColtrane = get_basedir()	
     datadir = basedir+'database/Cluster/all/'
-    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/all_no_filter_ver_2020-03-23/'
+    # remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/all_no_filter_ver_2020-03-23/'
+    remotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/all_no_filter_ver_2020-06-08/'
 
     filepref,filesuff = 'All_','_med1min.txt.gz'
     clusterfiles = get_cluster_filenames(filepref,filesuff,**kws)
@@ -113,14 +117,17 @@ def download_process_save_cluster_sum_file(**kws):
 
     baseremotedir = 'http://fys-server-web.uio.no/plasma/cluster/polarCapLobeDataBase/current_version/'
     if 'all' in location.lower():
-        remotedir = baseremotedir+'all_no_filter_ver_2020-03-23/'
+        # remotedir = baseremotedir+'all_no_filter_ver_2020-03-23/'
+        remotedir = baseremotedir+'all_no_filter_ver_2020-06-08/'
         filepref,filesuff = 'All_','_med1min.txt.gz'
         
     elif 'polarcap' in location.lower():
-        remotedir = baseremotedir+'polar_cap_ver_2020-03-23/'
+        # remotedir = baseremotedir+'polar_cap_ver_2020-03-23/'
+        remotedir = baseremotedir+'polar_cap_ver_2020-06-08/'
         filepref,filesuff = 'PolarCap_','_med1min.txt.gz'
     elif 'lobe' in location.lower():
-        remotedir = baseremotedir+'lobe_ver_2020-03-23/'
+        # remotedir = baseremotedir+'lobe_ver_2020-03-23/'
+        remotedir = baseremotedir+'lobe_ver_2020-06-08/'
         filepref,filesuff = 'Lobe_','_med1min.txt.gz'
     else:
         assert 2 < 0,"Must provide 'all', 'polarcap', or 'lobe' as location keyword!"

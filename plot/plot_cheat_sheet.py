@@ -131,17 +131,17 @@ def little_formatter(x, pos):
 ax.xaxis.set_major_formatter(little_formatter)
 
 # AXI7  (20200630): Nice scientific notation (base 10)
-ax.ticklabel_format(axis='y',style='sci',scilimits=(4,4))
-ax.yaxis.major.formatter._useMathText = True  # This chunk forces 10**x notation, as I recall
+_ = ax.ticklabel_format(axis='y',style='sci',scilimits=(4,4))
+_ = ax.yaxis.major.formatter._useMathText = True  # This chunk forces 10**x notation, as I recall
 
 # AXI8  (20200701): Remove top and right spines
 # Hide the right and top spines
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)
+_ = ax.spines['right'].set_visible(False)
+_ = ax.spines['top'].set_visible(False)
 
 # Only show ticks on the left and bottom spines
-ax.yaxis.set_ticks_position('left')
-ax.xaxis.set_ticks_position('bottom')
+_ = ax.yaxis.set_ticks_position('left')
+_ = ax.xaxis.set_ticks_position('bottom')
 
 ########################################
 # BOXPLOTS
