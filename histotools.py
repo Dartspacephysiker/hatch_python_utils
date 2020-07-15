@@ -130,7 +130,7 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
     elif doMean:
         if verbose:
             print("Real Lindis")
-        if dolog10:
+        if dolog10mean:
             midAll, medAll, Q1All, Q3All,bincounts = bin_mean_pmstddev_getter(xvals,
                                                                               np.log10(yvals),
                                                                               binlines=binEdges,
