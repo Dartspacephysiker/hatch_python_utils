@@ -60,12 +60,13 @@ def get_daily_sza_stats(gdlat,gdlon,date,
                         sunlit_darkness__alt=110,
                         add_Chapman_things=True,
                         Chapman_scaleH=50,
-                        kill_above_maxsza=True):
+                        kill_above_maxsza=True,
+                        return_individual_samples=True):
 
     if add_Chapman_things:
         from hatch_python_utils.models.Chapman.chapman import atm8_chapman_arr 
 
-    assert (date.hour + date.minute/60. + date.second/3600.) == 0
+    # assert (date.hour + date.minute/60. + date.second/3600.) == 0
 
     if statfunctiondict is not None:
 
@@ -122,6 +123,21 @@ def get_daily_sza_stats(gdlat,gdlon,date,
         cosmodel = np.exp(tau0*(1-1./np.cos(np.deg2rad(szas))))
         if kill_above_maxsza:
             cosmodel[szas > 90] = 0
+
+    if return_individual_samples:
+        retme = dict(dates=tmpdates,
+                     gdlat=gdlat,
+                     gdlon=gdlon,
+                     sza=szas)
+
+        if add_Chapman_things:
+            retme['chaps'] = chaps
+            retme['cosmodel'] = cosmodel
+
+        if add_sunlit_darkness_stats:
+            retme['sunlit'] = szas < max_sza
+
+        return retme
 
     szastats = dict()    
 
