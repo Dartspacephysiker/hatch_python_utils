@@ -1,6 +1,7 @@
 # 2019/10/28
 import numpy as np
 from scipy.stats import binom as binomDist
+from hatch_python_utils.statistics.mode_tools import fastrobustmode
 from hatch_python_utils.statistics.CI import ( \
                                                CI_95_median_rankvalue, 
                                                CI_95_quantile_rankvalue, 
@@ -52,6 +53,7 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
                            weights=None,
                            doMedian=True,
                            doMedian_CI95=True,
+                           doMode=False,
                            doMean=False,
                            dolog10mean=False,
                            doVariance=False,
@@ -68,11 +70,14 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
     """
 
     assert not doWeightedSum,"doWeightedSum kw not implemented!"
-    assert doMean or doMedian or dolog10mean or doVariance or doMAD,"Pick something!"
+    assert doMean or doMedian or dolog10mean or doVariance or doMAD or doMode,"Pick something!"
 
     if (xlabel == 'scaledtidoffset') or (xlabel == 'localscaledtidoffset') or (xlabel == 'tau'):
         treat_as_periodic = True
         periodic_Xbounds = np.array([0,4])
+    elif xlabel == 'UT':
+        treat_as_periodic = True
+        periodic_Xbounds = np.array([0,24])
     else:
         treat_as_periodic = False
         periodic_Xbounds = None
@@ -103,6 +108,13 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
                                                                               include_bincounts=True,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
+    elif doMode:
+        midAll, medAll, Q1All, Q3All, bincounts = bin_mode_Q1_Q3_getter(xvals,
+                                                                        yvals,
+                                                                        binlines=binEdges,
+                                                                        include_bincounts=True,
+                                                                        treat_as_periodic=treat_as_periodic,
+                                                                        periodic_Xbounds=periodic_Xbounds)
     elif doVariance:
         if verbose:
             print("VARIANCE (maybelog10)")
@@ -562,3 +574,87 @@ def bin_variance_CI95_getter(X, Y,
         return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH
 
 
+def bin_mode_getter(X, Y, binlines=None,
+                    statfunc=fastrobustmode,
+                    statfunc_kws=dict(),
+                    treat_as_periodic=False,
+                    periodic_Xbounds=None,
+                    include_CI95=False,
+                    verbose=False):
+    """
+    binmode, vals[, CI95_LOW, CI95_HIGH] = bin_mode_getter(X, Y, binlines=None, statfunc=hatch_python_utils.statistics.mode_tools.fastrobustmode)
+    """
+
+    if binlines is None:
+        binlines = np.arange(0, 70.1, 2.5)
+    elif isinstance(binlines,int):
+        binlines = np.linspace(np.min(X),np.max(X),binlines)
+
+    binlines_are_Nx2 = len(binlines.shape) == 2
+    if binlines_are_Nx2:
+        nBins = binlines.shape[0]
+        binstat = np.mean(binlines,axis=1)
+    else:
+        nBins = len(binlines)-1
+        binstat = np.diff(binlines)/2.+binlines[0:-1]
+
+    CI95_LOW = np.zeros(binstat.shape)*np.nan
+    CI95_HIGH = np.zeros(binstat.shape)*np.nan
+
+    vals = np.zeros(binstat.shape)*np.nan
+    for i in range(nBins):
+        if binlines_are_Nx2:
+            tmpbinedges = binlines[i,:]
+        else:
+            tmpbinedges = binlines[i], binlines[i+1]
+
+        # this = np.where((X >= tmpbinedges[0]) & (
+        #     X <= tmpbinedges[1]))[0]
+        this = get_periodic_bin_edge_indices(X,tmpbinedges,
+                                             treat_as_periodic=treat_as_periodic,
+                                             periodic_Xbounds=periodic_Xbounds)
+
+        if len(this) > 0:
+
+            vals[i] = statfunc(Y[this],**statfunc_kws)
+
+            if include_CI95:
+                CI95 = CI_95_func(Y[this],**CI95func_kws)
+                CI95_LOW[i] = CI95[0]
+                CI95_HIGH[i] = CI95[1]
+
+        # print(*tmpbinedges,vals[i])
+    if include_CI95:
+        return binstat, vals, CI95_LOW, CI95_HIGH
+    else:
+        return binstat, vals
+
+def bin_mode_Q1_Q3_getter(X, Y, binlines=None,include_bincounts=True,
+                          treat_as_periodic=False,
+                          periodic_Xbounds=None):
+    """
+    binmidpts, median, Q1, Q3 = bin_mode_Q1_Q3_getter(X, Y, binlines=None)
+    """
+
+    Q1func = lambda x :np.quantile(x,0.25)
+    Q3func = lambda x :np.quantile(x,0.75)
+
+    midtpunkter, binVerdi = bin_median_getter(X, Y, binlines=binlines,statfunc=fastrobustmode,
+                                              treat_as_periodic=treat_as_periodic,
+                                              periodic_Xbounds=periodic_Xbounds)
+    midtpunkter, Q1 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q1func,
+                                        treat_as_periodic=treat_as_periodic,
+                                        periodic_Xbounds=periodic_Xbounds)
+    midtpunkter, Q3 = bin_median_getter(X, Y, binlines=binlines,statfunc=Q3func,
+                                        treat_as_periodic=treat_as_periodic,
+                                        periodic_Xbounds=periodic_Xbounds)
+
+    if include_bincounts:
+        midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
+
+        return midtpunkter, binVerdi, Q1, Q3, bincounts
+
+    else:
+        return midtpunkter, binVerdi, Q1, Q3
