@@ -80,7 +80,7 @@ def omni_getter(*args,
     omni_getter(t_start OR time_array[,t_end])
     """
 
-    from geospacepy import omnireader
+    from nasaomnireader import omnireader
 
     input_is_arr = False
     if len(args) == 0:
@@ -159,7 +159,7 @@ def omni_getter(*args,
     if include_AL_AU:
         AL, AU = omniInt['AL_INDEX'], omniInt['AU_INDEX']
 
-    vsw, psw = omniInt['flow_speed'], omniInt['Pressure']
+    vsw, psw, nProt, T = omniInt['flow_speed'], omniInt['Pressure'], omniInt['proton_density'], omniInt['T']
     borovsky_reader = omnireader.borovsky(omniInt)
     borovsky = borovsky_reader()
 
@@ -168,9 +168,13 @@ def omni_getter(*args,
     epochs_1hr = omniInt_1hr['Epoch']  # datetime timestamps
     F107, Kp, DST = omniInt_1hr['F10_INDEX'], omniInt_1hr['KP'], omniInt_1hr['DST']
 
-    SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell)),
-                         index=epochs,
-                         columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell'])
+    # SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell)),
+    #                      index=epochs,
+    #                      columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell'])
+    SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell,nProt, T)),
+                         columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell','proton_density','temperature'],
+                         index=epochs)
+
 
     if include_AL_AU:
         print("Adding AL, AU indices")
