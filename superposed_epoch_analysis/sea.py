@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from hatch_python_utils.earth.seasons import get_scaled_season_parameter
+from hatch_python_utils.earth.seasons import get_scaled_season_parameter,add_scaled_season_column
 
 def screen_epochtime_db(dfepoch,
                         doScreenBySeason=False,
@@ -244,18 +244,3 @@ def get_epoch_reltimes(dfdata,dfepoch,
                 print(index,nIndsHere)
 
 
-def add_scaled_season_column(df,
-                             data_latitudecol='alat110',
-                             verbose=False):
-
-    df['scaledtidoffset'] = 0.
-
-    df['scaledtidoffset'] = get_scaled_season_parameter(df.index,
-                                                        verbose=verbose)
-
-    df['localscaledtidoffset'] = df['scaledtidoffset']
-    if data_latitudecol in df.columns:
-        shinds = df[data_latitudecol] < 0
-        df.loc[shinds,'localscaledtidoffset'] = (df.loc[shinds,'localscaledtidoffset'] + 2) % 4
-    else:
-        print(f"Column '{data_latitudecol}' does not exist in provided df! Not calculating 'localscaledtidoffset'")
