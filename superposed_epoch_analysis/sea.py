@@ -5,7 +5,9 @@ from hatch_python_utils.earth.seasons import get_scaled_season_parameter,add_sca
 def screen_epochtime_db(dfepoch,
                         doScreenBySeason=False,
                         seasonOrMonths=None,
+                        do_screen_by_tdiff=True,
                         mintdiffHours=60,
+                        mintdiff_how_to_screen='keep_first',
                         data_latitudecol='alat110',
                         verbose=True):
     """
@@ -20,7 +22,9 @@ def screen_epochtime_db(dfepoch,
     doScreenBySeason              (bool): Shall I screen by season?
     seasonOrMonths         (list or str): How to do season screening? 
                                           Could be, e.g., either [3,4,9,10] (Mar, Apr, Sep, Oct), or "winter", or "Mar" for March equinox
+    do_screen_by_tdiff            (bool): Do screen by temporal separation in hours
     mintdiffHours              (numeric): minimum separation, in hours, between adjacent sudden commencements
+    mintdiff_how_to_screen         (str): One of "keep_first", "keep_last", or "keep_neither".
 
     NOTE: If seasonOrMonths = 
 
@@ -43,6 +47,10 @@ def screen_epochtime_db(dfepoch,
         assertwarn = "Must have seasonOrMonths be one of [1..12,'mar','jun','sep','dec','spr','sum','fal','win']!"
         assert isnumericlist or isseason or islocalseason,assertwarn
 
+    if do_screen_by_tdiff:
+        assert np.isscalar(mintdiffHours),"mintdiffHours must be a scalar!"
+        assert mintdiff_how_to_screen in ['keep_first','keep_last','keep_neither'],"mintdiff_how_to_screen must be one of ['keep_first','keep_last','keep_neither']"
+
     ##############################
     # SCREENING
 
@@ -52,10 +60,39 @@ def screen_epochtime_db(dfepoch,
 
     ##########
     # Screen so that separation between SCs is at least [mintdiffHours] hours
-    if np.isscalar(mintdiffHours):
+    if do_screen_by_tdiff:
+
         sc_tdiffs = np.diff(dfepoch.index).astype(np.int64)/1e9/3600  # hours
-        sc_tdiffs = np.insert(sc_tdiffs,0,0)
-        newscreen = keepepoch & (sc_tdiffs > mintdiffHours)
+        sc_tdiffs = np.insert(sc_tdiffs,0,10000)
+
+        if mintdiff_how_to_screen == 'keep_first':
+            newscreen = keepepoch & (sc_tdiffs > mintdiffHours)
+        elif mintdiff_how_to_screen in ['keep_last','keep_neither']:
+
+            # sc_epochs = np.array([0,10,70,130,210])
+            # sc_tdiffs = np.diff(sc_epochs)
+            # sc_tdiffs = np.insert(sc_tdiffs,0,10000)
+
+            # if mintdiff_how_to_screen == 'keep_first':
+            #     keepheads = sc_tdiffs > mintdiffHours
+            # else:
+            newscreen = np.ones(len(sc_tdiffs),dtype=np.bool)
+
+            for i,val in enumerate(sc_tdiffs > mintdiffHours): 
+                # print(i,val)
+                if not val:
+                    if mintdiff_how_to_screen == 'keep_last':
+                        # MIGHT BE THAT WE NEED TO DO SOMETHING SPECIAL WITH i==0 IN THIS CASE
+                        newscreen[i-1] = False
+                        newscreen[i] = True
+                    elif mintdiff_how_to_screen == 'keep_neither':
+                        # MIGHT BE THAT WE NEED TO DO SOMETHING SPECIAL WITH i==0 IN THIS CASE
+                        newscreen[i-1] = False
+                        newscreen[i] = False
+
+        else:
+            assert 2<0,"Huh?"
+
         nDropped = keepepoch.sum() - newscreen.sum()
         keepepoch = keepepoch & newscreen
         
@@ -242,5 +279,55 @@ def get_epoch_reltimes(dfdata,dfepoch,
                 dfdata.loc[indshere,dtepochcol] = (dfdata.index[indshere]-index).to_numpy().astype(np.int64)/1e9/3600
             if verbose:
                 print(index,nIndsHere)
+
+
+def get_epochs_with_data(dfdata,dfepoch,
+                         befaftEpochhours=np.array([60,60]),
+                         verbose=True):
+    """
+    get_epochs_with_data(dfdata,dfepoch,**kws)
+    
+    ARGUMENTS
+    =========
+    dfdata            (pandas.DataFrame): Dataframe with type(index) == pd.DatetimeIndex for which to calculate relative epoch times
+    dfepoch           (pandas.DataFrame): Dataframe with epochs (and type(index) == pd.DatetimeIndex) 
+                      
+    KEYWORDS          
+    ========          
+    befaftEpochhours     (np.array, size 2): Two-element array for minimum and maximum epoch time
+
+
+    SMH 2020-08-31
+    Birkeland Centre for Space Science
+    Universitetet i Bergen
+    """
+
+    assert isinstance(dfdata.index,pd.core.indexes.datetimes.DatetimeIndex),"dfdata must have index of type pd.DatetimeIndex!"
+
+    # Convert befaftEpochhours to two-element array of proper timedeltas
+    befaftSC = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
+                         pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
+    
+
+    havedata = np.zeros(dfepoch.shape[0],dtype=np.bool)
+    firsttime,lasttime = dfdata.index[0],dfdata.index[-1]
+    for i,index in enumerate(dfepoch.index):
+
+        if index < (firsttime-befaftSC[0]):
+            # Save time, don't bother calculating
+            continue
+        elif index > (lasttime+befaftSC[1]):
+            # Save time, don't bother calculating
+            continue
+        else:
+            # print(index)
+            indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1])
+            nIndsHere = indshere.sum()
+        
+            if nIndsHere > 0:
+                havedata[i] = True
+            
+    return havedata
+
 
 
