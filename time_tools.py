@@ -35,3 +35,7 @@ def jd_to_datetime(jds):
     noonJan1200UT__JD = 2451545.
     tdeltas = jds-noonJan1200UT__JD
     return [datetime.datetime(2000, 1, 1, 12)+datetime.timedelta(days=tdiff) for tdiff in tdeltas]
+
+def mjd2000_to_datetime(mjd2000s):
+    jds = mjd2000s + 2400000.5 + 51544.0
+    return jd_to_datetime(jds)
