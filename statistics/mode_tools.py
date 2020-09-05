@@ -53,8 +53,13 @@ def fastrobustmode(data):
         if w < wmin:
             wmin = w
             j = i
-    return fastrobustmode(data[j:N+j])
-
+    try:
+        return fastrobustmode(data[j:N+j])
+    except:
+        if np.all(np.isclose(data,data[0])):
+            return data[:1]
+        else:
+            assert 2<0,"SOMETHING BAD"
 
 def kde(array,
         cut_down=True,

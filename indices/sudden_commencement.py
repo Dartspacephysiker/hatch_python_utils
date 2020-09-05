@@ -84,4 +84,4 @@ def load_sc_database(minQualCode=0,
 
             print(f"(N dropped: {nDropped})")
         
-    return dfsc
+    return dfsc[keepepoch]

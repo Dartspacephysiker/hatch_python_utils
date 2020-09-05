@@ -196,9 +196,12 @@ def get_epoch_reltimes(dfdata,dfepoch,
                          pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
     
 
-    # magind = (np.diff(dfepoch.index).astype(np.int64)/1e9/3600).argmin()
-    # # magind = np.where(np.diff(dfepoch.index).astype(np.int64)/1e9/3600/24 < 0)[0]
-    # dfepoch.iloc[magind-1],dfepoch.iloc[magind],dfepoch.iloc[magind+1]
+    # Don't waste time with epochs occurring before or after timespan of dfdata
+    dfepochnew = dfepoch[(dfepoch.index >= (dfdata.index[0]-befaftSC[0])) & (dfepoch.index <= (dfdata.index[-1]+befaftSC[1]))]
+
+    # magind = (np.diff(dfepochnew.index).astype(np.int64)/1e9/3600).argmin()
+    # # magind = np.where(np.diff(dfepochnew.index).astype(np.int64)/1e9/3600/24 < 0)[0]
+    # dfepochnew.iloc[magind-1],dfepochnew.iloc[magind],dfepochnew.iloc[magind+1]
     
     if dolocalseasonscreening:
         
@@ -206,8 +209,8 @@ def get_epoch_reltimes(dfdata,dfepoch,
 
         seasString = seasonOrMonths[:3].lower()
         # In this case, we need to treat each hemisphere separately
-        dfepochN = dfepoch.copy()
-        dfepochS = dfepoch.copy()
+        dfepochnewN = dfepochnew.copy()
+        dfepochnewS = dfepochnew.copy()
         
         Sseasmapper = dict(spr='sep',
                            sum='dec',
@@ -220,14 +223,14 @@ def get_epoch_reltimes(dfdata,dfepoch,
         
         print("Using {:s} for SH in {:s}".format(Sseasmapper[seasString],seasString))
         print("Using {:s} for NH in {:s}".format(Nseasmapper[seasString],seasString))
-        dfepochS = screen_epochtime_db(dfepochS,
+        dfepochnewS = screen_epochtime_db(dfepochnewS,
                                        doScreenBySeason=doScreenBySeason,
                                        seasonOrMonths=Sseasmapper[seasString],
                                        data_latitudecol=data_latitudecol,
                                        mintdiffHours=mintdiffHours,
                                        verbose=True)
         
-        dfepochN = screen_epochtime_db(dfepochN,
+        dfepochnewN = screen_epochtime_db(dfepochnewN,
                                        doScreenBySeason=doScreenBySeason,
                                        seasonOrMonths=Nseasmapper[seasString],
                                        data_latitudecol=data_latitudecol,
@@ -237,7 +240,7 @@ def get_epoch_reltimes(dfdata,dfepoch,
         ##############################
         # Get epoch times, SH
     
-        for hemi,dfepoch in zip(['NH','SH'],[dfepochN,dfepochS]):
+        for hemi,dfepochnew in zip(['NH','SH'],[dfepochnewN,dfepochnewS]):
             if hemi == 'NH':
                 hemiInds = dfdata[data_latitudecol] > 0
             elif hemi == 'SH':
@@ -246,7 +249,7 @@ def get_epoch_reltimes(dfdata,dfepoch,
             print("===================")
             print("Doing {:s} ({:d} inds)".format(hemi,hemiInds.sum()))
 
-            for index in dfepoch.index:
+            for index in dfepochnew.index:
                 # print(index)
                 indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1]) & hemiInds
                 nIndsHere = indshere.sum()
@@ -258,10 +261,10 @@ def get_epoch_reltimes(dfdata,dfepoch,
 
     else:
 
-        dfepochUse = dfepoch.copy()
+        dfepochnewUse = dfepochnew.copy()
         if doScreenBySeason:
 
-            dfepochUse = screen_epochtime_db(dfepochUse,
+            dfepochnewUse = screen_epochtime_db(dfepochnewUse,
                                           doScreenBySeason=doScreenBySeason,
                                           seasonOrMonths=seasonOrMonths[:3].lower(),
                                           mintdiffHours=mintdiffHours,
@@ -270,7 +273,7 @@ def get_epoch_reltimes(dfdata,dfepoch,
         ##############################
         # Get epoch times
     
-        for index in dfepochUse.index:
+        for index in dfepochnewUse.index:
             # print(index)
             indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1])
             nIndsHere = indshere.sum()
