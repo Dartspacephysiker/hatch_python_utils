@@ -5,6 +5,8 @@ def load_sc_database(minQualCode=0,
                      minNStationswithMinQualCode=0,
                      SCType=None,
                      SCType__beGenerousBefore2005=True,
+                     match_with_Brett_storms=False,
+                     Brettstorm_maxNHours=20,
                      verbose=True):
     """
     dfsc = load_sc_database(**kws)
@@ -46,6 +48,32 @@ def load_sc_database(minQualCode=0,
     # LOAD DB
     dfsc = pd.read_parquet(scdir+outfile)
 
+    ##############################
+    # ADD BRETT STORM MATCHIE?
+    if match_with_Brett_storms:
+
+        debug = False
+
+        from hatch_python_utils.indices.dst import load_dst_db
+
+        dfdst = load_dst_db()
+        matchbrettcol = 'matches_brett_dst_min'
+        dfsc[matchbrettcol] = False
+    
+        td = pd.Timedelta(f'{Brettstorm_maxNHours} hours')
+        for i,(index,scrow) in enumerate(dfsc.iterrows()):
+            # print(scrow)
+            dstinds = (dfdst.index >= index) & (dfdst.index <= (index+td))
+            gotastorm = 0
+            if dstinds.sum() > 0:
+                gotastorm = (dfdst[dstinds]['smallstorm'] | dfdst[dstinds]['largestorm']).sum()
+        
+            assert gotastorm < 2,"BLAH!"
+            dfsc.loc[pd.DatetimeIndex([index]),matchbrettcol] = np.bool(gotastorm)
+        
+            if debug:
+                print(i,index,dstinds.sum(),gotastorm)
+        
     ##############################
     # SCREENING
 

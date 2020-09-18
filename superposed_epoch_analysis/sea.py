@@ -1,6 +1,22 @@
 import numpy as np
 import pandas as pd
 from hatch_python_utils.earth.seasons import get_scaled_season_parameter,add_scaled_season_column
+from datetime import datetime,timedelta
+
+
+def make_random_epochs(start=datetime(2000,1,1,0),
+                       end=datetime(2001,1,1,0),
+                       npoints=200,
+                       seed=100):
+
+    np.random.seed(seed=seed)
+    epochs = np.random.uniform(size=npoints)*(end-start).total_seconds()
+    epochs.sort()
+    epochs = np.int64(np.round(epochs))
+    dfrandom = pd.DataFrame(start+pd.TimedeltaIndex([pd.Timedelta(timedelta(seconds=np.float64(epoch))) for epoch in epochs]),columns=['Time'])
+    dfrandom = dfrandom.set_index('Time')
+    add_scaled_season_column(dfrandom,verbose=False)
+    return dfrandom
 
 def screen_epochtime_db(dfepoch,
                         doScreenBySeason=False,
@@ -43,9 +59,10 @@ def screen_epochtime_db(dfepoch,
     
         isnumericlist = isinstance(seasonOrMonths,list) and all([seas in np.arange(1,13) for seas in seasonOrMonths])
         isseason = isinstance(seasonOrMonths,str) and (seasonOrMonths[:3].lower() in ['mar','jun','sep','dec'])
+        isequinox = isinstance(seasonOrMonths,str) and (seasonOrMonths[:3].lower() == 'equ')
         islocalseason = isinstance(seasonOrMonths,str) and (seasonOrMonths[:3].lower() in ['spr','sum','fal','win'])
-        assertwarn = "Must have seasonOrMonths be one of [1..12,'mar','jun','sep','dec','spr','sum','fal','win']!"
-        assert isnumericlist or isseason or islocalseason,assertwarn
+        assertwarn = "Must have seasonOrMonths be one of [1..12,'mar','jun','sep','dec','spr','sum','fal','win','equ']!"
+        assert isnumericlist or isseason or isequinox or islocalseason,assertwarn
 
     if do_screen_by_tdiff:
         assert np.isscalar(mintdiffHours),"mintdiffHours must be a scalar!"
@@ -111,24 +128,40 @@ def screen_epochtime_db(dfepoch,
             dfepoch['month'] = dfepoch.index.month
             keepepoch = keepepoch & dfepoch['month'].isin(SCmonths)
 
-        elif isseason:
+        elif isseason or isequinox:
 
             add_scaled_season_column(dfepoch,
                                      data_latitudecol=data_latitudecol,
                                      verbose=False)
 
-            ctrpts = dict(mar=4.,
-                          jun=1.,
-                          sep=2.,
-                          dec=3.)
-            val0 = ctrpts[seasonOrMonths[:].lower()] - 0.5
-            val1 = (ctrpts[seasonOrMonths[:].lower()] + 0.5) % 4
-            print("Screening based on '{:s}' season ({:.2f} <= phi_s < {:.2f})".format(seasonOrMonths,val0,val1))
+            if isseason:
+                ctrpts = dict(mar=4.,
+                              jun=1.,
+                              sep=2.,
+                              dec=3.)
+                val0 = ctrpts[seasonOrMonths[:].lower()] - 0.5
+                val1 = (ctrpts[seasonOrMonths[:].lower()] + 0.5) % 4
+                print("Screening based on '{:s}' season ({:.2f} <= phi_s < {:.2f})".format(seasonOrMonths,val0,val1))
+                
+                if seasonOrMonths[:3].lower() == 'mar':
+                    newscreen = keepepoch & ((val0 <= dfepoch['scaledtidoffset']) | (dfepoch['scaledtidoffset'] < val1))
+                else:
+                    newscreen = keepepoch & ((val0 <= dfepoch['scaledtidoffset']) & (dfepoch['scaledtidoffset'] < val1))
 
-            if seasonOrMonths[:3].lower() == 'mar':
-                newscreen = keepepoch & ((val0 <= dfepoch['scaledtidoffset']) | (dfepoch['scaledtidoffset'] < val1))
-            else:
-                newscreen = keepepoch & ((val0 <= dfepoch['scaledtidoffset']) & (dfepoch['scaledtidoffset'] < val1))
+            elif isequinox:
+                
+                ctrpts = dict(mar=4.,
+                              jun=1.,
+                              sep=2.,
+                              dec=3.)
+                val00 = ctrpts['mar'] - 0.5
+                val01 = (ctrpts['mar'] + 0.5) % 4
+                val10 = ctrpts['sep'] - 0.5
+                val11 = (ctrpts['sep'] + 0.5) % 4
+                print("Screening based on equinox [({:.2f} <= phi_s < {:.2f}) and ({:.2f} <= phi_s < {:.2f})]".format(val00,val01,
+                                                                                                                      val10,val11))
+                newscreen = keepepoch & ((val00 <= dfepoch['scaledtidoffset']) | (dfepoch['scaledtidoffset'] < val01))
+                newscreen = newscreen | (keepepoch & ((val10 <= dfepoch['scaledtidoffset']) & (dfepoch['scaledtidoffset'] < val11)))
 
             nDropped = keepepoch.sum() - newscreen.sum()
             keepepoch = keepepoch & newscreen
@@ -166,6 +199,10 @@ def get_epoch_reltimes(dfdata,dfepoch,
     doScreenBySeason                 (bool): Shall I screen by season?
     seasonOrMonths            (list or str): How to do season screening? 
                                              Could be, e.g., either [3,4,9,10] (Mar, Apr, Sep, Oct), or "winter", or "Mar" for March equinox
+                                             To pick months       : Provide a list filled with digits between 1 and 12 (corresponding to Jan through Dec)
+                                             To pick local season : Provide a string that is one of ['spr','sum','fal','win']
+                                             To pick global season: Provide a string that is one of ['mar','jun','sep','dec']
+                                             To pick equinox      : Provide a string that is 'equ'
     data_latitudecol                  (str): Only needed if screening by season, and seasonOrMonths is one of ['winter','spring','summer','fall']
 
 
@@ -183,8 +220,9 @@ def get_epoch_reltimes(dfdata,dfepoch,
         isnumericlist = isinstance(seasonOrMonths,list) and all([seas in np.arange(1,13) for seas in seasonOrMonths])
         isseason = isinstance(seasonOrMonths,str) and (seasonOrMonths[:3].lower() in ['mar','jun','sep','dec'])
         islocalseason = isinstance(seasonOrMonths,str) and (seasonOrMonths[:3].lower() in ['spr','sum','fal','win'])
-        assertwarn = "Must have seasonOrMonths be one of [1..12,'mar','jun','sep','dec','spr','sum','fal','win']!"
-        assert isnumericlist or isseason or islocalseason,assertwarn
+        isequinox = isinstance(seasonOrMonths,str) and (seasonOrMonths[:3].lower() == 'equ')
+        assertwarn = "Must have seasonOrMonths be one of [1..12,'mar','jun','sep','dec','spr','sum','fal','win','equ']!"
+        assert isnumericlist or isseason or isequinox or islocalseason,assertwarn
 
         dolocalseasonscreening = islocalseason
 
