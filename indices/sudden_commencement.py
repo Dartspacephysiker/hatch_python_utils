@@ -58,7 +58,17 @@ def load_sc_database(minQualCode=0,
 
         dfdst = load_dst_db()
         matchbrettcol = 'matches_brett_dst_min'
+        matchbretttime = 'dst_min_time'
         dfsc[matchbrettcol] = False
+        dfsc[matchbretttime] = pd.NaT
+        doAddDstStuff = True
+        if doAddDstStuff:
+            print("Adding Dst stuff")
+            includers = ['Dst','smallstorm','largestorm','dipoletilt']
+            dfsc['Dst'] = np.nan
+            dfsc['smallstorm'] = False
+            dfsc['largestorm'] = False
+            dfsc['dipoletilt'] = np.nan
     
         td = pd.Timedelta(f'{Brettstorm_maxNHours} hours')
         for i,(index,scrow) in enumerate(dfsc.iterrows()):
@@ -69,7 +79,12 @@ def load_sc_database(minQualCode=0,
                 gotastorm = (dfdst[dstinds]['smallstorm'] | dfdst[dstinds]['largestorm']).sum()
         
             assert gotastorm < 2,"BLAH!"
-            dfsc.loc[pd.DatetimeIndex([index]),matchbrettcol] = np.bool(gotastorm)
+            if gotastorm == 1:
+                THEDSTIND = dstinds & (dfdst['smallstorm'] | dfdst['largestorm'])
+                dfsc.loc[pd.DatetimeIndex([index]),[matchbrettcol,matchbretttime]] = [np.bool(gotastorm),
+                                                                                      dfdst[THEDSTIND].index]
+                if doAddDstStuff:
+                    dfsc.loc[pd.DatetimeIndex([index]),includers] = dfdst[THEDSTIND][includers].values
         
             if debug:
                 print(i,index,dstinds.sum(),gotastorm)

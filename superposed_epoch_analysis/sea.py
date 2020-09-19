@@ -183,7 +183,8 @@ def get_epoch_reltimes(dfdata,dfepoch,
                        doScreenBySeason=False,
                        seasonOrMonths=None,
                        mintdiffHours=60,
-                       verbose=True):
+                       verbose=True,
+                       do_return_modified_dfepochs=False):
     """
     get_epoch_reltimes(dfdata,dfepoch,**kws)
     
@@ -297,6 +298,9 @@ def get_epoch_reltimes(dfdata,dfepoch,
                 if verbose:
                     print(index,nIndsHere)
 
+        if do_return_modified_dfepochs:
+            return dfepochnewN,dfepochnewS
+            
     else:
 
         dfepochnewUse = dfepochnew.copy()
@@ -320,6 +324,9 @@ def get_epoch_reltimes(dfdata,dfepoch,
                 dfdata.loc[indshere,dtepochcol] = (dfdata.index[indshere]-index).to_numpy().astype(np.int64)/1e9/3600
             if verbose:
                 print(index,nIndsHere)
+
+        if do_return_modified_dfepochs:
+            return dfepochnewUse
 
 
 def get_epochs_with_data(dfdata,dfepoch,
