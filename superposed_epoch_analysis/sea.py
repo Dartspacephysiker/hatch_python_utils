@@ -25,6 +25,8 @@ def screen_epochtime_db(dfepoch,
                         mintdiffHours=60,
                         mintdiff_how_to_screen='keep_first',
                         data_latitudecol='alat110',
+                        drop_epochs_for_which_no_data_in_this_df=None,
+                        drop_epochs__befaftEpochhours=None,
                         verbose=True):
     """
     screen_epochtime_db(**kws)
@@ -67,6 +69,17 @@ def screen_epochtime_db(dfepoch,
     if do_screen_by_tdiff:
         assert np.isscalar(mintdiffHours),"mintdiffHours must be a scalar!"
         assert mintdiff_how_to_screen in ['keep_first','keep_last','keep_neither'],"mintdiff_how_to_screen must be one of ['keep_first','keep_last','keep_neither']"
+
+    if drop_epochs_for_which_no_data_in_this_df is not None:
+        dfdata = drop_epochs_for_which_no_data_in_this_df
+        assert isinstance(dfdata,pd.DataFrame) or isinstance(dfdata,pd.Series),"'drop_epochs_for_which_no_data_in_this_df' must be a pandas DataFrame!"
+
+        # Convert befaftEpochhours to two-element array of proper timedeltas
+        try:
+            befaftSC = np.array([pd.Timedelta(f'{drop_epochs__befaftEpochhours[0]} hours').to_numpy(),
+                                 pd.Timedelta(f'{drop_epochs__befaftEpochhours[1]} hours').to_numpy()])
+        except:
+            assert 2<0,"Couldn't convert 'drop_epochs__befaftEpochhours' to skikkelig pd.Timedeltas!"
 
     ##############################
     # SCREENING
@@ -169,6 +182,40 @@ def screen_epochtime_db(dfepoch,
             if verbose:
                 print(f'season                 : {seasonOrMonths}')
                 print(f"(N dropped: {nDropped})")
+
+    if drop_epochs_for_which_no_data_in_this_df is not None:
+        # Don't waste time with epochs occurring before or after timespan of dfdata
+        newscreen = (dfepoch.index >= (dfdata.index[0]-befaftSC[0])) & (dfepoch.index <= (dfdata.index[-1]+befaftSC[1]))
+
+        nDropped = keepepoch.sum() - newscreen.sum()
+        keepepoch = keepepoch & newscreen
+        
+        if verbose:
+            print(f'limit to ranges in dfdata  : YES')
+            print(f"(N dropped: {nDropped})")
+
+        newscreen = keepepoch.copy()
+
+        for i,(index,docheck) in enumerate(zip(dfepoch.index,newscreen)):
+
+            if not docheck:
+                continue
+            
+            indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1])
+            nIndsHere = indshere.sum()
+        
+            if nIndsHere == 0:
+                newscreen[i] = False
+                # if verbose:
+                #     print("Drop ",index,nIndsHere)
+        
+
+        nDropped = keepepoch.sum() - newscreen.sum()
+        keepepoch = keepepoch & newscreen
+        
+        if verbose:
+            print(f'Dropnohavers               : YES')
+            print(f"(N dropped: {nDropped})")
 
     print(f"N epochs to keep: {keepepoch.sum()}")
     dfepoch = dfepoch[keepepoch]
