@@ -69,6 +69,7 @@ def load_sc_database(minQualCode=0,
             dfsc['smallstorm'] = False
             dfsc['largestorm'] = False
             dfsc['dipoletilt'] = np.nan
+            dfsc['Nstorms'] = np.int64(0)
     
         td = pd.Timedelta(f'{Brettstorm_maxNHours} hours')
         for i,(index,scrow) in enumerate(dfsc.iterrows()):
@@ -78,9 +79,17 @@ def load_sc_database(minQualCode=0,
             if dstinds.sum() > 0:
                 gotastorm = (dfdst[dstinds]['smallstorm'] | dfdst[dstinds]['largestorm']).sum()
         
-            assert gotastorm < 2,"BLAH!"
-            if gotastorm == 1:
+            # assert gotastorm < 2,"BLAH!"
+            dfsc.loc[pd.DatetimeIndex([index]),'Nstorms'] = gotastorm
+            if gotastorm > 1:
+                print("Multi-in' up! Got multiple storms for ",i,", ",index,"!")
+            if gotastorm >= 1:
                 THEDSTIND = dstinds & (dfdst['smallstorm'] | dfdst['largestorm'])
+
+                if gotastorm > 1:
+                    # Drop all but the first
+                    THEDSTIND.iloc[np.where(THEDSTIND)[0][1:]] = False
+
                 dfsc.loc[pd.DatetimeIndex([index]),[matchbrettcol,matchbretttime]] = [np.bool(gotastorm),
                                                                                       dfdst[THEDSTIND].index]
                 if doAddDstStuff:

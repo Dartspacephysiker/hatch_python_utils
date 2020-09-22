@@ -53,6 +53,9 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
                            weights=None,
                            doMedian=True,
                            doMedian_CI95=True,
+                           doQuantile=False,
+                           doQuantile_CI95=True,
+                           doQuantile_quantile=0.5,
                            doMode=False,
                            doMean=False,
                            dolog10mean=False,
@@ -70,7 +73,7 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
     """
 
     assert not doWeightedSum,"doWeightedSum kw not implemented!"
-    assert doMean or doMedian or dolog10mean or doVariance or doMAD or doMode,"Pick something!"
+    assert doMean or doMedian or doQuantile or dolog10mean or doVariance or doMAD or doMode,"Pick something!"
 
     if (xlabel == 'scaledtidoffset') or (xlabel == 'localscaledtidoffset') or (xlabel == 'tau'):
         treat_as_periodic = True
@@ -108,6 +111,23 @@ def calc_binned_stats_dict(xvals,yvals,binEdges,
                                                                               include_bincounts=True,
                                                                               treat_as_periodic=treat_as_periodic,
                                                                               periodic_Xbounds=periodic_Xbounds)
+
+    elif doQuantile:
+
+        if doQuantile_CI95:
+            if verbose:
+                print(f"CI95 for quantile = {doQuantile_quantile}")
+
+            midAll, medAll, Q1All, Q3All, bincounts = bin_quantile_CI95_getter(xvals,
+                                                                               yvals,
+                                                                               doQuantile_quantile,
+                                                                               binlines=binEdges,
+                                                                               include_bincounts=True,
+                                                                               treat_as_periodic=treat_as_periodic,
+                                                                               periodic_Xbounds=periodic_Xbounds)
+        else:
+            assert 2<0,"Can't give you Q1,Q3 and some other quantile!"
+
     elif doMode:
         midAll, medAll, Q1All, Q3All, bincounts = bin_mode_Q1_Q3_getter(xvals,
                                                                         yvals,
@@ -307,6 +327,7 @@ def bin_median_getter(X, Y, binlines=None,
                       statfunc_kws=dict(),
                       include_CI95=False,
                       CI95func_kws=dict(),
+                      CI_95_func=None,
                       variance__estimate_population_variance=False,
                       treat_as_periodic=False,
                       periodic_Xbounds=None,
@@ -405,7 +426,9 @@ def bin_median_getter(X, Y, binlines=None,
     else:
         return binmid, vals
 
-def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True,
+def bin_median_CI95_getter(X, Y,
+                           binlines=None,
+                           include_bincounts=True,
                            treat_as_periodic=False,
                            periodic_Xbounds=None):
     """
@@ -420,6 +443,35 @@ def bin_median_CI95_getter(X, Y, binlines=None,include_bincounts=True,
 
     if include_bincounts:
         midtpunkter, bincounts = bin_median_getter(X, Y, binlines=binlines,statfunc=np.size,
+                                                   treat_as_periodic=treat_as_periodic,
+                                                   periodic_Xbounds=periodic_Xbounds)
+
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH, bincounts
+
+    else:
+        return midtpunkter, binVerdi, CI95_LOW, CI95_HIGH
+
+
+def bin_quantile_CI95_getter(X, Y,quantile,
+                             binlines=None,
+                             include_bincounts=True,
+                             treat_as_periodic=False,
+                             periodic_Xbounds=None):
+    """
+    binmidpts, median, CI95_LOW, CI95_HIGH[, bincounts] = bin_quantile_CI95_getter(X, Y, quantile, binlines=None[, include_bincounts=True])
+    """
+
+    midtpunkter, binVerdi, CI95_LOW, CI95_HIGH = bin_median_getter(X, Y, binlines=binlines,
+                                                                   statfunc=lambda x: np.quantile(x,quantile),
+                                                                   CI_95_func=lambda x: CI_95_quantile(x,quantile),
+                                                                   include_CI95=True,
+                                                                   treat_as_periodic=treat_as_periodic,
+                                                                   periodic_Xbounds=periodic_Xbounds)
+
+    if include_bincounts:
+        midtpunkter, bincounts = bin_median_getter(X, Y,
+                                                   binlines=binlines,
+                                                   statfunc=np.size,
                                                    treat_as_periodic=treat_as_periodic,
                                                    periodic_Xbounds=periodic_Xbounds)
 

@@ -66,3 +66,9 @@ mpl.rcParams.update({'figure.figsize': [10.0, 8.0]})
 import matplotlib.pyplot as plt
 plt.ion()
 
+doGenTOC = False
+if doGenTOC:
+    import hatch_python_utils.nb_tools
+    importlib.reload(hatch_python_utils.nb_tools)
+    from hatch_python_utils.nb_tools import gen_toc
+    gen_toc()
