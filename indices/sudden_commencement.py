@@ -82,7 +82,7 @@ def load_sc_database(minQualCode=0,
             # assert gotastorm < 2,"BLAH!"
             dfsc.loc[pd.DatetimeIndex([index]),'Nstorms'] = gotastorm
             if gotastorm > 1:
-                print("Multi-in' up! Got multiple storms for ",i,", ",index,"!")
+                print(f"Multi-in' up! Got {gotastorm} storms for ",i,", ",index,"!")
             if gotastorm >= 1:
                 THEDSTIND = dstinds & (dfdst['smallstorm'] | dfdst['largestorm'])
 
