@@ -5,8 +5,7 @@ import warnings
 
 def fastrobustmode(data):
     """
-    From "On a fast, robust estimator of the mode: Comparisons to other robust estimators with applications"
-    2006, Bickel and Frühwirth
+    From Bickel and Frühwirth (2006), "On a fast, robust estimator of the mode: Comparisons to other robust estimators with applications"
     https://www.sciencedirect.com/science/article/pii/S0167947305001581
     """
     # data = np.random.normal(size=4)
@@ -14,7 +13,7 @@ def fastrobustmode(data):
     Nsamp = data.size
 
     # If there is only one number in the sample(n=1), then that number is the
-    # estimate ofthe mode. Returnx1and stop.
+    # estimate ofthe mode. Return and stop.
     if data.size == 1:
         return data[0]
 
@@ -24,10 +23,10 @@ def fastrobustmode(data):
         return np.mean(data)
 
     # 3.  If there are three numbers in the sample(n=3), then the estimate of the
-    # mode is the meanof the two numbers that are closest together: ifx2−x1<x3−x2,
-    # then return(x1+x2)/2and stop, but ifx2−x1<x3−x2, then return(x2+x3)/2 and
-    # stop. Otherwise, ifn=3andx2−x1=x3−x2, then the mode is estimated to bex2;
-    # returnx2and stop.
+    # mode is the mean of the two numbers that are closest together: if x2−x1<x3−x2,
+    # then return(x1+x2)/2 and stop, but if x2−x1<x3−x2, then return(x2+x3)/2 and
+    # stop. Otherwise, if n=3 and x2−x1=x3−x2, then the mode is estimated to be x2;
+    # return x2 and stop.
     elif data.size == 3:
         diffs = np.diff(data)
         if np.isclose(*diffs):
@@ -37,15 +36,15 @@ def fastrobustmode(data):
         elif diffs[0] > diffs[1]:
             return np.mean(data[1:])
 
-    # 4.  If there are four or more numbers in the sample(n4), then the algorithm
-    # will berecursively applied to about half of the sample. Set the minimum interval
-    # width to therange of the sample:wmin=xn−x1. This will be replaced by the width
-    # of the smallestinterval that contains approximately half of the values of the
-    # sample. SetNequal to thesmallest integer greater than or equal ton/2. (This
-    # algorithm could be generalized bysettingNequal to the smallest integer greater
-    # than or equal to n, where 0< <1, butestimators have not been studied with
-    # =1/2.) Fori=1,2,3,...,n−N+1, do thefollowing two steps:(a) Set the
-    # widthw=xi+N−1−xi.(b) Ifw<wmin, then setwmin=wand setj=i.
+    # 4.  If there are four or more numbers in the sample(n>=4), then the algorithm
+    # will be recursively applied to about half of the sample. Set the minimum interval
+    # width to the range of the sample: wmin=xn−x1. This will be replaced by the width
+    # of the smallest interval that contains approximately half of the values of the
+    # sample. Set N equal to the smallest integer greater than or equal ton/2. (This
+    # algorithm could be generalized by setting N equal to the smallest integer greater
+    # than or equal to n, where 0< <1, but estimators have not been studied with
+    # =1/2.) For i=1,2,3,...,n−N+1, do the following two steps: (a) Set the
+    # width w=xi+N−1−xi. (b) If w<wmin, then set wmin=w and set j=i.
     wmin = np.max(data)-np.min(data)
     N = np.int64(np.ceil(Nsamp/2))
     for i in range(N):

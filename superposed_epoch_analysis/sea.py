@@ -68,7 +68,7 @@ def screen_epochtime_db(dfepoch,
 
     if do_screen_by_tdiff:
         assert np.isscalar(mintdiffHours),"mintdiffHours must be a scalar!"
-        assert mintdiff_how_to_screen in ['keep_first','keep_last','keep_neither'],"mintdiff_how_to_screen must be one of ['keep_first','keep_last','keep_neither']"
+        assert mintdiff_how_to_screen in ['keep_first','keep_last','keep_neither','keep_both'],"mintdiff_how_to_screen must be one of ['keep_first','keep_last','keep_neither','keep_both']"
 
     if drop_epochs_for_which_no_data_in_this_df is not None:
         dfdata = drop_epochs_for_which_no_data_in_this_df
@@ -97,7 +97,7 @@ def screen_epochtime_db(dfepoch,
 
         if mintdiff_how_to_screen == 'keep_first':
             newscreen = keepepoch & (sc_tdiffs > mintdiffHours)
-        elif mintdiff_how_to_screen in ['keep_last','keep_neither']:
+        elif mintdiff_how_to_screen in ['keep_last','keep_neither','keep_both']:
 
             # sc_epochs = np.array([0,10,70,130,210])
             # sc_tdiffs = np.diff(sc_epochs)
@@ -119,6 +119,10 @@ def screen_epochtime_db(dfepoch,
                         # MIGHT BE THAT WE NEED TO DO SOMETHING SPECIAL WITH i==0 IN THIS CASE
                         newscreen[i-1] = False
                         newscreen[i] = False
+                    elif mintdiff_how_to_screen == 'keep_both':
+                        # MIGHT BE THAT WE NEED TO DO SOMETHING SPECIAL WITH i==0 IN THIS CASE
+                        newscreen[i-1] = True
+                        newscreen[i] = True
 
         else:
             assert 2<0,"Huh?"
