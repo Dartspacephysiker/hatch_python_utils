@@ -1,6 +1,25 @@
 import numpy as np
-# from hatch_python_utils.math.vectors import dotprod
+from hatch_python_utils.math.vectors import dotprod
 
+
+def calculate_crosstrack_flow_in_NEC_coordinates(df,inplace=False):
+
+    assert 'Viy' in df.columns,"Must provide a dataframe containing 'Viy'!"
+
+    xhat, yhat, zhat = calculate_satellite_frame_vectors_in_NEC_coordinates(df)
+
+    # Convert cross-track flow velocity to NEC
+    Viy_sat = df['Viy'].values
+    Viy_sat = np.vstack([Viy_sat*0,Viy_sat,Viy_sat*0])
+
+    if inplace:
+        df['Viy_N'] = dotprod(xhat.T,Viy_sat.T)
+        df['Viy_E'] = dotprod(yhat.T,Viy_sat.T)
+        df['Viy_C'] = dotprod(zhat.T,Viy_sat.T)
+    else:
+        Viy_NEC = np.vstack([dotprod(xhat.T,Viy_sat.T),dotprod(yhat.T,Viy_sat.T),dotprod(zhat.T,Viy_sat.T)])    
+
+        return Viy_NEC
 
 def calculate_satellite_frame_vectors_in_NEC_coordinates(df,
                                                          vCol=['VsatN','VsatE','VsatC'],
@@ -30,18 +49,23 @@ def calculate_satellite_frame_vectors_in_NEC_coordinates(df,
     vUnitCol = [vCo+'hat' for vCo in vCol]
 
     # Regne ut størrelsen til hastighetsvektorer
-    df['VsatMag'] = np.sqrt((df[vCol]**2).sum(axis=1))
+    
+    VsatMag = np.sqrt((df[vCol]**2).sum(axis=1))
+    # df['VsatMag'] = np.sqrt((df[vCol]**2).sum(axis=1))
 
     # Calculate magnitude of "horizontal" (i.e., not-vertical) component of satellite velocity vector
-    df['VsatHoriz'] = np.sqrt((df[['VsatN','VsatE']]**2).sum(axis=1))
+    # df['VsatHoriz'] = np.sqrt((df[['VsatN','VsatE']]**2).sum(axis=1))
+    VsatHoriz = np.sqrt((df[['VsatN','VsatE']]**2).sum(axis=1))
 
     # The condition $|v_c|/v \ll \sqrt{v_n^2+v_e^2}/v$ must be fulfilled if the statement "z is approximately downward" is to be true
     # assert this condition
-    assert (np.abs(df['VsatC'])/df['VsatHoriz']).max() < 0.01
+    # assert (np.abs(df['VsatC'])/df['VsatHoriz']).max() < 0.01
+    assert (np.abs(df['VsatC'])/VsatHoriz).max() < 0.01
 
     # Regne ut komponentene til hastighets-enhetsvektor
     for vCo,vUnitCo in zip(vCol,vUnitCol):
-        df[vUnitCo] = df[vCo]/df['VsatMag']
+        # df[vUnitCo] = df[vCo]/df['VsatMag']
+        df[vUnitCo] = df[vCo]/VsatMag
 
     # Forsikre oss om at enhetsvektorene har faktisk størrelse 1 :)
     assert np.all(np.isclose(1,(df[vUnitCol]**2.).sum(axis=1)))
