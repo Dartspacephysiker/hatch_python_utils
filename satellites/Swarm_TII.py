@@ -3,21 +3,51 @@ from hatch_python_utils.math.vectors import dotprod
 
 
 def calculate_crosstrack_flow_in_NEC_coordinates(df,inplace=False):
+    """
+    Calculate Swarm TII horizontal cross-track flow---the y-component of the satellite frame---[m/s] as a vector in North-East-Center coordinates
+
+    ARGUMENTS
+    =========
+    df               : DataFrame containing columns 'Viy','VsatN','VsatE','VsatC' (produced by hatch_python_utils.satellites.Swarm.get_Swarm_combo)
+
+    References
+    ==========
+    EFI TII Cross-Track Flow Data Release Notes (Doc. no: SW-RN-UoC-GS-004, Rev: 6, 16 June 2020)
+
+    SMH
+    Birkeland Centre for Space Science
+    2020-10-05
+    """
 
     assert 'Viy' in df.columns,"Must provide a dataframe containing 'Viy'!"
 
     xhat, yhat, zhat = calculate_satellite_frame_vectors_in_NEC_coordinates(df)
 
+    # xhat, yhat, zhat = np.transpose(np.array([xhat,yhat,zhat]),axes=[1,0,2])
+
     # Convert cross-track flow velocity to NEC
     Viy_sat = df['Viy'].values
     Viy_sat = np.vstack([Viy_sat*0,Viy_sat,Viy_sat*0])
 
+
     if inplace:
-        df['Viy_N'] = dotprod(xhat.T,Viy_sat.T)
-        df['Viy_E'] = dotprod(yhat.T,Viy_sat.T)
-        df['Viy_C'] = dotprod(zhat.T,Viy_sat.T)
+        # You're so dumb. This is WRONG!
+        # df['Viy_N'] = dotprod(xhat.T,Viy_sat.T)
+        # df['Viy_E'] = dotprod(yhat.T,Viy_sat.T)
+        # df['Viy_C'] = dotprod(zhat.T,Viy_sat.T)
+
+        # Try this:
+        df['Viy_N'], df['Viy_E'], df['Viy_C'] = (yhat.T*(df['Viy'].values)[:,np.newaxis]).T
     else:
-        Viy_NEC = np.vstack([dotprod(xhat.T,Viy_sat.T),dotprod(yhat.T,Viy_sat.T),dotprod(zhat.T,Viy_sat.T)])    
+        # You're so dumb. This is WRONG!
+        # Viy_NEC = np.vstack([dotprod(xhat.T,Viy_sat.T),dotprod(yhat.T,Viy_sat.T),dotprod(zhat.T,Viy_sat.T)])    
+
+        # Try this:
+        Viy_NEC = (yhat.T*(df['Viy'].values)[:,np.newaxis]).T
+
+        pctdiff = np.abs(np.abs(df['Viy'])-np.sqrt(np.sum(Viy_NEC**2,axis=0)))/np.abs(df['Viy'])*100
+        if pctdiff.max() > 1:
+            print("Oi! Mest sannsynlig dårlig transformasjon!")
 
         return Viy_NEC
 
@@ -85,7 +115,7 @@ def calculate_satellite_frame_vectors_in_NEC_coordinates(df,
     
     # Regne ut fortegn til yE.
     #Da y-enhetsvektoren er til høyre når man ser i bevegelsesretning, den peker østover (dvs yE > 0) når romfartøy går nordover, og vest (dvs yE < 0) når romfartøy går sørover
-    yESign = np.int64(xN >= 0)*2-1
+    yESign = np.int64((xN > 0) | np.isclose(xN,0))*2-1
 
     yE = yESign / np.sqrt( (xE**2 / xN**2) + 1)
     yN = - xE / xN * yE
@@ -97,6 +127,7 @@ def calculate_satellite_frame_vectors_in_NEC_coordinates(df,
     
     ########################################
     # iii. Definere z-enhetsvektoren i NEC-koordinater
+
     zN, zE, zC = np.cross(np.vstack([xN,xE,xC]).T,np.vstack([yN,yE,yC]).T).T
 
     # Renorm just to make sure magnitudes are 1
