@@ -7,20 +7,47 @@ from hatch_python_utils import time_hist2
 import pandas as pd
 import numpy as np
 
+from datetime import datetime
 
-def load_omniDB():
-    dir = '/SPENCEdata/Research/database/OMNI/'
-    file = 'culled_OMNI_magdata.dat'
-    # omnifile = Path(dir+file)
-
-    if os.path.exists(dir+file):
-        print("Opening " + file + ' ...')
-        omni = readsav.read(dir+file)
-        return omni
+def load_omniDB(loaddir='/SPENCEdata/Research/database/OMNI/',
+                processed=True,
+                t0=None,
+                t1=None):
+    
+    if processed:
+        loadfile = 'omni_processed.h5'
     else:
-        # doesn't exist
-        print("Couldn't get OMNI IDL save file!!! Returning ...")
-        return
+        loadfile = 'omni_1min.h5'
+
+    if t0 is None:
+        t0 = datetime(1980,1,1,0)
+    if t1 is None:
+        t1 = datetime.now()
+
+    print(f"Loading {loadfile}")
+    omni = pd.read_hdf(loaddir+loadfile,
+                       where='index>={}&index<{}'.format(t0.strftime('"%Y-%m-%d %H:%M"'),
+                                                         t1.strftime('"%Y-%m-%d %H:%M"')))
+
+    if np.sum(omni.index.duplicated()) > 0:
+        print("Removing duplicate timestamps")
+        omni = omni[~omni.index.duplicated()]
+
+    return omni
+
+# def load_omniDB(start=,end=):
+#     dir = '/SPENCEdata/Research/database/OMNI/'
+#     file = 'culled_OMNI_magdata.dat'
+#     # omnifile = Path(dir+file)
+
+#     if os.path.exists(dir+file):
+#         print("Opening " + file + ' ...')
+#         omni = readsav.read(dir+file)
+#         return omni
+#     else:
+#         # doesn't exist
+#         print("Couldn't get OMNI IDL save file!!! Returning ...")
+#         return
 
     # try:
     #     omni_path = omnifile.resolve():
