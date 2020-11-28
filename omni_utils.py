@@ -16,6 +16,7 @@ def load_omniDB(loaddir='/SPENCEdata/Research/database/OMNI/',
     
     if processed:
         loadfile = 'omni_processed.h5'
+        print("Loading OMNI db (30-min avg)")
     else:
         loadfile = 'omni_1min.h5'
 

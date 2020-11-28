@@ -8,6 +8,7 @@
 # AXI6  (20200407): Convert log_10values on x axis to 10**(log_10 values)
 # AXI7  (20200630): Nice scientific notation (base 10)
 # AXI8  (20200701): Remove top and right spines
+# AXI9  (20201021): Three-column gridspec WITH colorbar, with y-axis labels only visible for the leftmost column
 
 ########################################
 # BOXPLOTS
@@ -70,19 +71,19 @@ ax2.tick_params(axis='y', colors=c2)
 
 # AXI2  (20190711): Gridspec!
 
-fig3 = plt.figure(constrained_layout=True)
-gs = fig3.add_gridspec(2, 3)
-f3_ax00 = fig3.add_subplot(gs[0, :-1])
-yunk = f3_ax00.set_title(uplegTitle)
-f3_ax01 = fig3.add_subplot(gs[0, -1:], sharey=f3_ax00)
-f3_ax10 = fig3.add_subplot(gs[1, :-1], sharex=f3_ax00, sharey=f3_ax00)
-yunk = f3_ax10.set_title(downlegTitle)
-f3_ax11 = fig3.add_subplot(gs[1, -1:], sharex=f3_ax01, sharey=f3_ax10)
+fig = plt.figure(constrained_layout=True)
+gs = fig.add_gridspec(2, 3)
+ax00 = fig.add_subplot(gs[0, :-1])
+yunk = ax00.set_title(uplegTitle)
+ax01 = fig.add_subplot(gs[0, -1:], sharey=ax00)
+ax10 = fig.add_subplot(gs[1, :-1], sharex=ax00, sharey=ax00)
+yunk = ax10.set_title(downlegTitle)
+ax11 = fig.add_subplot(gs[1, -1:], sharex=ax01, sharey=ax10)
 
-f3_ax00.grid()
-f3_ax01.grid()
-f3_ax10.grid()
-f3_ax11.grid()
+ax00.grid()
+ax01.grid()
+ax10.grid()
+ax11.grid()
 
 # AXI3  (20190823): Sekundær akse med forskjellige tick-merker
 ax2 = ax1.twiny()
@@ -142,6 +143,53 @@ _ = ax.spines['top'].set_visible(False)
 # Only show ticks on the left and bottom spines
 _ = ax.yaxis.set_ticks_position('left')
 _ = ax.xaxis.set_ticks_position('bottom')
+
+# AXI9  (20201021): Three-column gridspec WITH colorbar, with y-axis labels only visible for the leftmost column
+# From journal__20201020__ELF_despun__L_and_R_polarization.ipynb
+
+fig = plt.figure(figsize=(18,10),constrained_layout=True)
+ncols=3
+colwidth = 10
+gs = fig.add_gridspec(1, ncols*colwidth+1)
+ax00 = fig.add_subplot(gs[0, :colwidth])
+ax01 = fig.add_subplot(gs[0, colwidth:colwidth*2], sharex=ax00,sharey=ax00)
+ax02 = fig.add_subplot(gs[0, colwidth*2:colwidth*3], sharex=ax00, sharey=ax00)
+axes = [ax00,ax01,ax02]
+cax = fig.add_subplot(gs[0,colwidth*3:])
+
+xstuff = np.arange(0,10)
+ystuff = np.arange(0,20)
+xstuff,ystuff = np.meshgrid(xstuff,ystuff)
+datsize = (xstuff.shape[0]-1,xstuff.shape[1]-1)
+exampdat = np.random.normal(size=datsize)
+
+
+from matplotlib.colors import BoundaryNorm
+from matplotlib.ticker import MaxNLocator
+levels = MaxNLocator(nbins=20).tick_values(exampdat.min(), exampdat.max())
+# levels = np.arange(-35.5,35.5,1)
+
+# pick the desired colormap, sensible levels, and define a normalization
+# instance which takes data values and translates those into levels.
+cmap = plt.get_cmap('seismic')
+norm = BoundaryNorm(levels, ncolors=cmap.N, clip=True)
+
+for iax,ax in enumerate(axes):
+    showdat = np.random.normal(size=datsize)
+
+    title = f'ELF L/R Polarization'
+
+    im = ax.pcolormesh(xstuff, ystuff, showdat, cmap=cmap, norm=norm)
+    # _ = ax.set_title(title)
+    
+    if iax == 0:
+        _ = ax.set_ylabel('Frequency [Hz]')
+    else:
+        # _ = ax.yaxis.set_ticklabels([])        
+        _ = [ylab.set_visible(False) for ylab in ax.yaxis.get_ticklabels()]
+
+    _ = ax.set_xlabel('Time [s]')
+
 
 ########################################
 # BOXPLOTS

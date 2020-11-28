@@ -63,11 +63,26 @@ def geodetic2apex(*args,
     get_apex_basevecs = return_apex_d_basevecs or return_apex_e_basevecs or \
         return_apex_f_basevecs or return_apex_g_basevecs or return_mapratio
 
+    if get_apex_basevecs or return_mapratio or return_IGRF:
+        assert 2<0,"WARNING! geodetic2apex takes care of changes in time with mlat, mlon, and mlt, but not with apex basevectors, mapratio, or IGRF!"
+
     if max_N_months_twixt_apexRefTime_and_obs is None:
         max_N_months_twixt_apexRefTime_and_obs = 0
 
     # assert len(args) >= 3, "geodetic2apex(gdlat, gdlon, gdalt_km[,times])"
     assert len(args) == 4, "geodetic2apex(gdlat, gdlon, gdalt_km,times)"
+
+    # Find out --- should we even worry about time here?
+    haveDTIndex = isinstance(args[3],pd.DatetimeIndex)
+    multitime = False
+    if haveDTIndex:
+        multitime = True
+    else:
+        if isinstance(args[3],list):
+            if len(args[3]) == len(args[2]):
+                multitime = True
+            # else:
+            #     multitime = False
 
     # gdlat = args[0]
     # gdlon = args[1]
@@ -79,6 +94,37 @@ def geodetic2apex(*args,
     #     canDoMLT = True
 
     canDoMLT = True
+
+    # Set up apex object
+    a = apexpy.Apex(apexRefTime, refh=apexRefHeight_km)
+
+    # If not doing multiple times, just do the conversions and get out
+    if not multitime:
+        if do_qdcoords:
+            mlat, mlon = a.geo2qd(
+                args[0], args[1], args[2])
+        else:
+            mlat, mlon = a.geo2apex(
+                args[0], args[1], args[2])
+    
+        returnList = [mlat, mlon]
+        rListNames = ['mlat', 'mlon']
+    
+        if canDoMLT:
+            mlt = mlon_to_mlt(mlon, [args[3]]*len(mlon), args[3].year)
+    
+            returnList.append(mlt)
+            rListNames.append('mlt')
+
+        returnDict = {key: val for key, val in zip(rListNames, returnList)}
+
+        if returnPandas:
+            dfOut = pd.DataFrame(data=np.vstack(returnList).T,columns=rListNames)
+
+            return dfOut
+
+        else:
+            return returnDict
 
     # df = pd.DataFrame({'gdlat':gdlat,'gdlon':gdlon,'gdalt_km':gdalt_km},index=times)
 
@@ -129,8 +175,6 @@ def geodetic2apex(*args,
                 print("nannies!"+"{0}".format(nanners[nanners].size))
             dfSub.loc[nanners, 'gdlat'] = 0
             dfSub.loc[nanners, 'gdalt_km'] = 0
-
-    a = apexpy.Apex(apexRefTime, refh=apexRefHeight_km)
 
     if do_qdcoords:
         mlat, mlon = a.geo2qd(

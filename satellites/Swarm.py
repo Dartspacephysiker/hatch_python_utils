@@ -294,6 +294,8 @@ def get_Swarm_combo(dates,
         if len(dfList) != 0:
             dfList = pd.concat(dfList)
 
+            dfList.sort_index(inplace=True)
+
             if (dtyper in dtype__add_Apex) and (dtyper != 'MAG'):
 
                 print("Adding Apex coords to {:s}".format(dtyper))
