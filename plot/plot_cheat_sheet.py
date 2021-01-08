@@ -31,6 +31,9 @@
 ########################################
 # TEXT
 # TEX1  (20190904): Text annotation example
+########################################
+# COLORBARS
+# CLB1  (20201201): Scientific notation with colorbars
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -337,3 +340,12 @@ junkera = ax.text(*normtextpos, 'a',
                   weight='bold', #[ 'normal' | 'bold' | 'heavy' | 'light' | 'ultrabold' | 'ultralight']
                   transform=ax.transAxes,
                   fontsize=fontsize)
+
+########################################
+# COLORBARS
+########################################
+
+# CLB1  (20201201): Scientific notation with colorbars
+        cb.formatter.set_scientific(True)
+        cb.formatter.set_powerlimits((6,6))
+        cb.update_ticks()

@@ -51,6 +51,7 @@ def geodetic2apex(*args,
                   return_apex_e_basevecs=False,
                   return_apex_f_basevecs=False,
                   return_apex_g_basevecs=False,
+                  return_dipoletilt=False,
                   return_mapratio=False):
     """
     geodetic2apex(gdlat, gdlon, gdalt_km[, times])
@@ -78,7 +79,7 @@ def geodetic2apex(*args,
     if haveDTIndex:
         multitime = True
     else:
-        if isinstance(args[3],list):
+        if isinstance(args[3],list) or isinstance(args[3],np.ndarray):
             if len(args[3]) == len(args[2]):
                 multitime = True
             # else:
@@ -176,16 +177,75 @@ def geodetic2apex(*args,
             dfSub.loc[nanners, 'gdlat'] = 0
             dfSub.loc[nanners, 'gdalt_km'] = 0
 
-    if do_qdcoords:
-        mlat, mlon = a.geo2qd(
-            dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
-    else:
-        mlat, mlon = a.geo2apex(
-            dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values)
+
+    # Now group by max_N_months_twixt_apexRefTime_and_obs
+    times = dfSub.index.to_pydatetime()
+    apexRefTime = times[0]
+
+    relDelta = relativedelta(
+        months=max_N_months_twixt_apexRefTime_and_obs)
+
+    maxIterHere = 3000
+    nIter = 0
+
+    mlat = np.zeros(dfSub['gdlat'].values.shape[0])*np.nan
+    mlon = np.zeros(dfSub['gdlat'].values.shape[0])*np.nan
+    if return_dipoletilt:
+        from dipole import dipole_tilt
+        from hatch_python_utils.time_tools import datetime_to_yearfrac
+        dptilt = np.zeros(dfSub['gdlat'].values.shape[0])*np.nan
+
+    while apexRefTime < times[-1]:
+
+        # See if we have any here; if not, skip
+
+        ind_timesHere = (times >= apexRefTime) & (
+            times < (apexRefTime+relDelta))
+
+        nIndsHere = np.where(ind_timesHere)[0].size
+
+        if debug:
+            print("DEBUG   {:s} to {:s} : Got {:d} inds for mlat/mlon conversion".format(
+                apexRefTime.strftime("%Y%m%d"),
+                (apexRefTime+relDelta).strftime("%Y%m%d"),
+                nIndsHere))
+
+        if nIndsHere == 0:
+            # Increment apexRefTime by relDelta
+            apexRefTime += relDelta
+            nIter += 1
+            continue
+
+        a.set_epoch(toYearFraction(apexRefTime))
+
+        if do_qdcoords:
+            mlattmp, mlontmp = a.geo2qd(
+                dfSub['gdlat'].values[ind_timesHere],
+                dfSub['gdlon'].values[ind_timesHere],
+                dfSub['gdalt_km'].values[ind_timesHere])
+        else:
+            mlattmp, mlontmp = a.geo2apex(
+                dfSub['gdlat'].values[ind_timesHere],
+                dfSub['gdlon'].values[ind_timesHere],
+                dfSub['gdalt_km'].values[ind_timesHere])
+
+        mlat[ind_timesHere] = mlattmp
+        mlon[ind_timesHere] = mlontmp
+
+        if return_dipoletilt:
+            dptilttmp = dipole_tilt(times[ind_timesHere],epoch=datetime_to_yearfrac([apexRefTime])[0])
+            dptilt[ind_timesHere] = dptilttmp
+
+        # Increment apexRefTime by relDelta
+        apexRefTime += relDelta
+
+        nIter += 1
+        if nIter >= maxIterHere:
+            print("Too many iterations! Breaking ...")
+            break
+
 
     if canDoMLT:
-
-        times = dfSub.index.to_pydatetime()
 
         if max_N_months_twixt_apexRefTime_and_obs == 0:
 
@@ -215,9 +275,6 @@ def geodetic2apex(*args,
             # Now group by max_N_months_twixt_apexRefTime_and_obs
             apexRefTime = times[0]
 
-            relDelta = relativedelta(
-                months=max_N_months_twixt_apexRefTime_and_obs)
-
             maxIterHere = 3000
             nIter = 0
             while apexRefTime < times[-1]:
@@ -238,6 +295,7 @@ def geodetic2apex(*args,
                 if nIndsHere == 0:
                     # Increment apexRefTime by relDelta
                     apexRefTime += relDelta
+                    nIter += 1
                     continue
 
                 a.set_epoch(toYearFraction(apexRefTime))
@@ -261,16 +319,10 @@ def geodetic2apex(*args,
                                                       times[tmpUseInds],
                                                       times[tmpUseInds][0].year)
 
-                        # mlt[tmpUseInds] = np.array([babyFunc2(a, mlonna, datime)
-                        #                             for mlonna, datime in zip(mlon[tmpUseInds],
-                        #                                                       times[tmpUseInds])])
 
                         nIndsConverted += nToConvert
 
                 else:
-                    # mlt[ind_timesHere] = np.array([babyFunc2(a, mlonna, datime)
-                    #                                for mlonna, datime in zip(mlon[ind_timesHere],
-                    #                                                          times[ind_timesHere])])
                     mlt[ind_timesHere] = mlon_to_mlt(mlon[ind_timesHere],
                                                      times[ind_timesHere],
                                                      times[ind_timesHere][0].year)
@@ -299,6 +351,10 @@ def geodetic2apex(*args,
     if canDoMLT:
         returnList.append(mlt)
         rListNames.append('mlt')
+
+    if return_dipoletilt:
+        returnList.append(dptilt)
+        rListNames.append('dptilt')
 
     if return_IGRF:
         # quiet = False

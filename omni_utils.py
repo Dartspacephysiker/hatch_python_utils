@@ -229,8 +229,32 @@ def omni_getter(*args,
         if interp_to_input_times and input_is_arr:
             print("Interping to input times ...")
 
-            combo = combo.reindex(combo.index.union(times)).interpolate(
-                **interpolateArgs).reindex(times)
+            maxchunksize = 500000
+            ntimes = len(times)
+
+            if ntimes > maxchunksize:
+                nchunks = ntimes//maxchunksize
+                print(f"Gotta chunk it up! You have {ntimes} times, so I'll make {nchunks} of <= {maxchunksize} times apiece")
+
+                curind = 0
+                chunkcount = 0
+                combos = []
+                while curind < ntimes:
+
+                    
+                    curmaxind = np.clip(curind + maxchunksize,0,ntimes)
+
+                    print(f"Getting chunk {chunkcount+1}/{nchunks} (indices {curind}-{curmaxind-1})")
+                    
+                    combos.append(combo.reindex(combo.index.union(times[curind:curmaxind])).interpolate(
+                        **interpolateArgs).reindex(times[curind:curmaxind]))
+                    curind += maxchunksize
+                    chunkcount += 1
+
+                combo = pd.concat(combos)
+            else:
+                combo = combo.reindex(combo.index.union(times)).interpolate(
+                                      **interpolateArgs).reindex(times)
 
         return combo
     else:
