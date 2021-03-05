@@ -9,6 +9,8 @@
 # AXI7  (20200630): Nice scientific notation (base 10)
 # AXI8  (20200701): Remove top and right spines
 # AXI9  (20201021): Three-column gridspec WITH colorbar, with y-axis labels only visible for the leftmost column
+# AXI10 (20210112): Add a second x axis on the SAME SIDE as the original x axis, with custom labels
+# AXI11 (20210223): Nice rotation of datetime labels on x axis (use fig.autofmt_xdate()!)
 
 ########################################
 # BOXPLOTS
@@ -194,6 +196,38 @@ for iax,ax in enumerate(axes):
     _ = ax.set_xlabel('Time [s]')
 
 
+# AXI10 (20210112): Add a second x axis on the SAME SIDE as the original x axis, with custom labels
+def add_2nd_xaxis(ax,newlabels,posbelow=-0.25):
+    ax2 = ax.twiny()
+    # Add some extra space for the second axis at the bottom
+    # fig.subplots_adjust(bottom=0.2)
+    # Move twinned axis ticks and label from top to bottom
+    ax2.xaxis.set_ticks_position("bottom")
+    ax2.xaxis.set_label_position("bottom")
+    
+    
+    # Offset the twin axis below the host
+    ax2.spines["bottom"].set_position(("axes", posbelow))
+    # Turn on the frame for the twin axis, but then hide all 
+    # but the bottom spine
+    ax2.set_frame_on(True)
+    ax2.patch.set_visible(False)
+    # as @ali14 pointed out, for python3, use this
+    # and for python2, use this
+    #for sp in ax2.spines.itervalues():
+    for sp in ax2.spines.values():
+        sp.set_visible(False)
+    ax2.spines["bottom"].set_visible(True)
+    ax2.set_xticks(ax.xaxis.get_ticklocs())
+    ax2.xaxis.set_major_formatter(ax.xaxis.get_major_formatter())
+    ax2.set_xlim(ax.get_xlim())
+    ax2.set_xticklabels(newlabels)
+    # ax2.set_xlabel(r"MLat [deg]")
+    return ax2
+
+
+# AXI11 (20210223): Nice rotation of datetime labels on x axis
+# Just use fig.autofmt_xdate()!
 ########################################
 # BOXPLOTS
 ########################################

@@ -106,7 +106,7 @@ def load_Swarm_ephemeris(*args,**kws):
     if dotiming:
         start_load_time = time.time()
 
-    df = pd.concat(df)
+    df = pd.concat(df,sort=True)
 
     if dotiming:
         stop_load_time = time.time()
@@ -175,6 +175,7 @@ def get_Swarm_combo(dates,
                     dtype__add_Apex=[],
                     apex__geodetic2apexOpts=dict(min_time_resolution__sec=1,
                                                  max_N_months_twixt_apexRefTime_and_obs=3),
+                    ct2hz_calversion='0302',
                     localSaveDir='/media/spencerh/data/Swarm/',
                     # check_for_existing_funcDict=dict(),
                     removeDownloadedZipAfterProcessing=False,
@@ -200,6 +201,8 @@ def get_Swarm_combo(dates,
                                resampleString='500ms',
                                customSaveSuff='',
                                make_pickles=True)
+
+    assert isinstance(dates,list),"'dates' must be a list of some sort!"
 
     try:
         _ = dates[0]
@@ -256,11 +259,17 @@ def get_Swarm_combo(dates,
         dfList = []
         getFunc = getFuncDict[dtyper.upper()]
 
-        gotFiles = getFunc(sat=sat,
+        getFuncKeys = dict(sat=sat,
                            dates=dateStrs,
                            only_list=getFunc__onlylist,
                            localSaveDir=localSaveDir,
                            append_dir=only_remove_zips or removeDownloadedZipAfterProcessing)
+
+        if dtyper == 'CT2HZ':
+            print(f"CT2Hz calversion: {ct2hz_calversion}")
+            getFuncKeys['calversion'] = ct2hz_calversion
+            
+        gotFiles = getFunc(**getFuncKeys)
 
         if gotFiles is None:
             print("No files for {:s}!".format(",".join(dateStrs)))
@@ -441,7 +450,7 @@ def getFPFTP(sat='A',
 def getCT2HzFTP(sat='A',
                 dates=None,
                 localSaveDir='/media/spencerh/data/Swarm/',
-                calversion='0201',
+                calversion='0302',
                 only_list=False,
                 check_for_existing_func=None,
                 append_dir=False):
@@ -449,13 +458,21 @@ def getCT2HzFTP(sat='A',
     Get a cross-track 2-Hz file
     """
 
-    VALID_CAL_VERSIONS = ['0201','0101']
+    VALID_CAL_VERSIONS = ['0302','0301','0201','0101']
+
+    fsuffdict = {'0101':'_0101.CDF.ZIP',
+                 '0201':'_0201.ZIP',
+                 '0301':'_0301.ZIP',
+                 '0302':'_0302.ZIP'}
 
     assert calversion in VALID_CAL_VERSIONS
-    if calversion == '0201':
+    if calversion == '0302':
         subfolder = 'New_baseline' 
-    elif calversion == '0101':
+        # elif calversion == '0101':
+    else:
         subfolder = 'Old_baseline' 
+
+    fsuff = fsuffdict[calversion]
 
     localSaveDir += '2Hz_TII_Cross-track/Swarm_'+sat+'/'
 
@@ -467,8 +484,12 @@ def getCT2HzFTP(sat='A',
     # EXAMPLE: SW_EXPT_EFIA_TIICT_20151101T155814_20151101T235004_0101.CDF.ZIP
     # ftpFilePref = 'SW_EXPT_EFI'+sat+'_TIICT_'
 
+    breakpoint()
+
     gotFiles = _getFTP_dateGlob(dates, localSaveDir, subDir,
                                 only_list=only_list)
+
+    gotFiles = [gotFile for gotFile in gotFiles if fsuff in gotFile]
 
     if append_dir:
         if gotFiles is not None:
@@ -483,6 +504,9 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir,
     Get a Swarm FTP file, genericizliaed
     """
 
+    # WGET VERSION
+    import wget
+
     swarmFTPAddr = "swarm-diss.eo.esa.int"
 
     ftp = ftplib.FTP(swarmFTPAddr)
@@ -490,6 +514,8 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir,
     ftp.cwd(subDir)
 
     filz = ftp.nlst(subDir)
+    ftp.close()                 # TRY THIS
+
     ftpFiles = []
 
     if isinstance(dates, str):
@@ -562,13 +588,20 @@ def _getFTP_dateGlob(dates, localSaveDir, subDir,
             if not os.path.isdir(localSaveDir):
                 os.mkdir(localSaveDir)
 
-            with open(localSaveDir+ftpFile, "wb") as getFile:
-                print("Trying to get " + ftpFile + ' ...')
-                try:
-                    ftp.retrbinary("RETR " + ftpFile, getFile.write)
-                    print("Done!")
-                except:
-                    print("Couldn't get "+ftpFile+"!")
+            print("Trying to get " + ftpFile + ' ...',end='')
+            try:
+                wget.download('ftp://'+swarmFTPAddr+subDir+ftpFile,localSaveDir+ftpFile)
+                print("Done!")
+            except:
+                print("Couldn't get "+ftpFile+"!")
+
+            # with open(localSaveDir+ftpFile, "wb") as getFile:
+            #     print("Trying to get " + ftpFile + ' ...')
+            #     try:
+            #         ftp.retrbinary("RETR " + ftpFile, getFile.write)
+            #         print("Done!")
+            #     except:
+            #         print("Couldn't get "+ftpFile+"!")
 
         else:
             print("Already have " + ftpFile + '!')

@@ -2,7 +2,7 @@
 from datetime import datetime
 import apexpy
 import igrf12
-from pytt.earth import geodesy
+from pysymmetry import geodesy
 import numpy as np
 import pandas as pd
 import scipy.io as sio
@@ -64,8 +64,9 @@ def geodetic2apex(*args,
     get_apex_basevecs = return_apex_d_basevecs or return_apex_e_basevecs or \
         return_apex_f_basevecs or return_apex_g_basevecs or return_mapratio
 
-    if get_apex_basevecs or return_mapratio or return_IGRF:
-        assert 2<0,"WARNING! geodetic2apex takes care of changes in time with mlat, mlon, and mlt, but not with apex basevectors, mapratio, or IGRF!"
+    # if get_apex_basevecs or return_mapratio or return_IGRF:
+    if return_mapratio or return_IGRF:
+        assert 2<0,"WARNING! geodetic2apex takes care of changes in time with mlat, mlon, and mlt, but not with mapratio or IGRF!"
 
     if max_N_months_twixt_apexRefTime_and_obs is None:
         max_N_months_twixt_apexRefTime_and_obs = 0
@@ -188,12 +189,37 @@ def geodetic2apex(*args,
     maxIterHere = 3000
     nIter = 0
 
-    mlat = np.zeros(dfSub['gdlat'].values.shape[0])*np.nan
-    mlon = np.zeros(dfSub['gdlat'].values.shape[0])*np.nan
+    NOBS = dfSub['gdlat'].values.shape[0]
+    mlat = np.zeros(NOBS)*np.nan
+    mlon = np.zeros(NOBS)*np.nan
+
+    if get_apex_basevecs:
+        
+        if return_apex_d_basevecs:
+            # d10,d11,d12 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # d20,d21,d22 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # d30,d31,d32 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            d1,d2,d3 = np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
+        if return_apex_e_basevecs:
+            # e10,e11,e12 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # e20,e21,e22 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # e30,e31,e32 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            e1,e2,e3 = np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
+        if return_apex_f_basevecs:
+            # f10,f11,f12 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # f20,f21,f22 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # f30,f31,f32 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            f1,f2,f3 = np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
+        if return_apex_g_basevecs:
+            # g10,g11,g12 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # g20,g21,g22 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            # g30,g31,g32 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
+            g1,g2,g3 = np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
+
     if return_dipoletilt:
         from dipole import dipole_tilt
         from hatch_python_utils.time_tools import datetime_to_yearfrac
-        dptilt = np.zeros(dfSub['gdlat'].values.shape[0])*np.nan
+        dptilt = np.zeros(NOBS)*np.nan
 
     while apexRefTime < times[-1]:
 
@@ -231,6 +257,38 @@ def geodetic2apex(*args,
 
         mlat[ind_timesHere] = mlattmp
         mlon[ind_timesHere] = mlontmp
+
+        # Basevectors
+        if get_apex_basevecs:
+
+            # if not quiet:
+            #     print("Getting Apex basevectors ...")
+            # From Laundal and Richmond (2016):
+            # e1 "points eastward along contours of constant λma,"
+            # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
+            # "t" stands for "temporary"
+            f1t, f2t, f3t, g1t, g2t, g3t, d1t, d2t, d3t, e1t, e2t, e3t = a.basevectors_apex(
+                dfSub['gdlat'].values[ind_timesHere],
+                dfSub['gdlon'].values[ind_timesHere],
+                dfSub['gdalt_km'].values[ind_timesHere], coords='geo')
+
+            if return_apex_d_basevecs:
+                d1[:,ind_timesHere] = d1t
+                d2[:,ind_timesHere] = d2t
+                d3[:,ind_timesHere] = d3t
+            if return_apex_e_basevecs:
+                e1[:,ind_timesHere] = e1t
+                e2[:,ind_timesHere] = e2t
+                e3[:,ind_timesHere] = e3t
+            if return_apex_f_basevecs:
+                f1[:,ind_timesHere] = f1t
+                f2[:,ind_timesHere] = f2t
+                f3[:,ind_timesHere] = f3t
+            if return_apex_g_basevecs:
+                g1[:,ind_timesHere] = g1t
+                g2[:,ind_timesHere] = g2t
+                g3[:,ind_timesHere] = g3t
+
 
         if return_dipoletilt:
             dptilttmp = dipole_tilt(times[ind_timesHere],epoch=datetime_to_yearfrac([apexRefTime])[0])
@@ -388,13 +446,13 @@ def geodetic2apex(*args,
 
     if get_apex_basevecs:
 
-        if not quiet:
-            print("Getting Apex basevectors ...")
-        # From Laundal and Richmond (2016):
-        # e1 "points eastward along contours of constant λma,"
-        # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
-        f1, f2, f3, g1, g2, g3, d1, d2, d3, e1, e2, e3 = a.basevectors_apex(
-            dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values, coords='geo')
+        # if not quiet:
+        #     print("Getting Apex basevectors ...")
+        # # From Laundal and Richmond (2016):
+        # # e1 "points eastward along contours of constant λma,"
+        # # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
+        # f1, f2, f3, g1, g2, g3, d1, d2, d3, e1, e2, e3 = a.basevectors_apex(
+        #     dfSub['gdlat'].values, dfSub['gdlon'].values, dfSub['gdalt_km'].values, coords='geo')
 
         if return_mapratio:
             mapratio = 1. / np.linalg.norm(np.cross(d1.T, d2.T), axis=1)

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime,timedelta
-
+from pysymmetry.sunlight import subsol
 
 def earthSunDist(doy):
     """
@@ -90,41 +90,71 @@ def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
 
 #     return
 
-def cheap_LT_calc(dts,gclons,
+def get_localtime(dts, glons,
                   return_dts_too=False,
                   verbose=False):
 
-    # print("Convert input dts to pandas datetime index!")
     if not hasattr(dts,'__iter__'):
         dts = pd.DatetimeIndex([dts])
 
     elif not hasattr(dts,'hour'):
         dts = pd.DatetimeIndex(dts)
 
-    if not hasattr(gclons,'__iter__'):
-        gclons = np.array(gclons)
+    if not hasattr(glons,'__iter__'):
+        glons = np.array(glons)
 
-    gclons = (gclons+360) % 360
+    sslat, sslon = map(np.ravel, subsol(dts))
+    LTs = ((glon - sslon + 180) % 360 - 180) / 15
 
-    if verbose:
-        if gclons.size ==1:
-            # relstr = "ahead of"
-            reltogreenwich = gclons/15.
-
-            relstr = "ahead of" if (gclons <= 180) else "behind"
-            if reltogreenwich > 12:
-                reltogreenwich -= 24
-
-            print("Longitude {:.2f} is {:.2f} hours {:s} Greenwich!".format(gclons,reltogreenwich,relstr))
-
-    midnightlongitude = -15*(dts.hour.values+dts.minute.values/60+dts.second.values/3600.)
-    midnightlongitude = (midnightlongitude + 360) % 360
-
-    LTs = (((gclons-midnightlongitude) + 360) % 360)/15
+    midnightlongitude = (sslon - 180.) % 360
     if return_dts_too:
-        return LTs, dts, midnightlongitude, gclons
+        return LTs, dts, midnightlongitude, glons
     else:
         return LTs
+
+def cheap_LT_calc(dts,glons,
+                  return_dts_too=False,
+                  verbose=False):
+
+    # 2021/01/28 NOW we just use Kalle's way of doing things, which uses subsolar longitude
+    # if return_dts_too, you get (LTs, dts, midnightlongitude, glons)
+    # if not, you get LTs
+    print("Using Kalle's subsolar point calculation instead of your junk LT calc!")
+    outs = get_localtime(dts,glons,
+                         return_dts_too=return_dts_too,
+                         verbose=verbose)
+    return outs
+
+    # if not hasattr(dts,'__iter__'):
+    #     dts = pd.DatetimeIndex([dts])
+
+    # elif not hasattr(dts,'hour'):
+    #     dts = pd.DatetimeIndex(dts)
+
+    # if not hasattr(glons,'__iter__'):
+    #     glons = np.array(glons)
+
+    # glons = (glons+360) % 360
+
+    # if verbose:
+    #     if glons.size ==1:
+    #         # relstr = "ahead of"
+    #         reltogreenwich = glons/15.
+
+    #         relstr = "ahead of" if (glons <= 180) else "behind"
+    #         if reltogreenwich > 12:
+    #             reltogreenwich -= 24
+
+    #         print("Longitude {:.2f} is {:.2f} hours {:s} Greenwich!".format(glons,reltogreenwich,relstr))
+
+    # midnightlongitude = -15*(dts.hour.values+dts.minute.values/60+dts.second.values/3600.)
+    # midnightlongitude = (midnightlongitude + 360) % 360
+
+    # LTs = (((glons-midnightlongitude) + 360) % 360)/15
+    # if return_dts_too:
+    #     return LTs, dts, midnightlongitude, glons
+    # else:
+    #     return LTs
 
 def get_noon_longitude(dts,verbose=False):
     """
@@ -144,23 +174,28 @@ def get_noon_longitude(dts,verbose=False):
     # # FOLLOWING SHOULD ALL BE AROUND 23.44 IF JUNSOLSTICE, 0 IF MAREQUINOX
     # print(sza(np.zeros(dts.size),get_noon_longitude(dts),dts))
 
-    if not hasattr(dts,'__iter__'):
-        dts = pd.DatetimeIndex([dts])
+    print("Using Kalle's superior subsolar longitude calc")
+    sslat, sslon = map(np.ravel, subsol(dts))
+    return sslon
 
-    elif not hasattr(dts,'hour'):
-        dts = pd.DatetimeIndex(dts)
 
-    fracHour = dts.hour.values+dts.minute.values/60+dts.second.values/3600.
+    # if not hasattr(dts,'__iter__'):
+    #     dts = pd.DatetimeIndex([dts])
 
-    assert not any((fracHour < 0) | (fracHour > 24))
+    # elif not hasattr(dts,'hour'):
+    #     dts = pd.DatetimeIndex(dts)
 
-    fracHour[fracHour > 12] -= 24
+    # fracHour = dts.hour.values+dts.minute.values/60+dts.second.values/3600.
 
-    fracHour *= 15
+    # assert not any((fracHour < 0) | (fracHour > 24))
 
-    if verbose:
-        print("Min fracHour: {:.2f}".format(np.min(fracHour)))
-        print("Max fracHour: {:.2f}".format(np.max(fracHour)))
+    # fracHour[fracHour > 12] -= 24
 
-    return 180 - fracHour 
+    # fracHour *= 15
+
+    # if verbose:
+    #     print("Min fracHour: {:.2f}".format(np.min(fracHour)))
+    #     print("Max fracHour: {:.2f}".format(np.max(fracHour)))
+
+    # return 180 - fracHour 
 

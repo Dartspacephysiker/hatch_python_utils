@@ -93,22 +93,29 @@ def calculate_satellite_frame_vectors_in_NEC_coordinates(df,
     assert (np.abs(df['VsatC'])/VsatHoriz).max() < 0.01
 
     # Regne ut komponentene til hastighets-enhetsvektor
-    for vCo,vUnitCo in zip(vCol,vUnitCol):
-        # df[vUnitCo] = df[vCo]/df['VsatMag']
-        df[vUnitCo] = df[vCo]/VsatMag
+    # for vCo,vUnitCo in zip(vCol,vUnitCol):
+    #     # df[vUnitCo] = df[vCo]/df['VsatMag']
+    #     df[vUnitCo] = df[vCo]/VsatMag
 
     # Forsikre oss om at enhetsvektorene har faktisk størrelse 1 :)
-    assert np.all(np.isclose(1,(df[vUnitCol]**2.).sum(axis=1)))
+    # assert np.all(np.isclose(1,(df[vUnitCol]**2.).sum(axis=1)))
 
     #Da ifølge dokumentasjonen ...
 
     ########################################
     # i. Definere x-enhetsvektoren i NEC-koordinater
     
-    xN = df['VsatNhat']
-    xE = df['VsatEhat']
-    xC = df['VsatChat']
+    # xN = df['VsatNhat']
+    # xE = df['VsatEhat']
+    # xC = df['VsatChat']
     
+    xN = df['VsatN']/VsatMag
+    xE = df['VsatE']/VsatMag
+    xC = df['VsatC']/VsatMag
+
+    assert np.all(np.isclose(1,xN**2+xE**2+xC**2))
+    #                          (df[vUnitCol]**2.).sum(axis=1)
+    # ))
     
     ########################################
     # ii. Definere y-enhetsvektoren i NEC-koordinater
