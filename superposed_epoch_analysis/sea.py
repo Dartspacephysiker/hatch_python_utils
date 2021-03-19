@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from hatch_python_utils.earth.seasons import get_scaled_season_parameter,add_scaled_season_column
+from hatch_python_utils.earth.seasons import add_scaled_season_column
 from datetime import datetime,timedelta
 
 
@@ -76,8 +76,8 @@ def screen_epochtime_db(dfepoch,
 
         # Convert befaftEpochhours to two-element array of proper timedeltas
         try:
-            befaftSC = np.array([pd.Timedelta(f'{drop_epochs__befaftEpochhours[0]} hours').to_numpy(),
-                                 pd.Timedelta(f'{drop_epochs__befaftEpochhours[1]} hours').to_numpy()])
+            befaftEpoch = np.array([pd.Timedelta(f'{drop_epochs__befaftEpochhours[0]} hours').to_numpy(),
+                                    pd.Timedelta(f'{drop_epochs__befaftEpochhours[1]} hours').to_numpy()])
         except:
             assert 2<0,"Couldn't convert 'drop_epochs__befaftEpochhours' to skikkelig pd.Timedeltas!"
 
@@ -189,7 +189,7 @@ def screen_epochtime_db(dfepoch,
 
     if drop_epochs_for_which_no_data_in_this_df is not None:
         # Don't waste time with epochs occurring before or after timespan of dfdata
-        newscreen = (dfepoch.index >= (dfdata.index[0]-befaftSC[0])) & (dfepoch.index <= (dfdata.index[-1]+befaftSC[1]))
+        newscreen = (dfepoch.index >= (dfdata.index[0]-befaftEpoch[0])) & (dfepoch.index <= (dfdata.index[-1]+befaftEpoch[1]))
 
         nDropped = keepepoch.sum() - newscreen.sum()
         keepepoch = keepepoch & newscreen
@@ -205,7 +205,7 @@ def screen_epochtime_db(dfepoch,
             if not docheck:
                 continue
             
-            indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1])
+            indshere = ((index-dfdata.index) <= befaftEpoch[0]) & ((dfdata.index - index) <= befaftEpoch[1])
             nIndsHere = indshere.sum()
         
             if nIndsHere == 0:
@@ -282,12 +282,12 @@ def get_epoch_reltimes(dfdata,dfepoch,
     dfdata.loc[:,dtepochcol] = np.nan
 
     # Convert befaftEpochhours to two-element array of proper timedeltas
-    befaftSC = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
-                         pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
+    befaftEpoch = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
+                            pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
     
 
     # Don't waste time with epochs occurring before or after timespan of dfdata
-    dfepochnew = dfepoch[(dfepoch.index >= (dfdata.index[0]-befaftSC[0])) & (dfepoch.index <= (dfdata.index[-1]+befaftSC[1]))]
+    dfepochnew = dfepoch[(dfepoch.index >= (dfdata.index[0]-befaftEpoch[0])) & (dfepoch.index <= (dfdata.index[-1]+befaftEpoch[1]))]
 
     # magind = (np.diff(dfepochnew.index).astype(np.int64)/1e9/3600).argmin()
     # # magind = np.where(np.diff(dfepochnew.index).astype(np.int64)/1e9/3600/24 < 0)[0]
@@ -341,7 +341,7 @@ def get_epoch_reltimes(dfdata,dfepoch,
 
             for index in dfepochnew.index:
                 # print(index)
-                indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1]) & hemiInds
+                indshere = ((index-dfdata.index) <= befaftEpoch[0]) & ((dfdata.index - index) <= befaftEpoch[1]) & hemiInds
                 nIndsHere = indshere.sum()
 
                 if nIndsHere > 0:
@@ -358,17 +358,17 @@ def get_epoch_reltimes(dfdata,dfepoch,
         if doScreenBySeason:
 
             dfepochnewUse = screen_epochtime_db(dfepochnewUse,
-                                          doScreenBySeason=doScreenBySeason,
-                                          seasonOrMonths=seasonOrMonths[:3].lower(),
-                                          mintdiffHours=mintdiffHours,
-                                          verbose=True)
+                                                doScreenBySeason=doScreenBySeason,
+                                                seasonOrMonths=seasonOrMonths[:3].lower(),
+                                                mintdiffHours=mintdiffHours,
+                                                verbose=True)
 
         ##############################
         # Get epoch times
     
         for index in dfepochnewUse.index:
             # print(index)
-            indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1])
+            indshere = ((index-dfdata.index) <= befaftEpoch[0]) & ((dfdata.index - index) <= befaftEpoch[1])
             nIndsHere = indshere.sum()
         
             if nIndsHere > 0:
@@ -404,23 +404,23 @@ def get_epochs_with_data(dfdata,dfepoch,
     assert isinstance(dfdata.index,pd.core.indexes.datetimes.DatetimeIndex),"dfdata must have index of type pd.DatetimeIndex!"
 
     # Convert befaftEpochhours to two-element array of proper timedeltas
-    befaftSC = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
-                         pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
+    befaftEpoch = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
+                            pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
     
 
     havedata = np.zeros(dfepoch.shape[0],dtype=np.bool)
     firsttime,lasttime = dfdata.index[0],dfdata.index[-1]
     for i,index in enumerate(dfepoch.index):
 
-        if index < (firsttime-befaftSC[0]):
+        if index < (firsttime-befaftEpoch[0]):
             # Save time, don't bother calculating
             continue
-        elif index > (lasttime+befaftSC[1]):
+        elif index > (lasttime+befaftEpoch[1]):
             # Save time, don't bother calculating
             continue
         else:
             # print(index)
-            indshere = ((index-dfdata.index) <= befaftSC[0]) & ((dfdata.index - index) <= befaftSC[1])
+            indshere = ((index-dfdata.index) <= befaftEpoch[0]) & ((dfdata.index - index) <= befaftEpoch[1])
             nIndsHere = indshere.sum()
         
             if nIndsHere > 0:

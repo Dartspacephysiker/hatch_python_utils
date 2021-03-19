@@ -11,6 +11,7 @@
 # AXI9  (20201021): Three-column gridspec WITH colorbar, with y-axis labels only visible for the leftmost column
 # AXI10 (20210112): Add a second x axis on the SAME SIDE as the original x axis, with custom labels
 # AXI11 (20210223): Nice rotation of datetime labels on x axis (use fig.autofmt_xdate()!)
+# AXI12 (20210316): Polarsubplot filled_cells example, with equal-area grid and colorbar
 
 ########################################
 # BOXPLOTS
@@ -228,6 +229,35 @@ def add_2nd_xaxis(ax,newlabels,posbelow=-0.25):
 
 # AXI11 (20210223): Nice rotation of datetime labels on x axis
 # Just use fig.autofmt_xdate()!
+
+# AXI12 (20210316): Polarsubplot filled_cells example, with equal-area grid and colorbar
+from pysymmetry.visualization import grids
+
+#Make the binning grid
+LOWLAT=50
+M0 = 4  #4
+dr = 2  #2
+mlat_, mlt_, mltres_ = grids.equal_area_grid(dr = dr, M0 = M0, N = int((90-LOWLAT)//dr))
+ncells = len(mlt_)
+
+#Construct the binned average dict    
+grid = {'mlt':mlt_, 'mlat':mlat_, 'mltres':mltres_, 'cmlt':mlt_ + mltres_/2., 'cmlat':mlat_ + dr/2.}
+
+grid['bias'] = np.sin(np.deg2rad((90-grid['mlat'])/(90-LOWLAT)*90))
+
+vmin,vmax = grid['bias'].min(),grid['bias'].max()
+vmin,vmax = 0,1
+nlevels = 21
+levels = np.linspace(vmin,vmax,nlevels)
+cmap = 'Blues'
+cmap = plt.get_cmap(cmap)
+
+fig,ax = plt.subplots(1,1)
+pax = Polarsubplot(ax)
+pax.filled_cells(grid['mlat'],grid['mlt'],2,grid['mltres'],grid['bias'],levels=levels,cmap=cmap)
+
+cb = fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.BoundaryNorm(levels, ncolors=cmap.N, clip=True),cmap=cmap))
+
 ########################################
 # BOXPLOTS
 ########################################

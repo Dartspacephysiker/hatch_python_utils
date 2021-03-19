@@ -3,6 +3,18 @@ import datetime
 from operator import attrgetter
 
 
+def get_UT(dts):
+    try:
+        UT = dts.hour+dts.minute/60+dts.second/3600
+    except:
+        try:
+            UT = [dtid.hour+dtid.minute/60+dtid.second/3600 for dtid in dts]
+        except:
+            print("Couldn't convert dts to UT!")
+            return
+
+    return UT
+
 def doy_single(dt):
     tt = dt.timetuple()
     doy = tt.tm_yday+tt.tm_hour/24.+tt.tm_min/1440.+tt.tm_sec/86400.
