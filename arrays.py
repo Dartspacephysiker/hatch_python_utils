@@ -78,16 +78,42 @@ def group_consecutives(vals, maxDiff=1,
     return this
 
 
-def find_nearest(array, value):
-    array = np.asarray(array)
-    if hasattr(value, '__len__'):
-        if array.ndim > 1:
-            print("Don't know what to do with multidimensional array and search value!")
-            return -1
-        idx = (np.abs(array.reshape(array.size, 1) - value)).argmin(axis=0)
+def find_nearest(array, value,OLDWAY=False):
+    
+
+    if not OLDWAY:
+
+        return get_closest(value,array)
+
     else:
-        idx = (np.abs(array - value)).argmin()
-    return idx
+
+        array = np.asarray(array)
+        if hasattr(value, '__len__'):
+            if array.ndim > 1:
+                print("Don't know what to do with multidimensional array and search value!")
+                return -1
+            idx = (np.abs(array.reshape(array.size, 1) - value)).argmin(axis=0)
+        else:
+            idx = (np.abs(array - value)).argmin()
+        return idx
+
+
+def get_closest(x,bins):
+    """
+    Here is the NWO in terms of speed. Use this'n instead of find_nearest.
+    """
+    assert np.allclose(np.sort(bins)-bins,0)  # If this isn't true, algorithm doesn't work
+
+    nbins = len(bins)
+    res = np.digitize(x,bins)-1
+
+    res[res < 0] = 0
+    res[res > (nbins-1)] = nbins-1
+    # altres = np.clip(res+1,0,nbins-1)
+    # res = res + np.argmin([np.abs(x-bins[res]),np.abs(x-bins[altres])],axis=0)
+    res = res + np.argmin([np.abs(x-bins[res]),np.abs(x-bins[np.clip(res+1,0,nbins-1)])],axis=0)
+    
+    return res
 
 
 def get_streaks(array, minNStreak=None, maxGap=1):

@@ -47,7 +47,7 @@ def earthSunDist(doy):
 def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
             mltMode=True):
     """
-    Great-circle distance
+    Great-circle distance in degrees
     lat1: Latitude of 1st point in degrees
     lat2: Latitude of 2nd point in degrees
     mltOrLon1: Magnetic local time of 1st point in hours (so between 0 and 24)
@@ -62,7 +62,10 @@ def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
         lon1R = np.deg2rad(mltOrLon1)
         lon2R = np.deg2rad(mltOrLon2)
 
-    return np.rad2deg(np.arccos(np.sin(lat1R)*np.sin(lat2R)+np.cos(lat1R)*np.cos(lat2R)*np.cos(np.abs(lon1R-lon2R))))
+    # Clip argument to prevent rounding errors (for example, np.arccos(1.0000000000000002) produces an error)
+    arg = np.sin(lat1R)*np.sin(lat2R)+np.cos(lat1R)*np.cos(lat2R)*np.cos(np.abs(lon1R-lon2R))
+    arg = np.clip(arg,0,1)
+    return np.rad2deg(np.arccos(arg))
 
 # def sphDist(lat1, mlt1, lat2, mlt2):
 #     """

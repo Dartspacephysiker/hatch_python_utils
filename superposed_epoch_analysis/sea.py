@@ -380,6 +380,37 @@ def get_epoch_reltimes(dfdata,dfepoch,
             return dfepochnewUse
 
 
+def get_epoch_reltimes_fast(dfdata,dfepoch,
+                            befaftEpochhours=np.array([60,60]),
+                            dtepochcol='dtEpoch'):
+    """
+    A cray-fast(40x plus speedup), np.digitize-based version of get_epoch_reltimes.
+    """
+
+    from hatch_python_utils.arrays import get_closest
+    assert isinstance(dfdata.index,pd.core.indexes.datetimes.DatetimeIndex),"dfdata must have index of type pd.DatetimeIndex!"
+    assert isinstance(dfepoch.index,pd.core.indexes.datetimes.DatetimeIndex),"dfepoch must have index of type pd.DatetimeIndex!"
+
+    # Convert befaftEpochhours to two-element array of proper timedeltas
+    befaftEpoch = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
+                            pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])/np.timedelta64(1)/1e9
+
+    # Reset any existing calculation
+    dfdata.loc[:,dtepochcol] = np.nan
+
+    # Get input for get_closest
+    junkreftime = pd.Timestamp('1970-01-01 00:00:00')
+    x = (dfdata.index-junkreftime).values/np.timedelta64(1)/1e9
+    bins = (dfepoch.index-junkreftime).values/np.timedelta64(1)/1e9
+
+    res = get_closest(x,bins)
+
+    deltat = x-bins[res]
+
+    goodinds = (deltat >= (-1)*befaftEpoch[0]) & (deltat <= befaftEpoch[1])
+    dfdata.loc[goodinds,dtepochcol] = deltat[goodinds]/3600.
+
+
 def get_epochs_with_data(dfdata,dfepoch,
                          befaftEpochhours=np.array([60,60]),
                          verbose=True):
