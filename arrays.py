@@ -79,7 +79,9 @@ def group_consecutives(vals, maxDiff=1,
 
 
 def find_nearest(array, value,OLDWAY=False):
-    
+    """
+    Bruk heller get_closest, which is multidim
+    """
 
     if not OLDWAY:
 
@@ -191,7 +193,7 @@ def getIndices(seq, vals):
 
 def value_locate(seq, vals):
     """
-    Tilsvarer IDL'S VALUE_LOCATE
+    Et svar på IDL'S VALUE_LOCATE
     """
     return getIndices(seq, vals)
 
@@ -284,6 +286,46 @@ def bruteNMin(this, nMinsWant,
 
     return minInds
 
+
+def get_rollangle_for_min_anglerange(x,
+                                     dangle=5,
+                                     minangle=0,
+                                     maxangle=180,
+                                     DEBUG=False):
+    """
+    When using scipy.stat's binned_statistic with an independent variable that is periodic
+    (say, angles over 0–180 deg), it sometimes happens that more bins are created than are 
+    actually necessary. This function finds the angle by which to roll the x axis that 
+    will minimize the spread of the independent variable
+
+    EXAMPLE
+    =======
+    import numpy as np
+    from hatch_python_utils.arrays import get_rollangle_for_min_anglerange
+    x = np.array([5,20,40,150,160,180])
+    print(x.max()-x.min())
+    best = get_rollangle_for_min_anglerange(x)
+    xtmp = x - best
+    xtmp[xtmp < 0] += 180
+    print(xtmp.max()-xtmp.min())
+    """
+
+    if np.where((x < minangle) | (x > maxangle))[0].size > 0:
+        assert 2<0,"Gonna break your algorithm! x is incompatible with given minangle/maxangle!"
+
+    diffs = np.arange(minangle,maxangle+dangle/2,dangle,
+                      dtype=np.int64 if np.isclose(np.int64(dangle),dangle) else np.float64)
+    spread = np.zeros(len(diffs))*np.nan    
+
+    for idd,diff in enumerate(diffs):
+        tmp = x - diff
+        tmp[tmp < minangle] += maxangle
+        if DEBUG:
+            print(idd,diff,tmp)
+        spread[idd] = tmp.max() - tmp.min()
+    
+    winna = np.argmin(spread)
+    return diffs[winna]
 
 def carVec_to_sphVec(theta, phi,
                      vecx, vecy, vecz,

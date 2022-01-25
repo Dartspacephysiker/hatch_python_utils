@@ -19,14 +19,25 @@ def load_sc_database(minQualCode=0,
     SCType                         (str): Impulse followed by storm ('SSC') or impulse without consequent geomagnetic storm activity ('SI')
     SCType__beGenerousBefore2005  (bool): Storm identification did not happen before 2006, so if this is true, don't drop these storms
 
+    Lastet ned fra http://isgi.unistra.fr/data_download.php.
+    Their recommendation: 
+    "The results presented in this paper rely on the SC database calculated and made available by 
+    [Insert here the name of the considered ISGI Collaborating Institute(s)] from data collected at magnetic observatories. 
+    We thank the involved national institutes, the INTERMAGNET network and ISGI (isgi.unistra.fr)."
+
+    To generate, see: "journal__20200814__read_sudden_commencement_txt_files.ipynb"
+
     SMH 2020-08-21
     Birkeland Centre for Space Science
     Universitetet i Bergen
+
     """
 
     scdir = '/SPENCEdata/Research/database/sudden_commencement/'
     # output info
     outfile = 'SuddenCommencements__1999-2019.parquet'
+    outfile = 'SuddenCommencements__1979-2019.parquet'
+    outfile = 'SuddenCommencements__1979-2021PARTIAL.parquet'
 
     ##############################
     # SAFETY CHECKS

@@ -1,7 +1,8 @@
 # 2019/05/30
 from datetime import datetime
 import apexpy
-import igrf12
+# import igrf12 as igrf
+import igrf
 from pysymmetry import geodesy
 import numpy as np
 import pandas as pd
@@ -19,6 +20,45 @@ from pyamps.mlt_utils import mlon_to_mlt
 #     else:
 #         mlt = a.mlon2mlt(mlon, datime)
 #     return mlt
+
+
+def convapexvectoENU(vtheta,vphi,vpar,mlt,mlat,dt,refh=130):
+    """
+    vtheta: Vector component in magnetic north/south direction, with equatorward positive (at least in NH)
+    vphi  : Vector component in magnetic east/west direction, with eastward positive
+    vpar  : Vector component along magnetic field
+    dt    : Reference datetime, used for creating Apex object
+    """
+
+    a = apexpy.Apex(dt,refh=refh)
+    mlon = a.mlt2mlon(mlt,dt)
+    glat, glon, error = a.apex2geo(mlat,mlon,refh)
+    
+
+    # Apex basevectors - components are east, north, and up
+    f1, f2, f3, g1, g2, g3, d1, d2, d3, e1, e2, e3 = a.basevectors_apex(mlat.flatten(),
+                                                                        mlon.flatten(),
+                                                                        refh,
+                                                                        coords='apex')
+
+    vec = np.vstack([vphi.flatten(),vtheta.flatten(),vpar.flatten()])
+
+    # first = np.array([np.sum(np.array([d1[0,0],d2[0,0],d3[0,0]])*vec[:,0]),
+    #                   np.sum(np.array([d1[1,0],d2[1,0],d3[1,0]])*vec[:,0]),
+    #                   np.sum(np.array([d1[2,0],d2[2,0],d3[2,0]])*vec[:,0])])
+    # array([-0.03262529,  0.02291903,  0.00150332])
+
+    #One matrix
+    # np.vstack([d1[:,0],d2[:,0],d3[:,0]])
+
+    APEX2GEO = np.array([d1,d2,d3])
+    
+    # NOT SURE IF THIS IS NECESSARY
+    # APEX2GEO = np.transpose(APEX2GEO,(1,0,2))  # so that APEX2GEO[:,0,0] selects
+
+    vecENU = np.einsum('ij...,i...',APEX2GEO,vec).T
+
+    return vecENU,glat,glon
 
 
 def ECEFtoENUMatrix(lon, gdlat):
@@ -65,8 +105,12 @@ def geodetic2apex(*args,
         return_apex_f_basevecs or return_apex_g_basevecs or return_mapratio
 
     # if get_apex_basevecs or return_mapratio or return_IGRF:
-    if return_mapratio or return_IGRF:
-        assert 2<0,"WARNING! geodetic2apex takes care of changes in time with mlat, mlon, and mlt, but not with mapratio or IGRF!"
+    if return_IGRF:
+        # assert 2<0,"WARNING! geodetic2apex takes care of changes in time with mlat, mlon, mlt, and basevectors, but not with mapratio or IGRF!"
+        # assert 2<0,"WARNING! geodetic2apex takes care of main field temporal evolution for mlat, mlon, mlt, mapratio, and basevectors, but not IGRF!"
+        import warnings
+        warnings.warn("New version (2021/07/08) of this function, where return_IGRF involves looping over time, is untested!", UserWarning)
+
 
     if max_N_months_twixt_apexRefTime_and_obs is None:
         max_N_months_twixt_apexRefTime_and_obs = 0
@@ -209,12 +253,20 @@ def geodetic2apex(*args,
             # f10,f11,f12 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
             # f20,f21,f22 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
             # f30,f31,f32 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
-            f1,f2,f3 = np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
+            f1,f2,f3 = np.zeros((2,NOBS))*np.nan,np.zeros((2,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
         if return_apex_g_basevecs:
             # g10,g11,g12 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
             # g20,g21,g22 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
             # g30,g31,g32 = np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan,np.zeros(NOBS)*np.nan
             g1,g2,g3 = np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan,np.zeros((3,NOBS))*np.nan
+
+    if return_IGRF:
+        
+        if not quiet:
+            print("Getting IGRF ...")
+
+        #igrf.east.values, XIGRF, -ZIGRF
+        EIGRF,NIGRF,UIGRF,igrfMag = np.zeros(NOBS),np.zeros(NOBS),np.zeros(NOBS),np.zeros(NOBS)
 
     if return_dipoletilt:
         from dipole import dipole_tilt
@@ -267,12 +319,15 @@ def geodetic2apex(*args,
             # e1 "points eastward along contours of constant λma,"
             # e2 "points equatorward along contours of constant φ ma (magnetic meridians)"
             # "t" stands for "temporary"
+            #
+            # From apexpy.apex.basevectors_apex:
+            # "vector components are geodetic east, north, and up (only east and north for `f1` and `f2`)"
             f1t, f2t, f3t, g1t, g2t, g3t, d1t, d2t, d3t, e1t, e2t, e3t = a.basevectors_apex(
                 dfSub['gdlat'].values[ind_timesHere],
                 dfSub['gdlon'].values[ind_timesHere],
                 dfSub['gdalt_km'].values[ind_timesHere], coords='geo')
 
-            if return_apex_d_basevecs:
+            if return_apex_d_basevecs or return_mapratio:
                 d1[:,ind_timesHere] = d1t
                 d2[:,ind_timesHere] = d2t
                 d3[:,ind_timesHere] = d3t
@@ -288,6 +343,46 @@ def geodetic2apex(*args,
                 g1[:,ind_timesHere] = g1t
                 g2[:,ind_timesHere] = g2t
                 g3[:,ind_timesHere] = g3t
+
+
+        if return_IGRF:
+
+            isv = 0
+            itype = 1
+            
+            # glat, glon: geographic Latitude, Longitude
+            # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
+            
+            # OLD CALL TO igrf12 MODULE
+            # igrf = igrf12.gridigrf12(times[ind_timesHere],
+            #                          glat=geodesy.geodetic2geocentriclat(
+            #                              dfSub['gdlat'].values[ind_timesHere]),
+            #                          glon=dfSub['gdlon'].values[ind_timesHere],
+            #                          alt_km=dfSub['gdalt_km'].values[ind_timesHere], isv=isv, itype=itype)
+            
+            # NEW CALL??
+            # breakpoint()
+            # igrfdf = igrf12.gridigrf12(times[ind_timesHere],
+            # igrfdf = igrf.grid(times[np.where(ind_timesHere)[0][0]],
+
+            igrfdf = igrf.grid(times[ind_timesHere],
+                               glat=geodesy.geodetic2geocentriclat(
+                                   dfSub['gdlat'].values[ind_timesHere]),
+                               glon=dfSub['gdlon'].values[ind_timesHere],
+                               alt_km=dfSub['gdalt_km'].values[ind_timesHere],
+                               isv=isv, itype=itype)
+            
+            igrfMagt = np.sqrt(igrfdf.east.values**2.+igrfdf.north.values **
+                              2. + igrfdf.down.values**2.)
+            
+            gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(dfSub['gdlat'].values),
+                                                           geodesy.geodeticheight2geocentricR(
+                                                               dfSub['gdlat'].values, dfSub['gdalt_km'].values),
+                                                           -igrfdf.north.values, -igrfdf.down.values)
+            EIGRF[ind_timesHere] = igrfdf.east.values
+            NIGRF[ind_timesHere] = XIGRF
+            UIGRF[ind_timesHere] = -ZIGRF
+            igrfMag[ind_timesHere] = igrfMagt
 
 
         if return_dipoletilt:
@@ -415,33 +510,40 @@ def geodetic2apex(*args,
         rListNames.append('dptilt')
 
     if return_IGRF:
-        # quiet = False
-        isv = 0
-        itype = 1
-        if not quiet:
-            print("Getting IGRF ...")
+
+        ####################
+        # OLD WAY (no loop over time)
+
+        # isv = 0
+        # itype = 1
 
         # glat, glon: geographic Latitude, Longitude
         # HAD TO KLUGE gridigrf12 TO GET IT TO WORK: ORIG ONLY USED ONE ALTITUDE
 
-        igrf = igrf12.gridigrf12(times,
-                                 glat=geodesy.geodetic2geocentriclat(
-                                     dfSub['gdlat'].values),
-                                 glon=dfSub['gdlon'].values,
-                                 alt_km=dfSub['gdalt_km'].values, isv=isv, itype=itype)
+        # igrfdf = igrf12.gridigrf12(times,
+        #                          glat=geodesy.geodetic2geocentriclat(
+        #                              dfSub['gdlat'].values),
+        #                          glon=dfSub['gdlon'].values,
+        #                          alt_km=dfSub['gdalt_km'].values, isv=isv, itype=itype)
 
-        igrfMag = np.sqrt(igrf.east.values**2.+igrf.north.values **
-                          2. + igrf.down.values**2.)
+        # igrfMag = np.sqrt(igrfdf.east.values**2.+igrfdf.north.values **
+        #                   2. + igrfdf.down.values**2.)
 
-        gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(dfSub['gdlat'].values),
-                                                       geodesy.geodeticheight2geocentricR(
-                                                           dfSub['gdlat'].values, dfSub['gdalt_km'].values),
-                                                       -igrf.north.values, -igrf.down.values)
+        # gdlatJ, altJ, XIGRF, ZIGRF = geodesy.geoc2geod(90.-geodesy.geodetic2geocentriclat(dfSub['gdlat'].values),
+        #                                                geodesy.geodeticheight2geocentricR(
+        #                                                    dfSub['gdlat'].values, dfSub['gdalt_km'].values),
+        #                                                -igrfdf.north.values, -igrfdf.down.values)
 
         # output?
-        # mlat,mlon,mapratio[,mlt],igrf.east,XIGRF(northGeodetic),-ZIGRF(upGeodetic),igrfMag
+        # mlat,mlon,mapratio[,mlt],igrfdf.east,XIGRF(northGeodetic),-ZIGRF(upGeodetic),igrfMag
 
-        returnList = returnList + [igrf.east.values, XIGRF, -ZIGRF, igrfMag]
+        # returnList = returnList + [igrfdf.east.values, XIGRF, -ZIGRF, igrfMag]
+        # rListNames = rListNames + ['igrfE', 'igrfN', 'igrfU', 'igrfMag']
+
+        ####################
+        # NEW WAY (loop over time)
+
+        returnList = returnList + [EIGRF, NIGRF, UIGRF, igrfMag]
         rListNames = rListNames + ['igrfE', 'igrfN', 'igrfU', 'igrfMag']
 
     if get_apex_basevecs:
@@ -477,11 +579,11 @@ def geodetic2apex(*args,
                                        'e20', 'e21', 'e22',
                                        'e30', 'e31', 'e32']
         if return_apex_f_basevecs:
-            returnList = returnList + [f1[0, ], f1[1, ], f1[2, ],
-                                       f2[0, ], f2[1, ], f2[2, ],
+            returnList = returnList + [f1[0, ], f1[1, ], #f1[2, ],
+                                       f2[0, ], f2[1, ], #f2[2, ],
                                        f3[0, ], f3[1, ], f3[2, ]]
-            rListNames = rListNames + ['f10', 'f11', 'f12',
-                                       'f20', 'f21', 'f22',
+            rListNames = rListNames + ['f10', 'f11', #'f12',
+                                       'f20', 'f21', #'f22',
                                        'f30', 'f31', 'f32']
         if return_apex_g_basevecs:
             returnList = returnList + [g1[0, ], g1[1, ], g1[2, ],

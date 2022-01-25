@@ -4,7 +4,7 @@ from datetime import datetime,timedelta
 from hatch_python_utils.earth.seasons import add_scaled_season_column
 
 def load_dst_db(start=datetime(1957,1,1),
-                end=datetime(2020,6,30,23),
+                end=datetime(2021,6,30,23),
                 verbose=False):
     """
     dfdst = load_dst_db([start=datetime(1957,1,1),end=datetime(2000,6,30),verbose=False])
@@ -27,7 +27,8 @@ def load_dst_db(start=datetime(1957,1,1),
     """
     indir = '/SPENCEdata/Research/database/dst/'
     # infile = 'Dst__2000-202006.parquet'
-    infile = 'Dst__1957-202006.parquet'
+    # infile = 'Dst__1957-202006.parquet'
+    infile = 'Dst__2000-202106.parquet'
 
     print(f"Loading {infile} ...")
     if verbose:

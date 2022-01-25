@@ -14,6 +14,10 @@
 # AXI12 (20210316): Polarsubplot filled_cells example, with equal-area grid and colorbar
 
 ########################################
+# LABELS
+# LAB1  (20220106): When panels have shared axes, hide one panel's axis labels
+
+########################################
 # BOXPLOTS
 # BP1   (20190904): Multi boxplots, change colors, etc.
 ########################################
@@ -37,6 +41,9 @@
 ########################################
 # COLORBARS
 # CLB1  (20201201): Scientific notation with colorbars
+########################################
+# COLORS
+# COL1 (20210426): Lighten og darken a color
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -259,6 +266,14 @@ pax.filled_cells(grid['mlat'],grid['mlt'],2,grid['mltres'],grid['bias'],levels=l
 cb = fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.BoundaryNorm(levels, ncolors=cmap.N, clip=True),cmap=cmap))
 
 ########################################
+# LABELS
+########################################
+
+# LAB1  (20220106): When panels have shared axes, hide one panel's axis labels
+
+plt.setp(ax00.get_xticklabels(), visible=False)
+
+########################################
 # BOXPLOTS
 ########################################
 
@@ -413,3 +428,29 @@ junkera = ax.text(*normtextpos, 'a',
         cb.formatter.set_scientific(True)
         cb.formatter.set_powerlimits((6,6))
         cb.update_ticks()
+
+########################################
+# COLORS
+########################################
+
+# COL1 (20210426): Lighten og darken a color
+
+# Frå https://stackoverflow.com/questions/37765197/darken-or-lighten-a-color-in-matplotlib/49601444
+def lighten_color(color, amount=0.5):
+    """
+    Lightens the given color by multiplying (1-luminosity) by the given amount.
+    Input can be matplotlib color string, hex string, or RGB tuple.
+
+    Examples:
+    >> lighten_color('g', 0.3)
+    >> lighten_color('#F034A3', 0.6)
+    >> lighten_color((.3,.55,.1), 0.5)
+    """
+    import matplotlib.colors as mc
+    import colorsys
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])

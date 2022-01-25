@@ -382,7 +382,8 @@ def get_epoch_reltimes(dfdata,dfepoch,
 
 def get_epoch_reltimes_fast(dfdata,dfepoch,
                             befaftEpochhours=np.array([60,60]),
-                            dtepochcol='dtEpoch'):
+                            dtepochcol='dtEpoch',
+                            return_bins=False):
     """
     A cray-fast(40x plus speedup), np.digitize-based version of get_epoch_reltimes.
     """
@@ -391,7 +392,7 @@ def get_epoch_reltimes_fast(dfdata,dfepoch,
     assert isinstance(dfdata.index,pd.core.indexes.datetimes.DatetimeIndex),"dfdata must have index of type pd.DatetimeIndex!"
     assert isinstance(dfepoch.index,pd.core.indexes.datetimes.DatetimeIndex),"dfepoch must have index of type pd.DatetimeIndex!"
 
-    # Convert befaftEpochhours to two-element array of proper timedeltas
+    # Convert befaftEpochhours to two-element array of proper timedeltas IN SECONDS
     befaftEpoch = np.array([pd.Timedelta(f'{befaftEpochhours[0]} hours').to_numpy(),
                             pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])/np.timedelta64(1)/1e9
 
@@ -408,8 +409,14 @@ def get_epoch_reltimes_fast(dfdata,dfepoch,
     deltat = x-bins[res]
 
     goodinds = (deltat >= (-1)*befaftEpoch[0]) & (deltat <= befaftEpoch[1])
-    dfdata.loc[goodinds,dtepochcol] = deltat[goodinds]/3600.
 
+    # Number of bins used, after application of befaftEpoch criterion
+    nUsed = np.unique(res[goodinds]).size
+
+    dfdata.loc[goodinds,dtepochcol] = deltat[goodinds]/3600.  # Convert timedeltas from seconds to hours
+
+    if return_bins:
+        return res, nUsed
 
 def get_epochs_with_data(dfdata,dfepoch,
                          befaftEpochhours=np.array([60,60]),

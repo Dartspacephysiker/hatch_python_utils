@@ -45,14 +45,27 @@ def earthSunDist(doy):
 
 
 def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
-            mltMode=True):
+            mltMode=True,
+            useHaversineFormula=False):
     """
     Great-circle distance in degrees
     lat1: Latitude of 1st point in degrees
     lat2: Latitude of 2nd point in degrees
     mltOrLon1: Magnetic local time of 1st point in hours (so between 0 and 24)
     mltOrLon2: Magnetic local time of 2nd point in hours
+
+    useHaversineFormula: According to Wikipedia (https://en.wikipedia.org/wiki/Great-circle_distance), the arccos implementation I use here is subject to nasty rounding error for small distances and low floating-point precision. To avoid this issue, one can instead use the Haversine formula that is based on arcsin.
+
     """
+    import warnings
+    # Make sure these aren't pandas things
+    if not (isinstance(lat1,np.ndarray) \
+            & isinstance(lat2,np.ndarray) \
+            & isinstance(mltOrLon1,np.ndarray) \
+            & isinstance(mltOrLon2,np.ndarray)):
+        warnings.warn("Could get screwy values if you pass e.g. pandas DataFrames with non-matching indices",UserWarning)
+        # print("sphDist: Warning! Could get screwy values if you pass e.g. pandas DataFrames with non-matching indices")
+    
     lat1R = np.deg2rad(lat1)
     lat2R = np.deg2rad(lat2)
     if mltMode:
@@ -63,9 +76,14 @@ def sphDist(lat1, mltOrLon1, lat2, mltOrLon2,
         lon2R = np.deg2rad(mltOrLon2)
 
     # Clip argument to prevent rounding errors (for example, np.arccos(1.0000000000000002) produces an error)
-    arg = np.sin(lat1R)*np.sin(lat2R)+np.cos(lat1R)*np.cos(lat2R)*np.cos(np.abs(lon1R-lon2R))
-    arg = np.clip(arg,0,1)
-    return np.rad2deg(np.arccos(arg))
+    if useHaversineFormula:
+        dphi = lat1R-lat2R
+        arg = np.sin(dphi/2)**2+np.cos(lat1R)*np.cos(lat2R)*np.sin((lon1R-lon2R)/2)**2
+        return np.rad2deg(2*np.arcsin(np.sqrt(arg)))
+    else:
+        arg = np.sin(lat1R)*np.sin(lat2R)+np.cos(lat1R)*np.cos(lat2R)*np.cos(np.abs(lon1R-lon2R))
+        arg = np.clip(arg,0,1)
+        return np.rad2deg(np.arccos(arg))
 
 # def sphDist(lat1, mlt1, lat2, mlt2):
 #     """
@@ -107,7 +125,7 @@ def get_localtime(dts, glons,
         glons = np.array(glons)
 
     sslat, sslon = map(np.ravel, subsol(dts))
-    LTs = ((glon - sslon + 180) % 360 - 180) / 15
+    LTs = ((glons - sslon + 180) % 360 - 180) / 15
 
     midnightlongitude = (sslon - 180.) % 360
     if return_dts_too:
@@ -177,7 +195,8 @@ def get_noon_longitude(dts,verbose=False):
     # # FOLLOWING SHOULD ALL BE AROUND 23.44 IF JUNSOLSTICE, 0 IF MAREQUINOX
     # print(sza(np.zeros(dts.size),get_noon_longitude(dts),dts))
 
-    print("Using Kalle's superior subsolar longitude calc")
+    if verbose:
+        print("Using Kalle's superior subsolar longitude calc")
     sslat, sslon = map(np.ravel, subsol(dts))
     return sslon
 

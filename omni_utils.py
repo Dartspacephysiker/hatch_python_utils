@@ -105,7 +105,7 @@ def omni_getter(*args,
                 include_AL_AU=False,
                 verbose=False):
     """
-    omni_getter(t_start OR time_array[,t_end])
+    omni_getter(time_array OR [t_start,t_end])
     """
 
     from nasaomnireader import omnireader
@@ -268,7 +268,13 @@ def NewellCF_calc(v, bz, by):
     NCF = np.zeros_like(v)
     NCF.fill(np.nan)
     bt = np.sqrt(by**2 + bz**2)
-    bztemp = bz
+
+    # Try to avoid modifying original bz
+    try:
+        bztemp = bz.copy()
+    except:
+        bztemp = bz
+
     bztemp[bz == 0] = .00001
     # Calculate clock angle (theta_c = t_c)
     tc = np.arctan2(by, bztemp)
