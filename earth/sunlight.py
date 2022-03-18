@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime,timedelta
 
-from pytt.earth.sunlight import sza
+from pysymmetry.sunlight import sza
 from statsmodels.stats.weightstats import DescrStatsW
 
 

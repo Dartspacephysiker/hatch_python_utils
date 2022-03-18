@@ -1,6 +1,9 @@
 ########################################
 # Klassikere
 from datetime import datetime, timedelta
+from hatch_python_utils.time_tools import mjd2000_to_datetime as mjd2dt
+from hatch_python_utils.time_tools import datetime_to_mjd2000 as dt2mjd
+
 import importlib
 import numpy as np
 import pandas as pd

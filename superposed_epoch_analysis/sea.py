@@ -86,7 +86,7 @@ def screen_epochtime_db(dfepoch,
 
     ##########
     # For starters, assume we keep all storms
-    keepepoch = np.ones(dfepoch.shape[0],dtype=np.bool)        
+    keepepoch = np.ones(dfepoch.shape[0],dtype=bool)        
 
     ##########
     # Screen so that separation between SCs is at least [mintdiffHours] hours
@@ -106,7 +106,7 @@ def screen_epochtime_db(dfepoch,
             # if mintdiff_how_to_screen == 'keep_first':
             #     keepheads = sc_tdiffs > mintdiffHours
             # else:
-            newscreen = np.ones(len(sc_tdiffs),dtype=np.bool)
+            newscreen = np.ones(len(sc_tdiffs),dtype=bool)
 
             for i,val in enumerate(sc_tdiffs > mintdiffHours): 
                 # print(i,val)
@@ -446,7 +446,7 @@ def get_epochs_with_data(dfdata,dfepoch,
                             pd.Timedelta(f'{befaftEpochhours[1]} hours').to_numpy()])
     
 
-    havedata = np.zeros(dfepoch.shape[0],dtype=np.bool)
+    havedata = np.zeros(dfepoch.shape[0],dtype=bool)
     firsttime,lasttime = dfdata.index[0],dfdata.index[-1]
     for i,index in enumerate(dfepoch.index):
 

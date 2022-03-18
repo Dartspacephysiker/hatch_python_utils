@@ -1,7 +1,7 @@
 # 2019/11/05
 import datetime
 from operator import attrgetter
-
+import warnings
 
 def get_UT(dts):
     try:
@@ -45,9 +45,50 @@ def datetime_to_yearfrac(dts):
 
 def jd_to_datetime(jds):
     noonJan1200UT__JD = 2451545.
-    tdeltas = jds-noonJan1200UT__JD
-    return [datetime.datetime(2000, 1, 1, 12)+datetime.timedelta(days=tdiff) for tdiff in tdeltas]
+    tdeltas = [jd-noonJan1200UT__JD for jd in jds]
+    refd = datetime.datetime(2000, 1, 1, 12)
+    return [refd+datetime.timedelta(days=tdiff) for tdiff in tdeltas]
 
 def mjd2000_to_datetime(mjd2000s):
-    jds = mjd2000s + 2400000.5 + 51544.0
+    jds = [mjd2000 + 2400000.5 + 51544.0 for mjd2000 in mjd2000s]
     return jd_to_datetime(jds)
+
+
+def datetime_to_jd(dts):
+    noonJan1200UT__JD = 2451545.
+    refd = datetime.datetime(2000, 1, 1, 12)
+    sec2day = 60*60*24
+
+    @warn_only_once
+    def conv_to_days(dt):
+        if dt.microsecond != 0:
+            warnings.warn('datetime_to_jd can corrupt microsecond!',
+                         RuntimeWarning)
+        return (dt-refd).total_seconds()/(sec2day)
+    tdeltas = [conv_to_days(dt) for dt in dts]
+
+    return [noonJan1200UT__JD+tdelta for tdelta in tdeltas]
+
+
+def datetime_to_mjd2000(dts):
+    """
+    # EXAMPLE
+from module import symbol
+    hatch_python_utils.time_tools import datetime_to_mjd2000 as dt2mjd
+    from hatch_python_utils.time_tools import mjd2000_to_datetime as mjd2dt
+    dts = [datetime.datetime(1997,1,1,12,45,10,5000),datetime.datetime(1997,2,1,12,45,10,5000)]
+    dts,mjd2dt(dt2mjd(dts))
+    """
+    jds = datetime_to_jd(dts)
+    return [jd - 2400000.5 - 51544.0 for jd in jds]
+
+
+def warn_only_once(function):
+    function.already_warned = False
+    def wrapper(*args, **kwargs):
+        with warnings.catch_warnings(record=function.already_warned):
+            function.already_warned = not function.already_warned
+            return function(*args, **kwargs)
+    return wrapper
+
+
