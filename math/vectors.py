@@ -23,5 +23,6 @@ def crossprod(a,b):
     """
     return np.cross(a,b,axis=1)
 
+
 def vecmag(a):
     return np.sqrt(dotprod(a,a))
