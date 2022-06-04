@@ -30,6 +30,16 @@ def load_omniDB(loaddir='/SPENCEdata/Research/database/OMNI/',
                        where='index>={}&index<{}'.format(t0.strftime('"%Y-%m-%d %H:%M"'),
                                                          t1.strftime('"%Y-%m-%d %H:%M"')))
 
+    Bx, By, Bz = omni['BX_GSE'], omni['BY_GSM'], omni['BZ_GSM']
+
+    vsw, psw, nProt, T = omni['flow_speed'], omni['Pressure'], omni['proton_density'], omni['T']
+    # borovsky_reader = omnireader.borovsky(omniInt)
+    # borovsky = borovsky_reader()
+
+    omni['newell'] = NewellCF_calc(vsw, Bz, By)
+
+    omni['milan'] = MilanCF_calc(vsw,Bz,By)
+
     if np.sum(omni.index.duplicated()) > 0:
         print("Removing duplicate timestamps")
         omni = omni[~omni.index.duplicated()]
@@ -193,14 +203,16 @@ def omni_getter(*args,
 
     newell = NewellCF_calc(vsw, Bz, By)
 
+    milan = MilanCF_calc(vsw,Bz,By)  # in kV
+
     epochs_1hr = omniInt_1hr['Epoch']  # datetime timestamps
     F107, Kp, DST = omniInt_1hr['F10_INDEX'], omniInt_1hr['KP'], omniInt_1hr['DST']
 
     # SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell)),
     #                      index=epochs,
     #                      columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell'])
-    SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell,nProt, T)),
-                         columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell','proton_density','temperature'],
+    SW_df = pd.DataFrame(data=np.column_stack((Bz, By, Bx, AE, SymH, vsw, psw, borovsky, newell,milan,nProt, T)),
+                         columns=['Bz', 'By', 'Bx', 'AE', 'SymH', 'vsw', 'psw', 'borovsky', 'newell','milan','proton_density','temperature'],
                          index=epochs)
 
 
@@ -259,6 +271,17 @@ def omni_getter(*args,
         return combo
     else:
         return SW_df, SW_df_1hr
+
+
+def MilanCF_calc(v,bz,by):
+
+    CF = np.zeros_like(v)
+    CF.fill(np.nan)
+    bt = np.sqrt(by**2 + bz**2)
+
+    milan = 3.3e5 * np.abs(v*1000)**(4./3.) * bt * 1e-9 * np.sin(np.abs(np.arctan2(by,bz))/2.)**(4.5) * 0.001 # in kV
+
+    return milan
 
 
 def NewellCF_calc(v, bz, by):
