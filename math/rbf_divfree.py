@@ -30,21 +30,21 @@ class RBFs(object):
         self.NRBFs = self.nodevectors.shape[0]
 
 
+    # def get_current(self,posvectors):
+    #     """
+    #     Jvec = rbfs.get_current(posvectors)
+    #     Units of Jvec are [unit of cvectors]/(mu0*[unit of position vectors])
+
+    #     For example, if c vectors (which are magnetic field) are in nT and position is in km,
+    #     Jvec has units nT/mu0/km
+    #     """
+
+    #     relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
+
+    #     return J_gauss3d_vec(relposvec,self.cvectors,self.nuvectors)
+
+
     def get_current(self,posvectors):
-        """
-        Jvec = rbfs.get_current(posvectors)
-        Units of Jvec are [unit of cvectors]/(mu0*[unit of position vectors])
-
-        For example, if c vectors (which are magnetic field) are in nT and position is in km,
-        Jvec has units nT/mu0/km
-        """
-
-        relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
-
-        return J_gauss3d_vec(relposvec,self.cvectors,self.nuvectors)
-
-
-    def get_current2(self,posvectors):
         """
         Jvec = rbfs.get_current(posvectors)
         Units of Jvec are [unit of cvectors]/(mu0*[unit of position vectors])
@@ -75,7 +75,6 @@ class RBFs(object):
         # MATRIX WAY
         G = self.get_B_Gmatrix(posvectors)
         return (G@(self.cvectors.T.ravel())).reshape(posvectors.T.shape).T
-
 
 
     def get_div_Bfield(self,posvectors,delta=0.01):
@@ -146,6 +145,23 @@ class RBFs(object):
         return J_gauss3d_Gmatrix(relposvec,self.nuvectors)
 
 
+    def get_Jscalar_Gmatrix(self,posvectors,jhatvectors):
+        
+        relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
+
+        nuvec = self.nuvectors
+
+        Gi = J_gauss3d_Gmatrix_ith(relposvec,0,nuvec)
+        Gj = J_gauss3d_Gmatrix_ith(relposvec,1,nuvec)
+        Gk = J_gauss3d_Gmatrix_ith(relposvec,2,nuvec)
+
+        G = Gi*jhatvectors[:,0][:,np.newaxis] + \
+            Gj*jhatvectors[:,1][:,np.newaxis] + \
+            Gk*jhatvectors[:,2][:,np.newaxis]
+
+        return G
+
+
 def gaussian3d(relposvec,nuvec):
     """
     relposvec: shape is [N,M,3], where 
@@ -210,9 +226,9 @@ def J_gauss3d_Gmatrix_ith(relposvec,i,nuvec):
 
     j,k = (i+1)%3,(i+2)%3
 
+    # ideriv = jderiv*0
     jderiv = gauss3d_gradient_of_laplacian_kth(relposvec,j,nuvec)
     kderiv = gauss3d_gradient_of_laplacian_kth(relposvec,k,nuvec)
-    ideriv = jderiv*0
 
     G_i = [np.zeros(kderiv.shape),
            kderiv,
@@ -237,16 +253,16 @@ def J_gauss3d_Gmatrix(relposvec,nuvec):
     return np.vstack([Gi,Gj,Gk])
 
 
-def J_gauss3d_vec(relposvec,cvec,nuvec):
-    """
-    See RBFs.get_current for comment on units
-    """
+# def J_gauss3d_vec(relposvec,cvec,nuvec):
+#     """
+#     See RBFs.get_current for comment on units
+#     """
 
-    Ji = J_gauss3d_ith(relposvec,cvec,0,nuvec).sum(axis=1)
-    Jj = J_gauss3d_ith(relposvec,cvec,1,nuvec).sum(axis=1)
-    Jk = J_gauss3d_ith(relposvec,cvec,2,nuvec).sum(axis=1)
+#     Ji = J_gauss3d_ith(relposvec,cvec,0,nuvec).sum(axis=1)
+#     Jj = J_gauss3d_ith(relposvec,cvec,1,nuvec).sum(axis=1)
+#     Jk = J_gauss3d_ith(relposvec,cvec,2,nuvec).sum(axis=1)
 
-    return np.vstack([Ji,Jj,Jk]).T
+#     return np.vstack([Ji,Jj,Jk]).T
 
 
 def B_gauss3d_ith(relposvec,cvec,i,nuvec):
@@ -305,6 +321,7 @@ def B_gauss3d_Gmatrix_ith(relposvec,i,nuvec):
         G_i = np.hstack([G_i[1],G_i[2],G_i[0]])
 
     return G_i
+
 
 def B_gauss3d_Gmatrix(relposvec,nuvec):
     
