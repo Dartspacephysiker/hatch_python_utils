@@ -1,4 +1,6 @@
 import numpy as np
+from hatch_python_utils.math.gauss3d import gaussian3d,gauss3d_gradient_of_laplacian_ith
+
 MU0 = 1.25663706212e-06
 
 class RBFs(object):
@@ -7,7 +9,7 @@ class RBFs(object):
                  cvectors,
                  sigmavectors):
         """
-        nodevectors  : positions of RBF nodes in Cartesian coords
+        nodevectors  : positions of divergence-free RBF nodes in Cartesian coords
 
         cvectors     : weighting coefficients for each RBF node
 
@@ -30,9 +32,9 @@ class RBFs(object):
         self.NRBFs = self.nodevectors.shape[0]
 
 
-    # def get_current(self,posvectors):
+    # def get_curl(self,posvectors):
     #     """
-    #     Jvec = rbfs.get_current(posvectors)
+    #     Jvec = rbfs.get_curl(posvectors)
     #     Units of Jvec are [unit of cvectors]/(mu0*[unit of position vectors])
 
     #     For example, if c vectors (which are magnetic field) are in nT and position is in km,
@@ -44,9 +46,9 @@ class RBFs(object):
     #     return J_gauss3d_vec(relposvec,self.cvectors,self.nuvectors)
 
 
-    def get_current(self,posvectors):
+    def get_curl(self,posvectors):
         """
-        Jvec = rbfs.get_current(posvectors)
+        Jvec = rbfs.get_curl(posvectors)
         Units of Jvec are [unit of cvectors]/(mu0*[unit of position vectors])
 
         For example, if c vectors (which are magnetic field) are in nT and position is in km,
@@ -55,14 +57,14 @@ class RBFs(object):
 
         relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
 
-        GJ = self.get_J_Gmatrix(posvectors)
+        GJ = self.get_curl_Gmatrix(posvectors)
 
         return (GJ@(self.cvectors.T.ravel())).reshape(posvectors.T.shape).T 
 
 
-    def get_Bfield(self,posvectors):
+    def get_field(self,posvectors):
         """
-        Bvec = rbfs.get_Bfield(posvectors)
+        Bvec = rbfs.get_field(posvectors)
         Units of B are given by [unit of cvectors]
 
         For example, if c vectors are in nT, so is Bvec
@@ -73,13 +75,13 @@ class RBFs(object):
         # return B_gauss3d_vec(relposvec,self.cvectors,self.nuvectors)
 
         # MATRIX WAY
-        G = self.get_B_Gmatrix(posvectors)
+        G = self.get_field_Gmatrix(posvectors)
         return (G@(self.cvectors.T.ravel())).reshape(posvectors.T.shape).T
 
 
-    def get_div_Bfield(self,posvectors,delta=0.01):
+    def get_divergence(self,posvectors,delta=0.01):
         """
-        div_B = rbfs.get_div_Bfield(posvectors)
+        div_B = rbfs.get_divergence(posvectors)
         Units of B are given by [unit of cvectors]/[unit of posvectors and sigma vectors]**2
 
         For example, if c vectors are in nT-km^2 and posvectors are in km, Bvec is in nT
@@ -114,14 +116,18 @@ class RBFs(object):
         return dBidx+dBjdy+dBkdz
 
 
-    def get_B_Gmatrix(self,posvectors):
+    def get_field_Gmatrix(self,posvectors):
 
         relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
 
         return B_gauss3d_Gmatrix(relposvec,self.nuvectors)
 
 
-    def get_Bscalar_Gmatrix(self,posvectors,bhatvectors):
+    def get_Fscalar_Gmatrix(self,posvectors,bhatvectors):
+        """
+        Same as output for get_field_Gmatrix, except that now we assume each best-estimate vector is dotted with a hatvector
+        Useful, for example, when you only measure one component of a divergence-free field
+        """
 
         relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
 
@@ -138,14 +144,14 @@ class RBFs(object):
         return G
 
 
-    def get_J_Gmatrix(self,posvectors):
+    def get_curl_Gmatrix(self,posvectors):
         
         relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
 
         return J_gauss3d_Gmatrix(relposvec,self.nuvectors)
 
 
-    def get_Jscalar_Gmatrix(self,posvectors,jhatvectors):
+    def get_curlscalar_Gmatrix(self,posvectors,jhatvectors):
         
         relposvec = posvectors[:,np.newaxis,:]-self.nodevectors[np.newaxis,:,:]
 
@@ -162,64 +168,16 @@ class RBFs(object):
         return G
 
 
-def gaussian3d(relposvec,nuvec):
-    """
-    relposvec: shape is [N,M,3], where 
-                    N is number of calculation points, 
-                    M is number of RBF nodes, and 
-                    '3' says these vectors are in 3D Cartesian coordinates
-    nuvec : shape is [M,3] — M vectors of np.sqrt(2)/sigma values
+# def J_gauss3d_ith(relposvec,cvec,i,nuvec):
 
-    """
+#     j,k = (i+1)%3,(i+2)%3
 
-    frontfac = np.prod(nuvec/np.sqrt(np.pi),axis=1)
-    return frontfac*np.exp(-np.sum((relposvec*nuvec)**2,axis=2))
+#     jderiv = gauss3d_gradient_of_laplacian_ith(relposvec,j,nuvec)
+#     kderiv = gauss3d_gradient_of_laplacian_ith(relposvec,k,nuvec)
 
+#     current_ith = cvec[:,j]*kderiv-cvec[:,k]*jderiv
 
-def laplacian_gaussian3d(relposvec,nuvec):
-
-    gaussvals = gaussian3d(relposvec,nuvec)
-    
-    factor = np.zeros(relposvec.shape[:2])
-    for i in range(3):
-        nu = nuvec[:,i]
-        posi = relposvec[:,:,i]
-        factor += 4*nu**4*posi**2-2*nu**2
-    
-    return factor*gaussvals
-    
-
-def gauss3d_gradient_of_laplacian_kth(relposvec,k,nuvec):
-    """
-    ∂_k (∂_m ∂_m ϕ), that's what we calculate here
-    """
-
-    gaussvals = gaussian3d(relposvec,nuvec)
-    laplace = laplacian_gaussian3d(relposvec,nuvec)
-        
-    # First Laplacian bit
-    kterm = laplace*(-2*nuvec[:,k]**2*relposvec[:,:,k])
-    
-    # Then the extra
-    kterm += 8*nuvec[:,k]**4*relposvec[:,:,k]*gaussvals
-    
-    return kterm
-
-
-def J_gauss3d_ith(relposvec,cvec,i,nuvec):
-
-    j,k = (i+1)%3,(i+2)%3
-
-    jderiv = gauss3d_gradient_of_laplacian_kth(relposvec,j,nuvec)
-    kderiv = gauss3d_gradient_of_laplacian_kth(relposvec,k,nuvec)
-
-    G_i = [np.zeros(kderiv.shape),
-           kderiv,
-           jderiv]
-
-    current_ith = cvec[:,j]*kderiv-cvec[:,k]*jderiv
-
-    return current_ith
+#     return current_ith
 
 
 def J_gauss3d_Gmatrix_ith(relposvec,i,nuvec):
@@ -227,8 +185,8 @@ def J_gauss3d_Gmatrix_ith(relposvec,i,nuvec):
     j,k = (i+1)%3,(i+2)%3
 
     # ideriv = jderiv*0
-    jderiv = gauss3d_gradient_of_laplacian_kth(relposvec,j,nuvec)
-    kderiv = gauss3d_gradient_of_laplacian_kth(relposvec,k,nuvec)
+    jderiv = gauss3d_gradient_of_laplacian_ith(relposvec,j,nuvec)
+    kderiv = gauss3d_gradient_of_laplacian_ith(relposvec,k,nuvec)
 
     G_i = [np.zeros(kderiv.shape),
            kderiv,
@@ -255,7 +213,7 @@ def J_gauss3d_Gmatrix(relposvec,nuvec):
 
 # def J_gauss3d_vec(relposvec,cvec,nuvec):
 #     """
-#     See RBFs.get_current for comment on units
+#     See RBFs.get_curl for comment on units
 #     """
 
 #     Ji = J_gauss3d_ith(relposvec,cvec,0,nuvec).sum(axis=1)
@@ -267,7 +225,7 @@ def J_gauss3d_Gmatrix(relposvec,nuvec):
 
 def B_gauss3d_ith(relposvec,cvec,i,nuvec):
     """
-    Calculate the ith component (in Cartesian coords) of the B-field at N locations due to
+    Calculate the ith component (in Cartesian coords) of the div-free field at N locations due to
     M RBF nodes.
     """
 
