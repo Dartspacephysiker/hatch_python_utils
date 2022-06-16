@@ -6,8 +6,8 @@ MU0 = 1.25663706212e-06
 class RBFs(object):
 
     def __init__(self,nodevectors,
-                 cvectors,
-                 sigmavectors):
+                 sigmavectors,
+                 cvectors=None):
         """
         nodevectors  : positions of curl-free RBF nodes in Cartesian coords
 
@@ -20,15 +20,28 @@ class RBFs(object):
                         M is number of RBF nodes
                         '3' says these vectors are in 3D Cartesian coordinates
 
+        TODO
+        =====
+
+        CHANGE CODE so that cvectors are NOT an initial input
+        (Also change all Yano and Ebihara scripts)
+        
         SMH
         2022/06/07
         """
 
         self.nodevectors = nodevectors
-        self.cvectors = cvectors
         self.nuvectors = 1/(np.sqrt(2)*sigmavectors)
 
+        if cvectors is not None:
+            self.set_cvectors(cvectors)
+        else:
+            self.set_cvectors(np.zeros(self.nodevectors.shape))
+
         self.NRBFs = self.nodevectors.shape[0]
+
+    def set_cvectors(self,cvectors):
+        self.cvectors = cvectors
 
     def get_divergence(self,posvectors):
         """

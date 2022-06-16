@@ -61,19 +61,44 @@ def convapexvectoENU(vtheta,vphi,vpar,mlt,mlat,dt,refh=130):
     return vecENU,glat,glon
 
 
-def ECEFtoENUMatrix(lon, gdlat):
+def ENUtoECEFMatrix(lon, gclat):
+    """
+    The transpose of what you get from ECEFtoENUMatrix
+    """
 
-    lamb = np.deg2rad(lon)
-    phi = np.deg2rad(gdlat)
+    return np.stack([np.vstack([             -np.sin(phi), -np.sin(lamb)*np.cos(phi), np.cos(lamb)*np.cos(phi)]),
+                     np.vstack([              np.cos(phi), -np.sin(lamb)*np.sin(phi), np.cos(lamb)*np.sin(phi)]),
+                     np.vstack([       np.zeros(phi.size),              np.cos(lamb),             np.sin(lamb)])])
 
-    return np.stack([np.vstack([-np.sin(lamb), np.cos(lamb), np.zeros(lamb.size)]),
-                     np.vstack([-np.sin(phi)*np.cos(lamb), -
-                                np.sin(phi)*np.sin(lamb), np.cos(phi)]),
-                     np.vstack([np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb), np.sin(phi)])])
 
-    # return np.vstack([[-np.sin(lamb)            , np.cos(lamb)            ,0          ],
-    #                   [-np.sin(phi)*np.cos(lamb),-np.sin(phi)*np.sin(lamb),np.cos(phi)],
-    #                   [ np.cos(phi)*np.cos(lamb), np.cos(phi)*np.sin(lamb),np.sin(phi)]])
+
+def ECEFtoENUMatrix(lon, gclat):
+    """
+
+    First  row is "East"  (phi)      vector (   phihat = -sinp xhat + cosp yhat)
+    Second row is "North" (90-theta) vector (lambdahat = -sinl cosp xhat - cosl sinp yhat + cosl zhat)
+    Third  row is "Up"    (radial)   vector (     rhat =  cosl cosp xhat + cosl sinp yhat + sinl zhat)
+
+    Here phi    ("p") is the azimuthal coordinate in spherical coordinates
+         lambda ("l") is the 90°-theta latitude angle
+
+
+    Naturally, the columns of this matrix give xhat, yhat, and zhat (in that order) in terms of 
+    ehat, nhat, and uhat
+
+    So! Multiply a vector with ENU components by this matrix to get back a vector in ECEF coordinates
+    """
+
+    phi = np.deg2rad(lon)
+    lamb = np.deg2rad(gclat)
+
+    return np.stack([np.vstack([             -np.sin(phi),               np.cos(phi),  np.zeros(phi.size)]),
+                     np.vstack([-np.sin(lamb)*np.cos(phi), -np.sin(lamb)*np.sin(phi),        np.cos(lamb)]),
+                     np.vstack([ np.cos(lamb)*np.cos(phi),  np.cos(lamb)*np.sin(phi),        np.sin(lamb)])])
+
+    # return np.vstack([[-np.sin(phi)            , np.cos(phi)            ,0          ],
+    #                   [-np.sin(lamb)*np.cos(phi),-np.sin(lamb)*np.sin(phi),np.cos(lamb)],
+    #                   [ np.cos(lamb)*np.cos(phi), np.cos(lamb)*np.sin(phi),np.sin(lamb)]])
 
 
 def geodetic2apex(*args,

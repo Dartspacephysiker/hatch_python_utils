@@ -6,8 +6,8 @@ MU0 = 1.25663706212e-06
 class RBFs(object):
 
     def __init__(self,nodevectors,
-                 cvectors,
-                 sigmavectors):
+                 sigmavectors,
+                 cvectors=None):
         """
         nodevectors  : positions of divergence-free RBF nodes in Cartesian coords
 
@@ -26,11 +26,17 @@ class RBFs(object):
         
 
         self.nodevectors = nodevectors
-        self.cvectors = cvectors
         self.nuvectors = 1/(np.sqrt(2)*sigmavectors)
+
+        if cvectors is not None:
+            self.set_cvectors(cvectors)
+        else:
+            self.set_cvectors(np.zeros(self.nodevectors.shape))
 
         self.NRBFs = self.nodevectors.shape[0]
 
+    def set_cvectors(self,cvectors):
+        self.cvectors = cvectors
 
     # def get_curl(self,posvectors):
     #     """
@@ -123,7 +129,7 @@ class RBFs(object):
         return B_gauss3d_Gmatrix(relposvec,self.nuvectors)
 
 
-    def get_Fscalar_Gmatrix(self,posvectors,bhatvectors):
+    def get_fieldscalar_Gmatrix(self,posvectors,hatvectors):
         """
         Same as output for get_field_Gmatrix, except that now we assume each best-estimate vector is dotted with a hatvector
         Useful, for example, when you only measure one component of a divergence-free field
@@ -137,9 +143,9 @@ class RBFs(object):
         Gj = B_gauss3d_Gmatrix_ith(relposvec,1,nuvec)
         Gk = B_gauss3d_Gmatrix_ith(relposvec,2,nuvec)
 
-        G = Gi*bhatvectors[:,0][:,np.newaxis] + \
-            Gj*bhatvectors[:,1][:,np.newaxis] + \
-            Gk*bhatvectors[:,2][:,np.newaxis]
+        G = Gi*hatvectors[:,0][:,np.newaxis] + \
+            Gj*hatvectors[:,1][:,np.newaxis] + \
+            Gk*hatvectors[:,2][:,np.newaxis]
 
         return G
 
