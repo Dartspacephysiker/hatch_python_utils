@@ -103,7 +103,7 @@ def field_geometry_lonlat(lon,lat,date,h_km=0):
 
     Example:
     --------
-    inc, dec = field_geometry_lonlat()
+    inc, dec, diplat = field_geometry_lonlat()
 
     Parameters
     ----------

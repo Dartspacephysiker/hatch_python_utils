@@ -12,6 +12,7 @@
 # AXI10 (20210112): Add a second x axis on the SAME SIDE as the original x axis, with custom labels
 # AXI11 (20210223): Nice rotation of datetime labels on x axis (use fig.autofmt_xdate()!)
 # AXI12 (20210316): Polarsubplot filled_cells example, with equal-area grid and colorbar
+# AXI13 (20220721): Three-column gridspec with THREE colorbars at bottom
 
 ########################################
 # LABELS
@@ -60,7 +61,7 @@ def fabdata():
 # AXISNESS
 ########################################
 
-# AXI1  (20190611): Forandre fargene til sekundær axis
+## AXI1  (20190611): Forandre fargene til sekundær axis
 
 
 x, y0, y1, y2 = fabdata()
@@ -82,7 +83,7 @@ ax2.yaxis.label.set_color(c2)
 ax2.tick_params(axis='y', colors=c2)
 
 
-# AXI2  (20190711): Gridspec!
+## AXI2  (20190711): Gridspec!
 
 fig = plt.figure(constrained_layout=True)
 gs = fig.add_gridspec(2, 3)
@@ -98,7 +99,7 @@ ax01.grid()
 ax10.grid()
 ax11.grid()
 
-# AXI3  (20190823): Sekundær akse med forskjellige tick-merker
+## AXI3  (20190823): Sekundær akse med forskjellige tick-merker
 ax2 = ax1.twiny()
 ax1Xs = ax1.get_xticks()
 
@@ -110,7 +111,7 @@ ax2.set_xticks(ax1Xs)
 ax2.set_xbound(ax1.get_xbound())
 ax2.set_xticklabels(ax2Xs)
 
-# AXI4  (20200122): Change tick labels
+## AXI4  (20200122): Change tick labels
 
 # V1
 axnewticks = [0,10,20]
@@ -129,7 +130,7 @@ for X in axcurticks:
 ax.set_xticklabels(axnewticklabels)
 
 
-# AXI5  (20200407): Axis label formatting with StrMethodFormatter
+## AXI5  (20200407): Axis label formatting with StrMethodFormatter
 data = [10.**np.arange(-3,1),np.arange(-3,1)]
 
 fig,ax = plt.subplots(1,1)
@@ -137,18 +138,18 @@ _ = ax.plot(data[0],data[1])
 ax.set_xscale('log')
 ax.xaxis.set_major_formatter(mpl.ticker.StrMethodFormatter('{x:.2g}'))
 
-# AXI6  (20200407): Convert log_10values on x axis to 10**(log_10 values)
+## AXI6  (20200407): Convert log_10values on x axis to 10**(log_10 values)
 @mpl.ticker.FuncFormatter
 def little_formatter(x, pos):
     return "{:.2g}".format(10**x) if np.isclose(x %1,0) else ""
 
 ax.xaxis.set_major_formatter(little_formatter)
 
-# AXI7  (20200630): Nice scientific notation (base 10)
+## AXI7  (20200630): Nice scientific notation (base 10)
 _ = ax.ticklabel_format(axis='y',style='sci',scilimits=(4,4))
 _ = ax.yaxis.major.formatter._useMathText = True  # This chunk forces 10**x notation, as I recall
 
-# AXI8  (20200701): Remove top and right spines
+## AXI8  (20200701): Remove top and right spines
 # Hide the right and top spines
 _ = ax.spines['right'].set_visible(False)
 _ = ax.spines['top'].set_visible(False)
@@ -157,7 +158,7 @@ _ = ax.spines['top'].set_visible(False)
 _ = ax.yaxis.set_ticks_position('left')
 _ = ax.xaxis.set_ticks_position('bottom')
 
-# AXI9  (20201021): Three-column gridspec WITH colorbar, with y-axis labels only visible for the leftmost column
+## AXI9  (20201021): Three-column gridspec WITH colorbar, with y-axis labels only visible for the leftmost column
 # From journal__20201020__ELF_despun__L_and_R_polarization.ipynb
 
 fig = plt.figure(figsize=(18,10),constrained_layout=True)
@@ -204,7 +205,7 @@ for iax,ax in enumerate(axes):
     _ = ax.set_xlabel('Time [s]')
 
 
-# AXI10 (20210112): Add a second x axis on the SAME SIDE as the original x axis, with custom labels
+## AXI10 (20210112): Add a second x axis on the SAME SIDE as the original x axis, with custom labels
 def add_2nd_xaxis(ax,newlabels,posbelow=-0.25):
     ax2 = ax.twiny()
     # Add some extra space for the second axis at the bottom
@@ -234,10 +235,10 @@ def add_2nd_xaxis(ax,newlabels,posbelow=-0.25):
     return ax2
 
 
-# AXI11 (20210223): Nice rotation of datetime labels on x axis
+## AXI11 (20210223): Nice rotation of datetime labels on x axis
 # Just use fig.autofmt_xdate()!
 
-# AXI12 (20210316): Polarsubplot filled_cells example, with equal-area grid and colorbar
+## AXI12 (20210316): Polarsubplot filled_cells example, with equal-area grid and colorbar
 from pysymmetry.visualization import grids
 
 #Make the binning grid
@@ -264,6 +265,33 @@ pax = Polarsubplot(ax)
 pax.filled_cells(grid['mlat'],grid['mlt'],2,grid['mltres'],grid['bias'],levels=levels,cmap=cmap)
 
 cb = fig.colorbar(mpl.cm.ScalarMappable(norm=mpl.colors.BoundaryNorm(levels, ncolors=cmap.N, clip=True),cmap=cmap))
+
+## AXI13 (20220721): Three-column gridspec with THREE colorbars at bottom
+# From pct_diff_ns_currents_for_varying_conditions__plot.py
+
+fig = plt.figure(figsize=(8,4),constrained_layout=True)
+ncols=3
+nrows = 1
+colwidth = 10
+rowwidth = 20
+
+padrow = 0
+gs = fig.add_gridspec(nrows=nrows*rowwidth+1+padrow, ncols=ncols*colwidth)
+ax00 = fig.add_subplot(gs[padrow:rowwidth+padrow,           :colwidth])
+ax01 = fig.add_subplot(gs[padrow:rowwidth+padrow, colwidth  :colwidth*2], sharex=ax00,sharey=ax00)
+ax02 = fig.add_subplot(gs[padrow:rowwidth+padrow, colwidth*2:colwidth*3], sharex=ax00, sharey=ax00)
+cax00 = fig.add_subplot(gs[nrows*rowwidth+padrow:,          :colwidth])
+cax01 = fig.add_subplot(gs[nrows*rowwidth+padrow:,colwidth  :colwidth*2])
+cax02 = fig.add_subplot(gs[nrows*rowwidth+padrow:,colwidth*2:colwidth*3])
+
+plt.setp(ax01.get_yticklabels(), visible=False)
+plt.setp(ax02.get_yticklabels(), visible=False)
+
+fig.suptitle(r"$\phi_{ca}$"+f": {ca_orientation}")
+
+axes = [ax00,ax01,ax02]
+caxes = [cax00,cax01,cax02]
+
 
 ########################################
 # LABELS

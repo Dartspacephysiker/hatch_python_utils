@@ -2,7 +2,6 @@
 from datetime import datetime
 import apexpy
 # import igrf12 as igrf
-import igrf
 from pysymmetry import geodesy
 import numpy as np
 import pandas as pd
@@ -389,6 +388,8 @@ def geodetic2apex(*args,
             # breakpoint()
             # igrfdf = igrf12.gridigrf12(times[ind_timesHere],
             # igrfdf = igrf.grid(times[np.where(ind_timesHere)[0][0]],
+
+            import igrf
 
             igrfdf = igrf.grid(times[ind_timesHere],
                                glat=geodesy.geodetic2geocentriclat(
