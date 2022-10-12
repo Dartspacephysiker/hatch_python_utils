@@ -32,6 +32,16 @@ class FLTRACE_CART(object):
         Example
         =======
 
+        # from hatch_python_utils.math.fieldlinetracer import FLTRACE_CART
+        import importlib
+        from hatch_python_utils.math import fieldlinetracer
+        importlib.reload(fieldlinetracer)
+
+        import numpy as np
+        import matplotlib as mpl
+        import matplotlib.pyplot as plt
+        plt.ion()
+
         def fx(x,y,z):
             return np.sin(y)
 
@@ -41,9 +51,15 @@ class FLTRACE_CART(object):
         def fz(x,y,z):
             return 0
 
-        r0 = np.array([[-1,-1,0],[-1,1,0],[1,-1,0],[1,1,0]])
+        r0 = np.array([[-1,-1,0],[-1,1,0],[1,-1,0],[1,1,0]],dtype=np.float64)
         
-        ftracer = FLTRACE_CART(fx,fy,fz,r0,ds=0.01)
+        # ftracer = FLTRACE_CART(fx,fy,fz,r0,ds=0.01)
+        ftracer = fieldlinetracer.FLTRACE_CART(fx,fy,fz,r0,ds=0.01)
+        ftracer.trace(verbose=True,DEBUG=True)
+
+        fig,ax = plt.subplots(1,1)
+        for i in range(ftracer.NLines):
+            ax.plot(ftracer.tracedicts[i]['r'][:,0],ftracer.tracedicts[i]['r'][:,1],marker='o')
 
         2022/10/12 SMH 
         """
@@ -70,32 +86,32 @@ class FLTRACE_CART(object):
         # Get number of starting points, make sure r0 has shape (N,3) regardless
         if r0.ndim == 1:
             assert r0.size == 3,"If providing single vector as starting point r0, length must be three!"
-            self.N = 1
+            self.NLines = 1
             r0 = r0[np.newaxis,:]
         elif r0.ndim == 2:
             assert r0.shape[1] == 3,"If providing N starting points, shape must be (N,3)!"
-            self.N = r0.shape[0]
+            self.NLines = r0.shape[0]
 
         # Make sure all starting points are within limits
-        for i in range(self.N):
+        for i in range(self.NLines):
             assert self.__iswithinlim(r0[i,:])
 
-        self.r0 = r0
+        self.r0 = np.float64(r0)
 
         self.ds = ds
         self.smax = smax
-        self.maxnsteps = self.smax//self.ds*2
+        self.maxnsteps = int((self.smax*2)/self.ds)
 
-        self.tracedicts = [self.__make_trace_dict(self.r0[i,:],DEBUG=DEBUG) for i in range(self.N)]
+        self.tracedicts = [self.__make_trace_dict(self.r0[i,:],DEBUG=DEBUG) for i in range(self.NLines)]
 
 
     def trace(self,verbose=False,
-              DEBUG=DEBUG,
+              DEBUG=False,
     ):
         
-        for i in range(self.N):
+        for i in range(self.NLines):
             self.__trace_single(i,verbose=verbose,
-                                DEBUG=DEBUG)
+                                DEBUG=False)
 
 
     def __trace_single(self,i,
@@ -111,11 +127,11 @@ class FLTRACE_CART(object):
         n = 0
         r = tdict['r0']
         tdict['r'][n,:] = r
-        while n <= self.N:
+        while n < self.maxnsteps-1:
 
             if DEBUG:
                 print("")
-                print(f"*** Step {n:03d}/{self.N:03d}***")
+                print(f"*** Step {n:03d}/{self.maxnsteps:03d}***")
                 print(f"r = <{r[0]:8.2f},{r[1]:8.2f},{r[2]:8.2f}>")
 
             if not self.__iswithinlim(r):
@@ -175,3 +191,59 @@ class FLTRACE_CART(object):
             return False
 
         return True
+
+if __name__ == "__main__":
+    import importlib
+    from hatch_python_utils.math import fieldlinetracer
+    importlib.reload(fieldlinetracer)
+
+    import numpy as np
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    plt.ion()
+
+    def fx(x,y,z):
+        return np.sin(y)
+
+    def fy(x,y,z):
+        return np.sin(x)
+
+    def fz(x,y,z):
+        return 0
+
+    r0 = np.array([[-1,-1.2,0],[-1,-0.8,0],[-1,-1.,0],
+                   [-1, 1.2,0],[-1, 0.8,0],[-1, 1.,0],
+                   [ 1,-1.2,0],[ 1,-0.8,0],[ 1,-1.,0],
+                   [1,1.2,0],[1,0.8,0],[1.,1.,0]],dtype=np.float64)
+        
+    colors = [*(['C0']*3),*(['C1']*3),*(['C2']*3),*(['C3']*3)]
+    lstyles = [*(['-','--',':']*4)]
+    lwidths = [*([1,2,3]*4)]
+
+    # ftracer = FLTRACE_CART(fx,fy,fz,r0,ds=0.01)
+    ftracer = fieldlinetracer.FLTRACE_CART(fx,fy,fz,r0,ds=0.05,smax=5)
+    ftracer.trace(verbose=True,DEBUG=True)
+
+    fig,ax = plt.subplots(1,1)
+    for i in range(ftracer.NLines):
+        tdict = ftracer.tracedicts[i]
+        r0 = tdict['r0']
+        ax.text(r0[0],r0[1],str(i))
+        ax.scatter([r0[0]],[r0[1]],
+                   marker='o',
+                   color=colors[i],
+                   label='Start' if i==0 else None)
+        ax.scatter([tdict['r'][-1,0]],[tdict['r'][-1,1]],
+                   marker='*',
+                   color=colors[i],
+                   label='Stop' if i==0 else None)
+        ax.plot(tdict['r'][:,0],tdict['r'][:,1],
+                # marker='.',
+                linestyle=lstyles[i],
+                color=colors[i],
+                lw=lwidths[i],
+                label=f'#{i:02d}: <{r0[0]:.1f},{r0[1]:.1f},{r0[2]:.1f}>')
+    ax.legend()
+    ax.set_aspect('equal')
+
+
