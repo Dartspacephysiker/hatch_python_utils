@@ -1,12 +1,37 @@
-""" 
-CECS utils
+"""CECS utils
 
+NOTE: Here we use a Cartesian coordinate system x,y,z such that z is UPWARD
+(and, say, x is east and y is north). This is DIFFERENT from the Cartesian
+coordinate system that Vanhamäki (2007) and Vanhamäki, Viljanen, and Amm (2005)
+use to define CECS. For them, x is north, y is east, and z is DOWN.
+
+Why does it matter? Because if you compare expressions for J and B in this
+implementation with their expressions, you will notice sign differences.
+
+Also, some conventions (established by references, not me):
+•A positive-amplitude CECS CF system corresponds to a DOWNWARD field-aligned
+ current and a radially OUTWARD current sheet.
+•A positive-amplitude CECS DF system corresponds to a current that circulates in
+ the CLOCKWISE direction when seen from above (i.e., the -phihat direction).
+
+
+REFERENCES
+==========
+
+Vanhamäki, H. (2007) ‘Theoretical modeling of ionospheric electrodynamics
+including induction effects’, Finnish Meteorological Institute Contributions.
+
+Vanhamäki, H., Viljanen, A. and Amm, O. (2005) ‘Induction effects on ionospheric
+electric and magnetic fields’, Annales Geophysicae, 23(5), pp. 1735–1746. doi:
+10.5194/angeo-23-1735-2005.
+
+Spencer M. Hatch
+October 2022
 """
 
 import numpy as np
 d2r = np.pi/180
 MU0 = 4 * np.pi * 1e-7
-RE = 6371.2 * 1e3
 
 
 def dpclip(x, delta = 1e-7):
@@ -26,11 +51,11 @@ def get_prime_coordinates(x,y,z, x_cecs, y_cecs, z_cecs):
     y_c = np.array(y_cecs).flatten()[np.newaxis, :]
     z_c = np.array(z_cecs).flatten()[np.newaxis, :]
 
-    xprime = x-x_c
-    yprime = y-y_c
-    zprime = z-z_c
+    xp = x-x_c
+    yp = y-y_c
+    zp = z-z_c
 
-    return xprime,yprime,zprime
+    return xp,yp,zp
 
 
 def get_distance(x, y, z, x_cecs, y_cecs, z_cecs):
@@ -56,9 +81,9 @@ def get_distance(x, y, z, x_cecs, y_cecs, z_cecs):
     """
 
     # reshape
-    xprime, yprime, zprime = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
+    xp, yp, zp = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
 
-    dist = np.sqrt((x-x_c)**2+(y-y_c)**2+(z-z_c)**2)
+    dist = np.sqrt(xp**2+yp**2+zp**2)
 
     return dist
 
@@ -82,9 +107,9 @@ def get_rho(x, y, z, x_cecs, y_cecs, z_cecs):
         described by (x, y, z) and cecs nodes at (x_cecs, y_cecs, z_cecs).
     """
 
-    xprime, yprime, zprime = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
+    xp, yp, zp = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
 
-    rho = np.sqrt( xprime**2+yprime**2)
+    rho = np.sqrt( xp**2+yp**2)
 
     return rho
 
@@ -112,9 +137,9 @@ def get_phi(x, y, z, x_cecs, y_cecs, z_cecs, return_degrees = False):
         to True
     """
 
-    xprime, yprime, zprime = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
+    xp, yp, zp = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
 
-    phi = np.arctan2(yprime,xprime)
+    phi = np.arctan2(yp,xp)
 
     if return_degrees:
         phi = phi/d2r
@@ -181,6 +206,7 @@ def get_rhohat(x,y,z, x_cecs, y_cecs, z_cecs):
 
 def get_CECS_J_G_matrices(x,y,z, x_cecs, y_cecs, z_cecs, 
                           current_type = 'divergence_free', constant = 1./(2*np.pi), 
+                          dz_tolerance=10.,
 ):
     """ Calculate matrices Ge and Gn which relate CECS amplitudes to current density 
         vector components.
@@ -203,6 +229,10 @@ def get_CECS_J_G_matrices(x,y,z, x_cecs, y_cecs, z_cecs,
         The CECS functions are scaled by the factor 1/(2pi), which is
         the default value of 'constant'. Change if you want something 
         different.
+    dz_tolerance: Since CECS were not originally designed to be used in 3D, we have to make sure that
+                      in evaluating the current at a particular altitude, the CECS poles at higher or lower
+                      altitudes (within tolerance given by dz_tolerance) do not contribute to the
+                      evaluated current
 
     Returns
     -------
@@ -226,12 +256,12 @@ def get_CECS_J_G_matrices(x,y,z, x_cecs, y_cecs, z_cecs,
     if current_type not in ['divergence_free','curl_free']:
         assert 2<0,"types 'potential' and 'scalar' not yet implemented!"
 
-    xprime, yprime, zprime = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
+    xp, yp, zp = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
 
     rho = get_rho(x,y,z,x_cecs,y_cecs,z_cecs)
 
     if current_type == 'divergence_free':
-        unit_vec = get_phihat(x,y,z,x_cecs,y_cecs,z_cecs)
+        unit_vec = (-1.)*get_phihat(x,y,z,x_cecs,y_cecs,z_cecs)
     elif current_type == 'curl_free':
         unit_vec = get_rhohat(x,y,z,x_cecs,y_cecs,z_cecs)
     elif current_type in ['potential', 'scalar']:
@@ -247,7 +277,11 @@ def get_CECS_J_G_matrices(x,y,z, x_cecs, y_cecs, z_cecs,
         Gx = coeff * unit_vec[:, :, 0]
         Gy = coeff * unit_vec[:, :, 1]
     
-        return Gx.T, Gy.T
+        shouldbezero = np.abs(zp) > dz_tolerance
+        Gx[shouldbezero] = 0.
+        Gy[shouldbezero] = 0.
+
+        return Gx, Gy
     else: # current_type is 'potential' or 'scalar'
         # NOT SURE WHAT THESE SHOULD BE
         # if current_type == 'potential':
@@ -259,7 +293,8 @@ def get_CECS_J_G_matrices(x,y,z, x_cecs, y_cecs, z_cecs,
 
 
 def get_CECS_B_G_matrices(x, y, z, x_cecs, y_cecs, z_cecs,
-                          current_type = 'divergence_free', constant = MU0/(4.*np.pi), 
+                          current_type = 'divergence_free',
+                          constant = MU0/(4.*np.pi), 
 ):
     """ Calculate matrices Gx, Gy, and Gz that relate CECS amplitudes to magnetic field
 
@@ -293,6 +328,12 @@ def get_CECS_B_G_matrices(x, y, z, x_cecs, y_cecs, z_cecs,
         2D array with shape (z.size, z_cecs.size), relating CECS amplitudes
         m to the z-component magnetic field at (x, y, z) via 'Bz = Gz.dot(m)'
 
+
+    Notes
+    ------
+    Variables with 'p' in name signify a quantity in the CECS node's local (i.e., "p"rimed) coordinate system
+
+    2022/10/15 SMH
     """
     
     # reshape z:
@@ -301,9 +342,11 @@ def get_CECS_B_G_matrices(x, y, z, x_cecs, y_cecs, z_cecs,
     else:
         z = np.array(z).flatten()[:, np.newaxis]
 
-    xprime, yprime, zprime = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
+    xp, yp, zp = get_prime_coordinates(x,y,z,x_cecs,y_cecs,z_cecs)
 
     rho = get_rho(x,y,z,x_cecs,y_cecs,z_cecs)
+
+    coeff = constant / rho
 
     # G matrix scale factors
     if current_type == 'divergence_free':
@@ -312,33 +355,33 @@ def get_CECS_B_G_matrices(x, y, z, x_cecs, y_cecs, z_cecs,
         zhat   = np.zeros_like(rhohat)
         zhat[:,:,2] = 1.
 
-        Grhoprime = constant * (1 - np.abs(zprime) / np.sqrt(rho**2+zprime**2)) * np.sign(zprime)
+        Grhoprime = -coeff * (1 - np.abs(zp) / np.sqrt(rho**2+zp**2)) * np.sign(zp)
 
         Gx = Grhoprime * rhohat[:,:,0]
         Gy = Grhoprime * rhohat[:,:,1]
 
-        Gz = constant * rho/np.sqrt(rho**2+zprime**2)
+        Gz = -coeff * rho/np.sqrt(rho**2+zp**2)
 
 
     elif current_type == 'curl_free':
 
         phihat = get_phihat(x,y,z,x_cecs,y_cecs,z_cecs)
 
-        heaviside = np.zeros_like(zprime,dtype=zprime.dtype)
-        heaviside[(zprime) > 0] = 1.
+        heaviside = np.zeros_like(zp,dtype=zp.dtype)
+        heaviside[((zp) > -1e8) | (np.isclose(0.,zp))] = 1.
 
-        Gphiprime = 2. * constant * heaviside
+        Gphiprime = -2. * coeff * heaviside
 
         Gx = Gphiprime * phihat[:,:,0]
         Gy = Gphiprime * phihat[:,:,1]
-        # Gz = Gphiprime * phihat[:,:,2]
         Gz = np.zeros_like(phihat[:,:,2])
 
     return Gx, Gy, Gz
 
 
-
 if __name__ == '__main__':
+    import hatch_python_utils.math.cecs_utils
+    importlib.reload(hatch_python_utils.math.cecs_utils)
     from hatch_python_utils.math import cecs_utils
     import importlib 
     importlib.reload(cecs_utils)

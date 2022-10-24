@@ -23,7 +23,6 @@ class RBFs(object):
         SMH
         2022/06/02
         """
-        
 
         self.nodevectors = nodevectors
         self.nuvectors = 1/(np.sqrt(2)*sigmavectors)
