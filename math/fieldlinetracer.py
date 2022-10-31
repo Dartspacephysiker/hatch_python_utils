@@ -67,6 +67,8 @@ class FLTRACE_CART(object):
         ####################
         # Put all arguments into this object
         
+        assert callable(fx) and callable(fy) and callable(fz),"fx, fy, fz must be callable functions!"
+
         self.fx = fx
         self.fy = fy
         self.fz = fz
@@ -113,6 +115,8 @@ class FLTRACE_CART(object):
             self.__trace_single(i,verbose=verbose,
                                 DEBUG=False)
 
+        return self.tracedicts
+
 
     def __trace_single(self,i,
                        verbose=False,
@@ -143,7 +147,12 @@ class FLTRACE_CART(object):
             k4 = self.funit(*(r+self.ds * k3  ))
             
             rnext = r+self.ds/6 * (k1+2*k2+2*k3+k4)
+
             tdict['r'][n+1,:] = rnext
+
+            if np.any(~np.isfinite(rnext)):
+                print("Tracing from r0=<",tdict['r0'],"> stopped at r=<",tdict['r'][n,:],f"> after N={n} steps; encountered NaNs!")
+                break
 
             if DEBUG:
                 tdict['k1'][n,:] = k1

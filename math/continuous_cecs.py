@@ -48,8 +48,31 @@ class BsplineCECS(object):
 
     def __init__(self,x_cecs,y_cecs,knotvector,
                  polyorder=3,
-                 current_type='divergence_free'):
+                 current_type='divergence_free',
+                 grid_type='regular',
+                 exclude_laplacian_edge=None):
         """
+        x_cecs: x coordinates of continuous CECS (
+        y_cecs: y coordinates of continuous CECS 
+
+        grid_type: Either "regular" or "irregular". 
+
+                   If "regular," x_cecs and y_cecs are EITHER 2D arrays with the 
+                   same shape, or 1D arrays that will be broadcast to create a 
+                   2D array.
+
+        exclude_laplacian_edge: Whether or not to use outer edge of cCECS grid in
+                        evaluating model B-field and J vectors. What value this
+                        keyword takes on depends on whether grid_type is regular
+                        or irregular.
+
+                        If grid_type is "regular", exclude_laplacian_edge may be set to
+                        True.  In this case the edge rows and columns will be
+                        taken to be the laplacian cCECS.
+
+                        If grid_type is "irregular", the user must provide an
+                        array of booleans to indicate which cCECS comprise the
+                        laplacian edge. 
 
         current_type: string, optional
             The type of CECS function. This must be either 
@@ -58,15 +81,51 @@ class BsplineCECS(object):
 
         """
 
-        assert x_cecs.ravel().shape == y_cecs.ravel().shape
+        assert grid_type in ['regular','irregular'],"'grid_type' must be either 'regular' or 'irregular'! See doc string"
 
-        # Number of B-spline coefficients
-        self.Ncoeffs = len(knotvector)-polyorder-1
-        self.NCECS = len(x_cecs.ravel())
+        self.grid_type = grid_type
+
+        # Determine how to set up grid; also handle laplacian edge, if any
+        if self.grid_type == 'regular':
+            if x_cecs.ndim == 1:
+                assert y_cecs.ndim == 1,"If x_cecs is 1D, y_cecs must also be 1D!"
+                assert (len(np.unique(x_cecs)) == len(x_cecs)) and \
+                    (len(np.unique(y_cecs)) == len(y_cecs)),"For regular grid and 1D x_cecs and y_cecs, elements of x_cecs and y_cecs must be unique!"
+                
+                x_cecs,y_cecs = np.meshgrid(x_cecs,y_cecs,indexing='ij')
+
+            if x_cecs.ndim == 2:
+                assert x_cecs.shape == y_cecs.shape,"When providing 2D array for cCECS x and y locations, x_cecs and y_cecs must have same shape!"
+
+            # Note, for following code to work, it is required that x_cecs.ndim == 2
+            self.laplacian_edge = np.zeros_like(x_cecs,dtype=bool)
+            if exclude_laplacian_edge is not None:
+                assert exclude_laplacian_edge in [True,False],"For regular grid, exclude_laplacian_edge must be True or False"
+                if exclude_laplacian_edge:
+                    self.laplacian_edge[[0,-1],:] = True
+                    self.laplacian_edge[:,[0,-1]] = True
+            self.laplacian_edge = self.laplacian_edge.ravel()
+
+        elif self.grid_type == 'irregular':
+                
+            assert x_cecs.size == y_cecs.size,f"For irregular grid, x_cecs and y_cecs must have the same size! You've provided "\
+                f"x_cecs and y_cecs of size {x_cecs.size} and {y_cecs.size}, respectively"
+
+            self.laplacian_edge = np.zeros_like(x_cecs,dtype=bool)
+            if exclude_laplacian_edge is not None:
+                assert exclude_laplacian_edge.size == x_cecs.size,f"laplacian_edge array must have same size as x_cecs and y_cecs! You've provided "\
+                    f"laplacian_edge and x_cecs of size {laplacian_edge.size} and {x_cecs.size}, respectively"
+                assert np.issubdtype(exclude_laplacian_edge.dtype,bool),"For irregular grid, laplacian_edge must have dtype=bool"
+                self.laplacian_edge = exclude_laplacian_edge
+
 
         # CECS locations
         self.xc = x_cecs.ravel()
         self.yc = y_cecs.ravel()
+
+        self.Ncoeffs = len(knotvector)-polyorder-1         # Number of B-spline coefficients
+        self.NCECS = len(self.xc)                   # Number of cCECS locations
+        self.Nlaplacian_edge = np.sum(self.laplacian_edge)  # Number of cCECS comprising "laplacian edge"
 
         self.knotvec = knotvector
         self.polyorder = polyorder
@@ -171,6 +230,8 @@ class BsplineCECS(object):
 
     def get_B_G_matrices(self,x,y,z,
                          constant = MU0/(4.*np.pi), 
+                         df__only_z=False,
+                         round_rho_dec_place=None,
                          verbose = False,
                          debug = False,
     ):
@@ -189,6 +250,9 @@ class BsplineCECS(object):
             The CECS functions are scaled by the factor 1/(2pi), which is
             the default value of 'constant'.
     
+        df__only_z: Only calculate z component of G matrix for divergence-free CECS
+        round_rho_dec_place : This can save you LOTS of time! 
+
         Returns
         -------
         If current_type is 'divergence_free' or 'curl_free':
@@ -255,7 +319,10 @@ class BsplineCECS(object):
             # i indexes unique rho
             # j indexes B-spline functions
             zunik,z_k = np.unique(z,return_inverse=True)
-            rhounik,rho_i = np.unique(rho,return_inverse=True)
+            if round_rho_dec_place is not None:
+                rhounik,rho_i = np.unique(np.round(rho,round_rho_dec_place),return_inverse=True)
+            else:
+                rhounik,rho_i = np.unique(rho,return_inverse=True)
             rho_i = rho_i.reshape(rho.shape)
 
             Nzunik = len(zunik)
@@ -267,26 +334,42 @@ class BsplineCECS(object):
             # Points for evaluating integrands
             zeval = np.linspace(*self.internalknotinterval,1001)
 
-            if verbose:
-                print("Calculating coefficients for B_df matrices ...")
-                print(f"Total number of elements from combination of Bdf_rho and Bdf_z: {Nmeas*NCECS*Ncoeff*2}")
-                print(f"Total number of unique integrals to perform: {Nzunik*Nrhounik*Ncoeff}")
+            if df__only_z:
+                if verbose:
+                    print("Calculating coefficients for B_df z-component G matrix ...")
+                    print(f"Total number of elements of G matrix for Bdf_z: {Nmeas*NCECS*Ncoeff}")
+                    print(f"Total number of unique integrals to perform: {Nzunik*Nrhounik*Ncoeff}")
 
-            for k in range(Nzunik):
-                if (k % 5) == 0:
-                    print("{:04d}/{:04d}".format(k,Nzunik))
-                for i in range(Nrhounik):
-                    for j in range(Ncoeff):
+                for k in range(Nzunik):
+                    if (k % 5) == 0:
+                        print("{:04d}/{:04d}".format(k,Nzunik))
+                    for i in range(Nrhounik):
+                        for j in range(Ncoeff):
 
-                        # Trapezoidal integration
-                        Cunik[k,i,j] = Bdf_rhointeg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
-                        Dunik[k,i,j] = Bdf_zinteg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
+                            # Trapezoidal integration
+                            Dunik[k,i,j] = Bdf_zinteg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
 
-                        # Scipy's quad function (takes longer for some reason)
-                        # Cunik[k,i,j] = Bdf_rhointeg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
-                        #                             self.internalknotinterval)
-                        # Dunik[k,i,j] = Bdf_zinteg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
-                        #                           self.internalknotinterval)
+            else:
+                if verbose:
+                    print("Calculating coefficients for B_df matrices ...")
+                    print(f"Total number of elements from combination of Bdf_rho and Bdf_z: {Nmeas*NCECS*Ncoeff*2}")
+                    print(f"Total number of unique integrals to perform: {Nzunik*Nrhounik*Ncoeff*2}")
+
+                for k in range(Nzunik):
+                    if (k % 5) == 0:
+                        print("{:04d}/{:04d}".format(k,Nzunik))
+                    for i in range(Nrhounik):
+                        for j in range(Ncoeff):
+                
+                            # Trapezoidal integration
+                            Cunik[k,i,j] = Bdf_rhointeg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
+                            Dunik[k,i,j] = Bdf_zinteg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
+                
+                            # Scipy's quad function (takes longer for some reason)
+                            # Cunik[k,i,j] = Bdf_rhointeg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
+                            #                             self.internalknotinterval)
+                            # Dunik[k,i,j] = Bdf_zinteg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
+                            #                           self.internalknotinterval)
 
 
             # Get indices into these wonder machines
@@ -408,26 +491,40 @@ class BsplineCECS(object):
               constant = 1./(2*np.pi)):
         GJx, GJy = self.get_J_G_matrices(x,y,z,constant=constant)
 
-        Jx, Jy = GJx@self.m,GJy@self.m
-        # J = np.stack([]).T
+        # Take care of laplacian, if we have any
+        Nlaplacian = self.Nlaplacian_edge
+
+        muse = self.m.reshape(self.NCECS,self.Ncoeffs)[~self.laplacian_edge,:].ravel()
+        # muse = self.m[~self.laplacian_edge]
+        initshape = (GJx.shape[0],self.NCECS,self.Ncoeffs)
+        finalshape = (GJx.shape[0],(self.NCECS-Nlaplacian)*self.Ncoeffs)
+        GJx = GJx.reshape(initshape)[:,~self.laplacian_edge,:].reshape(finalshape)
+        GJy = GJy.reshape(initshape)[:,~self.laplacian_edge,:].reshape(finalshape)
+        # GJx,GJy = GJx[:,~self.laplacian_edge],GJy[:,~self.laplacian_edge]
+        Jx, Jy = GJx@muse,GJy@muse
 
         # Calculate current density in z direction
-        if self.current_type == 'curl_free' and jpar_area is not None:
+        if self.current_type == 'curl_free' and jpar_area is not None and self.grid_type == 'regular':
             
+            xunik = np.unique(self.xc[~self.laplacian_edge])
+            yunik = np.unique(self.yc[~self.laplacian_edge])
+
             # First, evaluate integral of B-spline functions at every z
             zunik = np.unique(z)
             nz = len(zunik)
 
             integrals_by_zunik = np.array([self.bsplineintegfuncs[j](zunik) for j in range(self.Ncoeffs)]).T # Resulting shape after transpose is (nz, self.Ncoeffs)
             
+            breakpoint()
+            
             # Now calculate j_z at all zunik for each CECS line
-            Iz_est_atCECS = self.m.reshape(self.NCECS,self.Ncoeffs)[:,np.newaxis,:]*integrals_by_zunik[np.newaxis,:,:]
-            Jz_est_atCECS = -np.sum(Iz_est_atCECS,axis=2)/jpar_area  # Sum over coefficients
+            Iz_est_atCECS = muse.reshape(self.NCECS-Nlaplacian,self.Ncoeffs)[:,np.newaxis,:]*integrals_by_zunik[np.newaxis,:,:]  # resulting shape is (NcCECS,nz,Ncoeffs)
+            Jz_est_atCECS = -np.sum(Iz_est_atCECS,axis=2)/jpar_area  # Sum over coefficients, resulting shape is (NcCECS,nz)
 
             # … And now make an interpolating function so that we can get j_z at
             #   points that do not lie on CECS line
             # Jzinterp = rginterp((self.xc, self.yc, zunik), Jz_est_atCECS, method='linear', bounds_error=False, fill_value=np.nan)
-            Jzinterp = rginterp((np.unique(self.xc), np.unique(self.yc), zunik),
+            Jzinterp = rginterp((xunik, yunik, zunik),
                                 Jz_est_atCECS.reshape(np.unique(self.xc).size,np.unique(self.yc).size,nz),
                                 method='linear', bounds_error=False, fill_value=np.nan)
             
@@ -440,10 +537,22 @@ class BsplineCECS(object):
         return np.stack([Jx,Jy,Jz]).T
 
     def get_B(self,x,y,z,
-              constant = MU0/(4*np.pi)):
-        GBx, GBy, GBz = self.get_B_G_matrices(x,y,z,constant=constant)
+              constant = MU0/(4*np.pi),
+              round_rho_dec_place=None):
+        GBx, GBy, GBz = self.get_B_G_matrices(x,y,z,constant=constant,
+                                              round_rho_dec_place=round_rho_dec_place)
 
-        return np.stack([GBx@self.m,GBy@self.m,GBz@self.m]).T
+        muse = self.m.copy()
+
+        if self.Nlaplacian_edge > 0:
+            muse = muse.reshape(self.NCECS,self.Ncoeffs)[~self.laplacian_edge,:].ravel()
+            initshape = (GBx.shape[0],self.NCECS,self.Ncoeffs)
+            finalshape = (GBx.shape[0],(self.NCECS-Nlaplacian)*self.Ncoeffs)
+            GBx = GBx.reshape(initshape)[:,~self.laplacian_edge,:].reshape(finalshape)
+            GBy = GBy.reshape(initshape)[:,~self.laplacian_edge,:].reshape(finalshape)
+            GBz = GBz.reshape(initshape)[:,~self.laplacian_edge,:].reshape(finalshape)
+
+        return np.stack([GBx@muse,GBy@muse,GBz@muse]).T
 
     def splev(h, weights, der=0, ext=1):
         """

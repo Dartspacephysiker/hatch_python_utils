@@ -34,14 +34,6 @@ d2r = np.pi/180
 MU0 = 4 * np.pi * 1e-7
 
 
-def dpclip(x, delta = 1e-7):
-    """ 
-    dot product clip:
-    clip x to values between -1 + delta and 1 - delta
-    """
-    return np.clip(x, -1 + delta, 1 - delta)
-
-
 def get_prime_coordinates(x,y,z, x_cecs, y_cecs, z_cecs):
     
     x   = np.array(x).flatten()[:, np.newaxis]
