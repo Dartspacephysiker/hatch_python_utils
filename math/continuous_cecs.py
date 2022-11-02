@@ -420,19 +420,6 @@ class BsplineCECS(object):
 
             Gz = Dcoeff * zhat[:, :, np.newaxis, 2] 
 
-            # NEW trickery
-            # Cij = np.transpose(Cij,axes=[0,2,1])
-            # Dij = np.transpose(Dij,axes=[0,2,1])
-
-            # Ccoeff = constant / rho[:,np.newaxis,:]*Cij
-            # Dcoeff = constant / rho[:,np.newaxis,:]*Dij
-
-            # # G matrices
-            # Gx = Ccoeff * rhohat[:, np.newaxis, :, 0]
-            # Gy = Ccoeff * rhohat[:, np.newaxis, :, 1]
-
-            # Gz = Dcoeff * zhat[:, np.newaxis, :, 2] 
-
             Gx = Gx.reshape((Gx.shape[0],np.prod(Gx.shape[1:]))) 
             Gy = Gy.reshape((Gy.shape[0],np.prod(Gy.shape[1:]))) 
             Gz = Gz.reshape((Gz.shape[0],np.prod(Gz.shape[1:]))) 
@@ -515,8 +502,6 @@ class BsplineCECS(object):
 
             integrals_by_zunik = np.array([self.bsplineintegfuncs[j](zunik) for j in range(self.Ncoeffs)]).T # Resulting shape after transpose is (nz, self.Ncoeffs)
             
-            breakpoint()
-            
             # Now calculate j_z at all zunik for each CECS line
             Iz_est_atCECS = muse.reshape(self.NCECS-Nlaplacian,self.Ncoeffs)[:,np.newaxis,:]*integrals_by_zunik[np.newaxis,:,:]  # resulting shape is (NcCECS,nz,Ncoeffs)
             Jz_est_atCECS = -np.sum(Iz_est_atCECS,axis=2)/jpar_area  # Sum over coefficients, resulting shape is (NcCECS,nz)
@@ -538,9 +523,14 @@ class BsplineCECS(object):
 
     def get_B(self,x,y,z,
               constant = MU0/(4*np.pi),
-              round_rho_dec_place=None):
+              round_rho_dec_place=None,
+                         verbose = False,
+                         debug = False,):
         GBx, GBy, GBz = self.get_B_G_matrices(x,y,z,constant=constant,
-                                              round_rho_dec_place=round_rho_dec_place)
+                                              round_rho_dec_place=round_rho_dec_place,
+                                              verbose=verbose,
+                                              debug=debug,
+        )
 
         muse = self.m.copy()
 

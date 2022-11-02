@@ -26,12 +26,20 @@ def get_bsplineobj_list(t,k,extrapolate=False):
                     zmax=internalknots[-1],
                     func=bsplobj):
     
-            result = np.zeros_like(z)
-            inrange = (z >= zmin) & (z <= zmax)
-            # boverange = (z >= zmax)
-            result[inrange] = func(z[inrange])
-            # result[boverange] = maxval-zeroval
-            return result
+            if isinstance(z,float):
+                inrange = (z >= zmin) & (z <= zmax)
+                if inrange:
+                    return func(z)
+                else:
+                    return 0.
+            else:
+
+                result = np.zeros_like(z)
+                inrange = (z >= zmin) & (z <= zmax)
+                # boverange = (z >= zmax)
+                result[inrange] = func(z[inrange])
+                # result[boverange] = maxval-zeroval
+                return result
 
         bsplineobjs.append(bsplobj)
         bsplinefuncs.append(bsplfunc)
@@ -62,12 +70,23 @@ def get_bsplineobjintegral_list(t,k,extrapolate=False):
                      zeroval=bsplobj.antiderivative()(internalknots[0]),
                      maxval=bsplobj.antiderivative()(internalknots[-1])):
     
-            result = np.zeros_like(z)
-            inrange = (z >= zmin) & (z <= zmax)
-            boverange = (z >= zmax)
-            result[inrange] = antiderfunc(z[inrange])-zeroval
-            result[boverange] = maxval-zeroval
-            return result
+            if isinstance(z,float):
+                inrange = (z >= zmin) & (z <= zmax)
+                boverange = (z > zmax)
+                if inrange:
+                    return antiderfunc(z[inrange])-zeroval
+                elif boverange:
+                    return maxval-zeroval
+                else:
+                    return 0.
+            else:
+
+                result = np.zeros_like(z)
+                inrange = (z >= zmin) & (z <= zmax)
+                boverange = (z >= zmax)
+                result[inrange] = antiderfunc(z[inrange])-zeroval
+                result[boverange] = maxval-zeroval
+                return result
     
         bsplineobjs.append(antifunc)
 
