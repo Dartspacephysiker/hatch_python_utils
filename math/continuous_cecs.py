@@ -232,6 +232,7 @@ class BsplineCECS(object):
                          constant = MU0/(4.*np.pi), 
                          df__only_z=False,
                          round_rho_dec_place=None,
+                         do_quad_integration=False,
                          verbose = False,
                          debug = False,
     ):
@@ -332,7 +333,7 @@ class BsplineCECS(object):
             Dunik = np.zeros((Nzunik,Nrhounik,Ncoeff))
 
             # Points for evaluating integrands
-            zeval = np.linspace(*self.internalknotinterval,1001)
+            zeval = np.linspace(*self.internalknotinterval,10001)
 
             if df__only_z:
                 if verbose:
@@ -355,22 +356,29 @@ class BsplineCECS(object):
                     print(f"Total number of elements from combination of Bdf_rho and Bdf_z: {Nmeas*NCECS*Ncoeff*2}")
                     print(f"Total number of unique integrals to perform: {Nzunik*Nrhounik*Ncoeff*2}")
 
-                for k in range(Nzunik):
-                    if (k % 5) == 0:
-                        print("{:04d}/{:04d}".format(k,Nzunik))
-                    for i in range(Nrhounik):
-                        for j in range(Ncoeff):
-                
-                            # Trapezoidal integration
-                            Cunik[k,i,j] = Bdf_rhointeg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
-                            Dunik[k,i,j] = Bdf_zinteg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
-                
-                            # Scipy's quad function (takes longer for some reason)
-                            # Cunik[k,i,j] = Bdf_rhointeg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
-                            #                             self.internalknotinterval)
-                            # Dunik[k,i,j] = Bdf_zinteg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
-                            #                           self.internalknotinterval)
-
+                if do_quad_integration:
+                    for k in range(Nzunik):
+                        if (k % 5) == 0:
+                            print("{:04d}/{:04d}".format(k,Nzunik))
+                        for i in range(Nrhounik):
+                            for j in range(Ncoeff):
+                    
+                                # Scipy's quad function (takes longer for some reason)
+                                Cunik[k,i,j] = Bdf_rhointeg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
+                                                            self.internalknotinterval)
+                                Dunik[k,i,j] = Bdf_zinteg_quad(self.bsplinefuncs[j],rhounik[i],zunik[k],
+                                                          self.internalknotinterval)
+                    
+                else:
+                    for k in range(Nzunik):
+                        if (k % 5) == 0:
+                            print("{:04d}/{:04d}".format(k,Nzunik))
+                        for i in range(Nrhounik):
+                            for j in range(Ncoeff):
+                    
+                                # Trapezoidal integration
+                                Cunik[k,i,j] = Bdf_rhointeg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
+                                Dunik[k,i,j] = Bdf_zinteg_trapz(self.bsplinefuncs[j],rhounik[i],zunik[k],zeval)
 
             # Get indices into these wonder machines
             # Ultimately want Cij to have shape (N meas (Nmeas), N CECS lines, N B-spline functions)
@@ -473,6 +481,40 @@ class BsplineCECS(object):
             
         self.m = m
 
+    def get_spline_function(self,cecs_index):
+
+        mvec = self.m.reshape(self.NCECS,self.Ncoeffs)[cecs_index,:]
+
+        # def splfunc(z,splfuncs=self.bsplinefuncs,mvec=mvec):
+        #     return np.sum([m*splfunc(z) for m,splfunc in zip(mvec,splfuncs)])
+
+        # return np.vectorize(splfunc)
+
+        def splfunc(z,splfuncs=self.bsplinefuncs,mvec=mvec):
+            if not hasattr(z,'size'):
+                z = np.array(z)
+
+            return np.sum(np.array([m*splfunc(z) for m,splfunc in zip(mvec,splfuncs)]),axis=0)
+
+        return splfunc
+
+    def get_spline_integ_function(self,cecs_index):
+
+        mvec = self.m.reshape(self.NCECS,self.Ncoeffs)[cecs_index,:]
+
+        # def splfunc(z,splfuncs=self.bsplineintegfuncs,mvec=mvec):
+        #     return np.sum([m*splfunc(z) for m,splfunc in zip(mvec,splfuncs)])
+
+        # return np.vectorize(splfunc)
+
+        def splfunc(z,splfuncs=self.bsplineintegfuncs,mvec=mvec):
+            if not hasattr(z,'size'):
+                z = np.array(z)
+
+            return np.sum(np.array([m*splfunc(z) for m,splfunc in zip(mvec,splfuncs)]),axis=0)
+
+        return splfunc
+
     def get_J(self,x,y,z,
               jpar_area=None,
               constant = 1./(2*np.pi)):
@@ -509,12 +551,19 @@ class BsplineCECS(object):
             # … And now make an interpolating function so that we can get j_z at
             #   points that do not lie on CECS line
             # Jzinterp = rginterp((self.xc, self.yc, zunik), Jz_est_atCECS, method='linear', bounds_error=False, fill_value=np.nan)
-            Jzinterp = rginterp((xunik, yunik, zunik),
-                                Jz_est_atCECS.reshape(np.unique(self.xc).size,np.unique(self.yc).size,nz),
-                                method='linear', bounds_error=False, fill_value=np.nan)
+            if self.NCECS == 1:
+                print("Kluging jz calculation since there's only one cCECS line")
+                from scipy.interpolate import interp1d
+                Jzinterp = interp1d(zunik,Jz_est_atCECS)
+                Jz = Jzinterp(z).flatten()
+
+            else:
+                Jzinterp = rginterp((xunik, yunik, zunik),
+                                    Jz_est_atCECS.reshape(np.unique(self.xc).size,np.unique(self.yc).size,nz),
+                                    method='linear', bounds_error=False, fill_value=np.nan)
             
-            # Finally, use interpolating function to get j_z at requested locations
-            Jz = Jzinterp(np.vstack([x,y,z]).T)
+                # Finally, use interpolating function to get j_z at requested locations
+                Jz = Jzinterp(np.vstack([x,y,z]).T)
 
         else:
             Jz = np.zeros_like(Jx)
@@ -524,10 +573,12 @@ class BsplineCECS(object):
     def get_B(self,x,y,z,
               constant = MU0/(4*np.pi),
               round_rho_dec_place=None,
-                         verbose = False,
-                         debug = False,):
+              do_quad_integration=False,
+              verbose = False,
+              debug = False,):
         GBx, GBy, GBz = self.get_B_G_matrices(x,y,z,constant=constant,
                                               round_rho_dec_place=round_rho_dec_place,
+                                              do_quad_integration=do_quad_integration,
                                               verbose=verbose,
                                               debug=debug,
         )
@@ -580,22 +631,26 @@ class BsplineCECS(object):
 
 
 def Bdf_rhointeg_quad(Bsplfunc_j,rho_i,z,integbounds):
-    func = lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfrho(rho_i,z,zc)
+    """
+    i indexes rho
+    j indexes B-spline functions
+    """
+    # func = lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfrho(rho_i,z,zc)
 
-    # return integrate.quad(func, *integbounds,
-    #                       epsabs=1e-4)[0]
+    return integrate.quad(lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfrho(rho_i,z,zc),
+                          # *integbounds,
+                          # epsrel=1e-4)[0]
+                          *integbounds)[0]
 
-    zc = np.linspace(*integbounds,1001)
-    y = func(zc)
+    # zc = np.linspace(*integbounds,1001)
+    # y = func(zc)
 
-    return integrate.trapz(y,zc)
+    # return integrate.trapz(y,zc)
 
 
 def Bdf_rhointeg_trapz(Bsplfunc_j,rho_i,z,zcs):
-    func = lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfrho(rho_i,z,zc)
 
-    # return integrate.quad(func, *integbounds,
-    #                       epsabs=1e-4)[0]
+    func = lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfrho(rho_i,z,zc)
 
     y = func(zcs)
 
@@ -603,8 +658,10 @@ def Bdf_rhointeg_trapz(Bsplfunc_j,rho_i,z,zcs):
 
 
 def Bdf_zinteg_quad(Bsplfunc_j,rho_i,z,integbounds):
-    return integrate.quad(lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfz(rho_i,z,zc), *integbounds,
-                          epsabs=1e-4)[0]
+    return integrate.quad(lambda zc, z=z, rho_i=rho_i: Bsplfunc_j(zc)*Bdfz(rho_i,z,zc),
+                          # *integbounds,
+                          # epsrel=1e-4)[0]
+                          *integbounds)[0]
 
 
 def Bdf_zinteg_trapz(Bsplfunc_j,rho_i,z,zcs):
@@ -791,7 +848,7 @@ def get_rhohat(x, y, x_cecs, y_cecs):
 
     Returns
     -------
-    rhohat: 3D array (3, x.size, x_cecs.size)
+    rhohat: 3D array (x.size, x_cecs.size, 3)
         Array of rho unit vectors in Cartesian coordinates pointing from
         cecs nodes to data points.
     """
