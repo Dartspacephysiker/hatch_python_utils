@@ -1,6 +1,6 @@
 ########################################
 # AXISNESS
-# AXI1  (20190611): Forandre fargene til sekundær axis
+# AXI1  (20190611): Endre farget på sekundær akse
 # AXI2  (20190711): Gridspec!
 # AXI3  (20190823): Sekundær akse med forskjellige tick-merker
 # AXI4  (20200122): Change tick labels
@@ -61,7 +61,7 @@ def fabdata():
 # AXISNESS
 ########################################
 
-## AXI1  (20190611): Forandre fargene til sekundær axis
+## AXI1  (20190611): Endre farget på sekundær akse
 
 
 x, y0, y1, y2 = fabdata()

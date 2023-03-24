@@ -17,7 +17,8 @@ def s_to_HHMMSS(x):
     return h,m,s
 
 
-def load_bfield_stuff(direc,bfieldpoints_fname,bfield_fname,thetactr,phictr,iscartesiangrid=True):
+def load_bfield_stuff(direc,bfieldpoints_fname,bfield_fname,thetactr,phictr,iscartesiangrid=True,
+                      simple_decimate_factor=None):
 
     bfpoints_fullfn = os.path.join(direc, bfieldpoints_fname)
     bf_fullfn = os.path.join(direc, bfield_fname)
@@ -25,16 +26,34 @@ def load_bfield_stuff(direc,bfieldpoints_fname,bfield_fname,thetactr,phictr,isca
     if iscartesiangrid:
         print("Assuming GEMINI grid for this run is local Cartesian (UEN)")
 
+    if simple_decimate_factor is None:
+        decimator = slice(None,None,None)
+    else:
+        decimator = slice(None,None,simple_decimate_factor)
+
     mag = {}
     # magfull = {}
     keys = ('r','theta','phi','gridsize','lpoints')
     with h5py.File(bfpoints_fullfn) as maggie:
         gridsize = maggie['gridsize'][:]
+
+        # Should we reshape these guys?
+        do_reshape = len(gridsize) == 3
+        if do_reshape:          # Passed first check for reshaping, now second check
+            do_reshape = ( gridsize[1] != -1 ) and ( gridsize[2] != -1 )
+
+            if simple_decimate_factor is not None:
+                print("Can't 'simple decimate' B-field measurements since they are in a grid (or at least I haven't figured that out)!")
+
         for key in keys:
             if key in ('r','theta','phi'):
                 # mag[key] = maggie[key][:]
                 # magfull[key] = maggie[key][:]
-                mag[key] = reshape_rthetaphi_to_x1x2x3(maggie[key][:],gridsize)
+
+                if do_reshape:
+                    mag[key] = reshape_rthetaphi_to_x1x2x3(maggie[key][:],gridsize)
+                else:
+                    mag[key] = maggie[key][:][decimator]
     
             else:
                 mag[key] = np.array(maggie[key])
@@ -46,10 +65,15 @@ def load_bfield_stuff(direc,bfieldpoints_fname,bfield_fname,thetactr,phictr,isca
         for key in keys:
             # mag[key] = maggie['magfields'][key][:]
             # magfull[key] = maggie['magfields'][key][:]
-            mag[key] = reshape_rthetaphi_to_x1x2x3(maggie['magfields'][key][:],gridsize)
-            
+
+            if do_reshape:
+                mag[key] = reshape_rthetaphi_to_x1x2x3(maggie['magfields'][key][:],gridsize)
+            else:
+                mag[key] = maggie['magfields'][key][:][decimator]
+
     # Reorder gridsize after running reshape_rthetaphi_to_x1x2x3
-    gridsize = gridsize[[0,2,1]]
+    if do_reshape:
+        gridsize = gridsize[[0,2,1]]
     
     # Where we have B-field perturbations in geomagnetic ECEF
     mag['x'] = mag['r']*np.sin(mag['theta'])*np.cos(mag['phi'])

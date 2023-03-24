@@ -121,7 +121,8 @@ def individual_coll_freqs(nN2,nO2,nO,Te,Ti,Tn):
 
 	
 
-def sigmap_sigmah(Ne,Nis,nu_en,nu_ins,omega_ce,omega_cis,B):
+def sigmap_sigmah(Ne,Nis,nu_en,nu_ins,omega_ce,omega_cis,B,
+                  include_parallel=False):
     """
     Workayehu et al, Eq (A1)
     
@@ -168,5 +169,62 @@ def sigmap_sigmah(Ne,Nis,nu_en,nu_ins,omega_ce,omega_cis,B):
 
     sigh = const * (electron_contribH-ion_contribH)  # Here we _subtract_ the contribution from ions
 
+    if include_parallel:
+        # field-aligned conductivity
+        ke = omega_ce / nu_en 
+        electron_contribPar = ke
+    
+        ion_contribPar = 0
+        for i in range(len(Nis)):
+            Ni = Nis[i]
+            nu_in = nu_ins[i]
+            omega_ci = omega_cis[i]
+            ki = omega_ci / nu_en 
+            ion_contribPar += Ni/Ne*ki
+    
+        sigpar = const * (electron_contribPar+ion_contribPar)
+    
+    
+        return sigp,sigh,sigpar
+
     return sigp,sigh
 
+
+def electron_ion_mobilities(Ne,Nis,nu_en,nu_ins,omega_ce,omega_cis):
+    """
+    Based on Workayehu et al, Eq (A1)
+    
+    INPUTS
+    ======
+    Ne          : Electron density (m^-3)
+    Nis         : List of ion densities (NO+,O2+,O+) [m^-3]
+    nu_en       : Electron-neutral collision frequency [Hz]
+    nu_ins      : List of ion-neutral collision frequencies (NO+,O2+,O+) [Hz]
+    omega_ce    : Electron gyrofrequency [Hz]
+    omega_cis   : List of ion gyrofrequencies (NO+,O2+,O+) [Hz]
+    B           : Magnetic field strength [SI]
+
+    OUTPUTS
+    =======
+    ke, ki  : electron mobility coefficient, ion mobility coefficient [unitless]
+    """
+
+    assert isinstance(Nis,list) and isinstance(nu_ins,list) and (omega_cis,list),"Ion quantities (Nis, nu_ins, omega_cis) must be lists (probably just NO+, O2+, O+)"
+    assert (len(Nis) == len(nu_ins)) and (len(Nis) == len(omega_cis)),"Lists are of unequal length!"
+
+    # electron_mobility
+    ke = omega_ce/nu_en
+
+    ki = 0
+    for i in range(len(Nis)):
+        Ni = Nis[i]
+        omega_ci = omega_cis[i]
+        nu_in = nu_ins[i]
+        ki += Ni/Ne*omega_ci/nu_in
+
+    return ke,ki
+
+
+if __name__ == '__main__':
+    print("Run this journal:\n /journals/theory_and_models/IRI_MSIS_conductivities/journal__20211030__MSIS_IGRF_conductivities.py")
+    print("OR this one, it does mobility coefficients:\n /journals/theory_and_models/IRI_MSIS_conductivities/journal__20230123__electron_and_ion_mobility_coefficients__NFR2023.py")

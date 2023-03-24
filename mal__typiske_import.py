@@ -17,8 +17,8 @@ plotdir = '/SPENCEdata/Research/sandbox_and_journals/plots/'
 # MPL stuff
 import matplotlib as mpl
 import tkinter
-mplBkgrnd = 'TkAgg'
-mpl.use(mplBkgrnd)
+mplBckend = 'TkAgg'
+mpl.use(mplBckend)
 
 ########################################
 # MPL opts

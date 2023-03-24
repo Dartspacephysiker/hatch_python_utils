@@ -9,7 +9,11 @@ SMH
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator as rginterp
 
-def get_ped_hall(dat,xg):
+RE = 6370e3                     # Should be value from GEMINI, but I haven't checked
+
+def get_ped_hall(dat,xg,
+                 refalt_for_efield=500.*1000.,
+                 return_enu_coordinates=False):
     """
     NOTE: I think this ONLY works for a background B-field that is constant everywhere and only in the Cartesian DOWN direction
 
@@ -17,6 +21,19 @@ def get_ped_hall(dat,xg):
 
     If you want to do something in "model" coordinates (x1, x2, x3), you need to use model unit vectors, e.g., xg['e1']
     """
+
+    print("Getting hall and pedersen currents and stuff in geomagnetic XYZ coords ...")
+    print("# Code for plotting")
+    print("#    * Histograms of Pedersen and Hall ")
+    print("#    * Current density lines of Pedersen, Hall, and total current vectors")
+    print("#    * Conductivity profiles")
+    print("#    * Average current density profiles and cumulative height-integrated current density profiles")
+    print("#    * Angles between full current vector and Hall/Pedersen currents")
+    print("#    * How does E-field direction (or rather, v_i x B) change with altitude?")
+    print("# can be found in in journal__20221025__trace_gemini_hall_and_pedersen_currents.py")
+
+
+    # Get velocity vector and current density vector in geomagnetic XYZ coordinates
     vvec = np.transpose(dat['v1'].values[:,:,:,np.newaxis]*xg['e1']+\
                         dat['v2'].values[:,:,:,np.newaxis]*xg['e2']+\
                         dat['v3'].values[:,:,:,np.newaxis]*xg['e3'],axes=[3,0,1,2])
@@ -37,8 +54,7 @@ def get_ped_hall(dat,xg):
                   axis=0)
 
     # But we don't want just any E-field! We want the E-field above where things are super collisional
-    refalt = 500.*1000.
-    zind = np.argmin(np.abs(refalt-xg['x1'][2:-2]))
+    zind = np.argmin(np.abs(refalt_for_efield-xg['x1'][2:-2]))
     EUEN = np.stack([np.sum(np.transpose(xg['e1'],axes=[3,0,1,2])*E,axis=0),
                      np.sum(np.transpose(xg['e2'],axes=[3,0,1,2])*E,axis=0),
                      np.sum(np.transpose(xg['e3'],axes=[3,0,1,2])*E,axis=0)])
@@ -57,22 +73,102 @@ def get_ped_hall(dat,xg):
     ehat = Emapped/Emag
     bhatcrossE_hat = bhatcrossE/Emag
 
-
+    # Pedersen stuff
     Jped = np.sum(Jvec*ehat,axis=0)
     Sigmaped = Jped/Emag
     Jpedvec = Jped*ehat
 
+    # Hall stuff
     Jhall = np.sum(Jvec*bhatcrossE_hat,axis=0)
     Sigmahall = Jhall/Emag
-    Jhallvec = Jhall*bhatcrossE
+    Jhallvec = Jhall*bhatcrossE_hat
 
     # samre dei opp
     derivs = dict(Jp=Jped,
                   Jh=Jhall,
+                  Jpvec=Jpedvec,
+                  Jhvec=Jhallvec,
                   SigmaP=Sigmaped,
                   SigmaH=Sigmahall,
+                  E=Emapped)
+
+    return derivs
+
+
+def get_ped_hall_ENU(dat,xg,
+                     refalt_for_efield=500.*1000.):
+    """
+    NOTE: I think this ONLY works for a background B-field that is constant everywhere and only in the Cartesian DOWN direction
+
+    Also, arrays in xg are given in geomagnetic Cartesian coordinates so that order is (x_mag, y_mag, z_mag)
+
+    If you want to do something in "model" coordinates (x1, x2, x3), you need to use model unit vectors, e.g., xg['e1']
+    """
+
+    print("Getting hall and pedersen currents and stuff in ENU coords ...")
+    print("# Code for plotting")
+    print("#    * Histograms of Pedersen and Hall ")
+    print("#    * Current density lines of Pedersen, Hall, and total current vectors")
+    print("#    * Conductivity profiles")
+    print("#    * Average current density profiles and cumulative height-integrated current density profiles")
+    print("#    * Angles between full current vector and Hall/Pedersen currents")
+    print("#    * How does E-field direction (or rather, v_i x B) change with altitude?")
+    print("# can be found in in journal__20221025__trace_gemini_hall_and_pedersen_currents.py")
+
+    # Get velocity vector and current density vector in geomagnetic XYZ coordinates
+    vvec = np.stack([dat['v2'].values,dat['v3'].values,dat['v1'].values])
+    Jvec = np.stack([dat['J2'].values,dat['J3'].values,dat['J1'].values])
+
+    bhat = np.zeros_like(vvec)
+    bhat[2,...] = -1.
+
+    # Get E-field in V/m
+    E = -np.cross(vvec,
+                  np.abs(np.median(xg['Bmag']))*bhat,
+                  axis=0)
+
+    # But we don't want just any E-field! We want the E-field above where things are super collisional
+    zind = np.argmin(np.abs(refalt_for_efield-xg['x1'][2:-2]))
+    refEs = E[:,zind,:,:]
+    Emapped = np.zeros_like(E)
+    Emapped[:,:,:,:] = refEs[:,np.newaxis,:,:]
+
+    bhatcrossE = np.cross(bhat,Emapped,axis=0)
+
+    Emag = np.sqrt(np.sum(Emapped**2,axis=0))
+    # bhatcrossEmag = np.sqrt(np.sum(bhatcrossE**2,axis=0))
+    ehat = Emapped/Emag
+    bhatcrossE_hat = bhatcrossE/Emag
+    # bhatcrossE_hat = bhatcrossE/bhatcrossEmag
+
+    # Pedersen stuff
+    Jped = np.sum(Jvec*ehat,axis=0)
+    Sigmaped = Jped/Emag
+    Jpedvec = Jped*ehat
+
+    # Hall stuff
+    Jhall = np.sum(Jvec*bhatcrossE_hat,axis=0)
+    Sigmahall = Jhall/Emag
+    Jhallvec = Jhall*bhatcrossE_hat
+
+    # Calculate conductivity gradients (x1, x2, x3 correspond to U,E,N respectively)
+    gradSigmaP = np.gradient(Sigmaped,xg['x1'][2:-2],xg['x2'][2:-2],xg['x3'][2:-2])
+    gradSigmaH = np.gradient(Sigmahall,xg['x1'][2:-2],xg['x2'][2:-2],xg['x3'][2:-2])
+
+    # Set in ENU order
+    gradSigmaP = np.stack([gradSigmaP[1],gradSigmaP[2],gradSigmaP[0]])
+    gradSigmaH = np.stack([gradSigmaH[1],gradSigmaH[2],gradSigmaH[0]])
+
+    # samre dei opp
+    derivs = dict(Jp=Jped,
+                  Jh=Jhall,
                   Jpvec=Jpedvec,
-                  Jhvec=Jhallvec)
+                  Jhvec=Jhallvec,
+                  SigmaP=Sigmaped,
+                  SigmaH=Sigmahall,
+                  gradSigmaP=gradSigmaP,
+                  gradSigmaH=gradSigmaH,
+                  E=Emapped)
 
     return derivs
 
@@ -203,34 +299,63 @@ def get_cube(X1,X2,X3,cubedim: dict()):
 
     """
 
-    assert X1.ndim == 3 and X2.ndim == 3 and X3.ndim == 3
-
     cube = dict()
+        
+    if X1.ndim == 3 and X2.ndim == 3 and X3.ndim == 3:
 
-    cube['keepinds'] = (X1 >= cubedim['x1min']) & (X1 <= cubedim['x1max']) & \
-    (X2 >= cubedim['x2min']) & (X2 <= cubedim['x2max']) & \
-    (X3 >= cubedim['x3min']) & (X3 <= cubedim['x3max'])
+        cube['keepinds'] = (X1 >= cubedim['x1min']) & (X1 <= cubedim['x1max']) & \
+        (X2 >= cubedim['x2min']) & (X2 <= cubedim['x2max']) & \
+        (X3 >= cubedim['x3min']) & (X3 <= cubedim['x3max'])
+    
+        cube['x1unik'] = X1[:,0,0]              # z (egentlig r)
+        cube['x2unik'] = X2[0,:,0]              # x (egentlig phi)
+        cube['x3unik'] = X3[0,0,:]              # y (egentlig theta)
+        
+        cube['X1inds'] = (cubedim['x1min'] <= X1 ) & (X1 <= cubedim['x1max'])
+        cube['X2inds'] = (cubedim['x2min'] <= X2 ) & (X2 <= cubedim['x2max'])
+        cube['X3inds'] = (cubedim['x3min'] <= X3 ) & (X3 <= cubedim['x3max'])
+        
+        cube['x1inds'] = (cubedim['x1min'] <= cube['x1unik'] ) & (cube['x1unik'] <= cubedim['x1max'])
+        cube['x2inds'] = (cubedim['x2min'] <= cube['x2unik'] ) & (cube['x2unik'] <= cubedim['x2max'])
+        cube['x3inds'] = (cubedim['x3min'] <= cube['x3unik'] ) & (cube['x3unik'] <= cubedim['x3max'])
+        cube['Nx1'],cube['Nx2'],cube['Nx3'] = np.sum(cube['x1inds']),np.sum(cube['x2inds']),np.sum(cube['x3inds'])
+        cube['Nmeas'] = cube['Nx1']*cube['Nx2']*cube['Nx3']
+        
+        cube['shape'] = (cube['Nx1'],cube['Nx2'],cube['Nx3'])
+    
+        # NOTE: If a variable ends with "cube," it means it only includes measurements within a cube, and it is ordered by (x1,x2,x3) (or equivalently, UEN) even if raveled
+        cube['X1'] = X1[cube['keepinds']].reshape(cube['Nx1'],cube['Nx2'],cube['Nx3'])
+        cube['X2'] = X2[cube['keepinds']].reshape(cube['Nx1'],cube['Nx2'],cube['Nx3'])
+        cube['X3'] = X3[cube['keepinds']].reshape(cube['Nx1'],cube['Nx2'],cube['Nx3'])
+        
+    else:
+        
+        cube['keepinds'] = (X1 >= cubedim['x1min']) & (X1 <= cubedim['x1max']) & \
+            (X2 >= cubedim['x2min']) & (X2 <= cubedim['x2max']) & \
+            (X3 >= cubedim['x3min']) & (X3 <= cubedim['x3max'])
+    
+        # cube['x1unik'] = X1[:,0,0]              # z (egentlig r)
+        # cube['x2unik'] = X2[0,:,0]              # x (egentlig phi)
+        # cube['x3unik'] = X3[0,0,:]              # y (egentlig theta)
+        
+        cube['X1inds'] = (cubedim['x1min'] <= X1 ) & (X1 <= cubedim['x1max'])
+        cube['X2inds'] = (cubedim['x2min'] <= X2 ) & (X2 <= cubedim['x2max'])
+        cube['X3inds'] = (cubedim['x3min'] <= X3 ) & (X3 <= cubedim['x3max'])
+        
+        cube['x1inds'] = (cubedim['x1min'] <= X1 ) & (X1 <= cubedim['x1max'])
+        cube['x2inds'] = (cubedim['x2min'] <= X2 ) & (X2 <= cubedim['x2max'])
+        cube['x3inds'] = (cubedim['x3min'] <= X3 ) & (X3 <= cubedim['x3max'])
 
-    cube['x1unik'] = X1[:,0,0]              # z (egentlig r)
-    cube['x2unik'] = X2[0,:,0]              # x (egentlig phi)
-    cube['x3unik'] = X3[0,0,:]              # y (egentlig theta)
+        cube['Nx1'],cube['Nx2'],cube['Nx3'] = np.sum(cube['x1inds']),np.sum(cube['x2inds']),np.sum(cube['x3inds'])
+        cube['Nmeas'] = np.sum(cube['x1inds'] & cube['x2inds'] & cube['x3inds'])
+        
+        cube['shape'] = (cube['Nmeas'],)
     
-    cube['X1inds'] = (cubedim['x1min'] <= X1 ) & (X1 <= cubedim['x1max'])
-    cube['X2inds'] = (cubedim['x2min'] <= X2 ) & (X2 <= cubedim['x2max'])
-    cube['X3inds'] = (cubedim['x3min'] <= X3 ) & (X3 <= cubedim['x3max'])
-    
-    cube['x1inds'] = (cubedim['x1min'] <= cube['x1unik'] ) & (cube['x1unik'] <= cubedim['x1max'])
-    cube['x2inds'] = (cubedim['x2min'] <= cube['x2unik'] ) & (cube['x2unik'] <= cubedim['x2max'])
-    cube['x3inds'] = (cubedim['x3min'] <= cube['x3unik'] ) & (cube['x3unik'] <= cubedim['x3max'])
-    cube['Nx1'],cube['Nx2'],cube['Nx3'] = np.sum(cube['x1inds']),np.sum(cube['x2inds']),np.sum(cube['x3inds'])
-    cube['Nmeas'] = cube['Nx1']*cube['Nx2']*cube['Nx3']
-    
-    cube['shape'] = (cube['Nx1'],cube['Nx2'],cube['Nx3'])
+        # NOTE: If a variable ends with "cube," it means it only includes measurements within a cube, and it is ordered by (x1,x2,x3) (or equivalently, UEN) even if raveled
+        cube['X1'] = X1[cube['keepinds']].reshape(cube['shape'])
+        cube['X2'] = X2[cube['keepinds']].reshape(cube['shape'])
+        cube['X3'] = X3[cube['keepinds']].reshape(cube['shape'])
+        
 
-    # NOTE: If a variable ends with "cube," it means it only includes measurements within a cube, and it is ordered by (x1,x2,x3) (or equivalently, UEN) even if raveled
-    cube['X1'] = X1[cube['keepinds']].reshape(cube['Nx1'],cube['Nx2'],cube['Nx3'])
-    cube['X2'] = X2[cube['keepinds']].reshape(cube['Nx1'],cube['Nx2'],cube['Nx3'])
-    cube['X3'] = X3[cube['keepinds']].reshape(cube['Nx1'],cube['Nx2'],cube['Nx3'])
-    
     return cube
 

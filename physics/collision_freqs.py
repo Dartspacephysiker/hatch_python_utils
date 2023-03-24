@@ -34,7 +34,7 @@ def electron_ion_coll_freq_Hz(n_e, T_e):
     return (34+4.18*np.log(T_e**3. / n_e))*n_e*T_e**(-3/2.)
 
 
-def gyrofrequency_Hz(m, B, q=sciConst.elementary_charge):
+def gyrofrequency(m, B, q=sciConst.elementary_charge):
     """
     Alle enheter er SI
     m     : masse (kg)
@@ -47,7 +47,7 @@ def gyrofrequency_Hz(m, B, q=sciConst.elementary_charge):
     B = 2.3e-5                 # Feltstørrelse på 2000 km-høyde
     O_freq = gyrofrequency(m,B) # gyroradius i meters
     """
-    return q*B/(m*2.*np.pi)
+    return q*B/m
 
 
 def plasma_freq_Hz(m, density):
